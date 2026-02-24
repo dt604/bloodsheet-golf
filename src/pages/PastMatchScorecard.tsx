@@ -491,8 +491,9 @@ export default function PastMatchScorecardPage() {
                                     const raw = getPlayerScore(p, 'gross', hNum);
                                     if (!raw) return <span className="text-borderColor">-</span>;
                                     const par = sortedHoles.find(h => h.number === hNum)?.par || 4;
-                                    if (raw < par) return <div className="border border-bloodRed w-7 h-7 flex items-center justify-center rounded-full text-bloodRed font-bold">{raw}</div>;
-                                    if (raw > par) return <div className="border border-secondaryText w-7 h-7 flex items-center justify-center text-secondaryText font-medium bg-surface/50">{raw}</div>;
+                                    if (raw < par) return <div className="border border-neonGreen w-7 h-7 flex items-center justify-center rounded-full text-neonGreen font-bold bg-neonGreen/10">{raw}</div>;
+                                    if (raw === par + 1) return <div className="border border-bloodRed w-7 h-7 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
+                                    if (raw >= par + 2) return <div className="border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] w-7 h-7 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
                                     return <span className="font-bold text-white">{raw}</span>;
                                 }
                             });

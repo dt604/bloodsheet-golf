@@ -216,6 +216,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         team: sp.team,
         initialHandicap: sp.handicap,
         ...(sp.isGuest ? { guestName: sp.fullName } : {}),
+        ...(sp.avatarUrl ? { avatarUrl: sp.avatarUrl } : {}),
       });
     }
 

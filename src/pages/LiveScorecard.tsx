@@ -123,13 +123,26 @@ export default function LiveScorecardPage() {
                 .from('profiles')
                 .select('id, full_name, handicap, avatar_url')
                 .in('id', ids);
-            if (data) {
-                const map: Record<string, { fullName: string; handicap: number; avatarUrl?: string }> = {};
-                for (const row of data as { id: string; full_name: string; handicap: number; avatar_url: string | null }[]) {
-                    map[row.id] = { fullName: row.full_name, handicap: row.handicap, avatarUrl: row.avatar_url ?? undefined };
+
+            const map: Record<string, { fullName: string; handicap: number; avatarUrl?: string }> = {};
+
+            // Seed map from store first — covers Grint/guest players who have no DB profile
+            for (const p of players) {
+                if (p.guestName || p.avatarUrl) {
+                    map[p.userId] = {
+                        fullName: p.guestName ?? p.userId,
+                        handicap: p.initialHandicap,
+                        avatarUrl: p.avatarUrl,
+                    };
                 }
-                setPlayerProfiles(map);
             }
+
+            // DB profiles overwrite where they exist (registered users)
+            for (const row of (data ?? []) as { id: string; full_name: string; handicap: number; avatar_url: string | null }[]) {
+                map[row.id] = { fullName: row.full_name, handicap: row.handicap, avatarUrl: row.avatar_url ?? undefined };
+            }
+
+            setPlayerProfiles(map);
         }
         fetchProfiles();
     }, [players]);
@@ -183,7 +196,7 @@ export default function LiveScorecardPage() {
 
     // Calculate base handicaps to figure out who plays off whom
     const allHcps = players.map(p => playerProfiles[p.userId]?.handicap ?? p.initialHandicap);
-    const lowestHcp = Math.min(0, ...allHcps); // Find lowest, floor at 0
+    const lowestHcp = Math.min(...allHcps); // lowest HCP in the match — everyone plays off this player
 
     async function saveCurrentHoleScores() {
         if (!match || !matchId) return;
@@ -193,8 +206,9 @@ export default function LiveScorecardPage() {
                 const gross = localScores[p.userId] ?? holeData.par;
                 const baseHcp = playerProfiles[p.userId]?.handicap ?? p.initialHandicap;
 
-                // Absolute net for standard record keeping
-                const net = calcNet(gross, Math.max(0, baseHcp), holeData.strokeIndex);
+                // Differential net: low-HCP player plays off scratch, others get the difference
+                const adjustedHcp = Math.max(0, baseHcp - Math.max(0, lowestHcp));
+                const net = calcNet(gross, adjustedHcp, holeData.strokeIndex);
 
                 return saveScore({
                     matchId,
@@ -284,10 +298,11 @@ export default function LiveScorecardPage() {
                     <ChevronLeft className="w-6 h-6" />
                 </button>
                 <div className="text-center">
-                    <span className="font-bold text-lg tracking-wide uppercase text-bloodRed">LIVE MATCH</span>
-                    <span className="block text-xs font-semibold text-secondaryText mt-0.5 tracking-wider uppercase">
-                        {courseName} • HOLE {currentHole}
-                    </span>
+                    <span className="font-bold text-[10px] tracking-widest uppercase text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.5)]">LIVE MATCH</span>
+                    <div className="flex items-baseline justify-center gap-1.5 leading-none mt-0.5">
+                        <span className="text-4xl font-black text-white tracking-tight">HOLE {currentHole}</span>
+                    </div>
+                    <span className="block text-[10px] font-semibold text-secondaryText/70 tracking-wider uppercase mt-1">{courseName}</span>
                     {match?.joinCode && (
                         <span className="block text-[10px] font-mono font-bold text-secondaryText/60 tracking-[0.2em] mt-0.5">
                             CODE: {match.joinCode}

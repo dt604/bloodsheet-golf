@@ -1,4 +1,4 @@
-import { useState } from 'react'; // useState used for wager, course, trash state
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, MapPin, Settings2, Plus, Search, Loader, Copy, Check } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -39,6 +39,17 @@ export default function MatchSetupPage() {
     const [error, setError] = useState('');
     const [joinCode, setJoinCode] = useState<string | null>(null);
     const [codeCopied, setCodeCopied] = useState(false);
+
+    // Auto-search with 400ms debounce as user types
+    useEffect(() => {
+        if (courseQuery.trim().length < 2) {
+            setCourseResults([]);
+            setCourseError('');
+            return;
+        }
+        const timer = setTimeout(() => { handleCourseSearch(); }, 400);
+        return () => clearTimeout(timer);
+    }, [courseQuery]);
 
     async function handleCourseSearch() {
         if (!courseQuery.trim()) return;
@@ -275,21 +286,17 @@ export default function MatchSetupPage() {
                         </Card>
                     ) : (
                         <div className="space-y-2">
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondaryText pointer-events-none" />
-                                    <input
-                                        type="text"
-                                        className="block w-full pl-9 pr-3 py-3 border border-borderColor rounded-xl bg-surface text-white placeholder-secondaryText focus:outline-none focus:ring-1 focus:ring-bloodRed focus:border-bloodRed text-sm transition-all"
-                                        placeholder="Search course name…"
-                                        value={courseQuery}
-                                        onChange={(e) => setCourseQuery(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleCourseSearch()}
-                                    />
-                                </div>
-                                <Button variant="outline" onClick={handleCourseSearch} disabled={courseSearching} className="px-4">
-                                    {courseSearching ? <Loader className="w-4 h-4 animate-spin" /> : 'Search'}
-                                </Button>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondaryText pointer-events-none" />
+                                <input
+                                    type="text"
+                                    className="block w-full pl-9 pr-10 py-3 border border-borderColor rounded-xl bg-surface text-white placeholder-secondaryText focus:outline-none focus:ring-1 focus:ring-bloodRed focus:border-bloodRed text-sm transition-all"
+                                    placeholder="Start typing a course name…"
+                                    value={courseQuery}
+                                    onChange={(e) => setCourseQuery(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleCourseSearch()}
+                                />
+                                {courseSearching && <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondaryText animate-spin pointer-events-none" />}
                             </div>
                             {courseError && <p className="text-bloodRed text-xs font-semibold px-1">{courseError}</p>}
                             {courseResults.length > 0 && (

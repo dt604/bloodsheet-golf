@@ -252,9 +252,16 @@ export default function LeaderboardPage() {
                 </div>
             );
         }
-        if (val > par) {
+        if (val === par + 1) {
             return (
                 <div className="w-7 h-7 border border-bloodRed flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">
+                    {val}
+                </div>
+            );
+        }
+        if (val >= par + 2) {
+            return (
+                <div className="w-7 h-7 border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">
                     {val}
                 </div>
             );

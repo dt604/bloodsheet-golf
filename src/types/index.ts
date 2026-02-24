@@ -12,7 +12,8 @@ export interface MatchPlayer {
   userId: string;
   team: 'A' | 'B';
   initialHandicap: number;
-  guestName?: string; // set for guest players (no Supabase account)
+  guestName?: string;  // set for guest/Grint players (no Supabase account)
+  avatarUrl?: string;  // carried from staged player (Grint/guest), not persisted to DB
 }
 
 export interface HoleScore {

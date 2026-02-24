@@ -20,7 +20,7 @@ interface ProfileRow {
 // generateUUID() requires iOS 15.4+ — use a safe fallback for older iPhones
 function generateUUID(): string {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-        return generateUUID();
+        return crypto.randomUUID();
     }
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
         const r = Math.random() * 16 | 0;
