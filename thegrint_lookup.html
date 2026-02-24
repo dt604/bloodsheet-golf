@@ -1,0 +1,751 @@
+<script>
+    let item = ''
+</script>
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, shrink-to-fit=no">
+    <meta name="title" content="TheGrint | Golf GPS and Handicap Tracker / Calculator free mobile app. iPhone / Android" />
+    <meta name="keywords" content="golf, free, handicap, usga, tracker, gps, calculator, app, mobile, online, stats, scorecard" />
+    <meta name="description" content="TheGrint is the fastest growing app in Golf. Let’s you get a valid handicap, track your score and Pro like stats, use a best in class GPS rangefinder, Scorecard Photo Service and much more" />
+    <meta name="google-site-verification" content="FAoc2BGLZxbw5EPhXL1LWCbicINLZkBfmF6b_DFDrw8" />
+    <title>TheGrint | Golf GPS and Handicap Tracker / Calculator free mobile app. iPhone / Android</title>
+    <link rel="shortcut icon" href="https://thegrint.com/favicon.ico" />
+    <!-- import fonts styles -->
+    <link rel="stylesheet" href="https://thegrint.com/assets/fonts/font.css">
+
+    <link rel="stylesheet" href="https://thegrint.com/assets/css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://thegrint.com/assets/css/bootstrap/font-awesome.min.css" />
+    <link rel="stylesheet" href="https://thegrint.com/assets/css/grint_style/grint.style.min.css?110" />
+    <script src="https://thegrint.com/assets/js/jquery.min.js"></script>
+    <script src="https://thegrint.com/assets/js/popper.min.js"></script>
+    <script src="https://thegrint.com/assets/js/bootstrap.min.js"></script>
+    <script src="https://thegrint.com/assets/js/general.js?72"></script>
+    <!-- Sticky sidebar -->
+    <script src="https://thegrint.com/assets/js/jquery.sticky-kit.js"></script>
+    <script src="https://thegrint.com/assets/js/slimscroll/jquery.slimscroll.min.js"></script>
+
+    <!-- fancybox -->
+    <link rel="stylesheet" href="https://thegrint.com/assets/js/fancybox/fancybox.min.css" media="screen">
+    <script src="https://thegrint.com/assets/js/fancybox/fancybox.min.js"></script>
+
+
+    <meta property="og:url" content="https://thegrint.com/" />
+    <meta property="og:title" content="TheGrint | Golf GPS and Handicap Tracker / Calculator free mobile app. iPhone / Android" />
+    <meta property="og:description" content="TheGrint is the fastest growing app in Golf. Let’s you get a valid handicap, track your score and Pro like stats, use a best in class GPS rangefinder, Scorecard Photo Service and much more" />
+    <meta property="og:image" content="https://thegrint.com/img/img_2014/logo-thegrint-meta.jpg" />
+    <meta property="og:image:width" content="350" />
+    <meta property="og:image:height" content="350" />
+    <meta property="og:updated_time" content="1771891146" />
+
+    <script src="https://thegrint.com/assets/public/js/public.js"></script>
+
+    <!-- import alpine js -->
+    <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
+    <!-- icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <script type="text/javascript">
+        var _gaq = _gaq || [];
+        var pluginUrl = '//www.google-analytics.com/plugins/ga/inpage_linkid.js';
+        _gaq.push(['_require', 'inpage_linkid', pluginUrl]);
+        _gaq.push(['_setAccount', 'UA-31511747-1']);;
+        _gaq.push(['_trackPageview']);
+        (function() {
+            var ga = document.createElement('script');
+            ga.type = 'text/javascript';
+            ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(ga, s);
+        })();
+    </script>
+
+
+    <!-- Google Analytics -->
+    <script>
+        (function(i, s, o, g, r, a, m) {
+            i['GoogleAnalyticsObject'] = r;
+            i[r] = i[r] || function() {
+                (i[r].q = i[r].q || []).push(arguments)
+            }, i[r].l = 1 * new Date();
+            a = s.createElement(o),
+                m = s.getElementsByTagName(o)[0];
+            a.async = 1;
+            a.src = g;
+            m.parentNode.insertBefore(a, m)
+        })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+        ga('create', 'UA-31511747-1', 'auto');
+        ga('require', 'linkid', 'linkid.js');
+        ga('send', 'pageview');
+    </script>
+    <!-- End Google Analytics -->
+    <script>
+        let BASE_URL = "https://thegrint.com/"
+        let BASE = "https://thegrint.com/"
+    </script>
+
+
+</head>
+
+
+
+<body x-data="mainPublic()">
+            <!-- Login modal -->
+
+        <script src="https://thegrint.com/assets/public/js/google.js?2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+
+
+    <!-- Modal company -->
+    <div class="modal fade" id="loginModal" data-toggle="modal" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class=" modal-content login-modal-container shadow-l modal-container md:max-w-md mx-auto  overflow-y-auto">
+                <!--Title-->
+                <div class="flex ibr header-fmodal  pb-3">
+                    <div id="closeLoginCompanies" data-dismiss="modal" class="modal-close close-fmodal cursor-pointer text-white float-right" style="margin-top:8px; margin-right:8px; color:white; ">
+                        Close
+                    </div>
+                </div>
+                <!-- Logo -->
+                <div class="row flex mt-n4 flex-column  header-fmodal  pb-2" style="margin-top:-20px">
+                    <img class="mb-3 mx-auto relative " src="https://thegrint.com//assets/public/img/Grint_Shield_Logo_47.png" width="50px">
+                    <img class=" mb-2 mx-auto relative" src="https://thegrint.com//assets/images/icons/tg_logo_name.png" width="130px">
+                </div>
+                <!--Body -->
+                <div class="login-modal-body">
+                    <div class="my-3">
+                        <span class="title-fmodal">Login into Account</span>
+                    </div>
+                    <div class="row flex flex-column  justify-center items-center ">
+                        <div class="mt-2">
+                            <a class="btn login-button-account text-gray focus:outline-none outline-none mb-2" href="https://thegrint.com/callback/usga/login">
+                                <img src="https://thegrint.com/assets/public/img/usga_v.png" width="45px;" style="margin-top:-3px;">
+                                Login with USGA
+                            </a>
+                            <a onclick="google_click()" class="text-gray btn login-button-account mt-2 focus:outline-none outline-none mb-2" href="javascript:void(0);">
+                                <img src="https://thegrint.com/assets/public/img/g_icon.svg" width="24px" style="margin-top: -1px;">
+                                Continue with Google
+                            </a>
+
+                            <div class="d-none">
+                                <div id="g_id_onload" data-client_id="573626429709-m6f2a5aj1jlf9tclkmld4nc90e9inve7.apps.googleusercontent.com" data-login_uri="https://thegrint.com/callback/google/authorization" data-ux_mode="redirect" data-auto_prompt="false">
+                                </div>
+                                <div class="g_id_signin" data-type="standard" data-size="100%" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left">
+                                </div>
+                            </div>
+                            <a class="btn login-button-account text-gray mt-2 focus:outline-none outline-none mb-2" href="https://thegrint.com/callback/apple/getUrl">
+                                <img src="https://thegrint.com/assets/public/img/apple.png" width="24px;" style="margin-top: -6px;">
+                                Sign in with Apple
+                            </a>
+
+                            <img src="https://thegrint.com/assets/images/icons/or.png" class="d-block mx-auto mt-2 mb-3">
+
+                            <a class="btn login-button-email focus:outline-none outline-none" href="#" data-dismiss="modal" data-toggle="modal" data-target="#loginEmailModal">
+                                Sign in With Username or Email
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <!-- footer -->
+                <div class="py-3 px-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-18 text-left">
+                            <!--<div class="custom-control form-control-lg custom-checkbox" style="padding-left: 1px;">
+                                <input type="checkbox" id="customCheck1" name="remember" value="1">
+                                <span class="custom-control-label text-14 pl-1" for="customCheck1">Remember me</span>
+                            </div>-->
+                        </div>
+                        <div class="col-md-18 text-right">
+                            <a data-dismiss="modal" href="#" data-toggle="modal" data-target="#forgotPasswordModal" class="text-14 text-blue">
+                                Forgot Password?
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!--modal email-->
+<div class="modal fade" id="loginEmailModal" data-toggle="modal" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class=" modal-content login-modal-container shadow-l  modal-container  md:max-w-md mx-auto overflow-y-auto">
+            <!--Title-->
+            <div class="flex ibr header-fmodal pb-3">
+                <div class="modal-close close-fmodal cursor-pointer text-white float-right" style="margin-top:8px; margin-right:8px; color:white;" data-dismiss="modal" data-toggle="modal" data-target="#loginModal">
+                    Close
+                </div>
+            </div>
+            <!-- Logo -->
+            <div class="row flex mt-n4 flex-column  header-fmodal  pb-2" style="margin-top:-20px">
+                <img class="mb-2 mx-auto relative " src="https://thegrint.com//assets/public/img/Grint_Shield_Logo_47.png" width="50px">
+                <img class=" mb-2 mx-auto relative" src="https://thegrint.com//assets/images/icons/tg_logo_name.png" width="130px">
+            </div>
+            <!--Body-->
+            <form method="post" id="form-login" action="https://thegrint.com/login">
+                <div class="login-modal-body">
+                    <div class="my-3">
+                        <span class="title-fmodal">Enter your account information</span>
+                    </div>                
+                    <div class="mt-4">
+                        <input id="usernameLogin" name="username" autocomplete="off" placeholder="Username or email" class="mb-3 login-input px-2 py-2 form-control" type="text" required="true">
+                        <div class="pass-eye mb-3 position-relative">
+                            <input id="pwdLogin" name="password" autocomplete="off" placeholder="Password" type="password" class="login-input px-2 py-2 form-control " required="true">
+                            <i id="shwEye" class="fa fa-eye showpwd" onClick="showPwdLogin('pwdLogin', this)"> </i>
+                        </div>
+                        <div>
+                            <span class="text-red mt-2 text-14 d-block">
+                                                            </span>
+                        </div>
+                        <input id="redirect" type="hidden" name="redirect">
+                        <button id="submit-form-login" name="submit-form-login" class="btn login-button-email mt-4">Login</button>
+                    </div>
+                </div>
+                <!-- footer -->
+                <div class="py-4 px-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-18 text-left">
+                            <div class="custom-control form-control-lg custom-checkbox" style="padding-left: 1px;">
+                                <input type="checkbox" id="customCheck1" name="remember" value="1">
+                                <span class="custom-control-label text-14 pl-1" for="customCheck1">Remember me</span>
+                            </div>
+                        </div>
+                        <div class="col-md-18 text-right">
+                            <a data-dismiss="modal" href="#" data-toggle="modal" data-target="#forgotPasswordModal" class="text-14 text-blue">
+                                Forgot Password?
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    $("#form-login").submit(function(e) {
+        $("#submit-form-login").html('Login...');
+        $("#submit-form-login").prop('disabled', true);
+    });
+
+    function showPwdLogin(id, el) {
+        let x = document.getElementById(id);
+        if (x.type === "password") {
+            x.type = "text";
+            el.className = "fa fa-eye-slash showpwd";
+        } else {
+            x.type = "password";
+            el.className = "fa fa-eye showpwd";
+        }
+    }
+</script>    <!--modal email-->
+    <div class="modal fade" id="forgotPasswordModal" data-toggle="modal" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class=" modal-content login-modal-container shadow-l  modal-container  md:max-w-md mx-auto overflow-y-auto">
+                <!--Title-->
+                <div class="flex ibr header-fmodal pb-3">
+                    <div class="modal-close close-modal close-fmodal cursor-pointer text-white float-right" style="margin-top:8px; margin-right:8px; color:white; " data-dismiss="modal" data-toggle="modal" data-target="#loginModal">
+                        Close
+                    </div>
+                </div>
+                <!-- Logo -->
+                <div class="row flex mt-n4 flex-column  header-fmodal  pb-2" style="margin-top:-20px">
+                    <img class="mb-2 mx-auto relative " src="https://thegrint.com//assets/public/img/Grint_Shield_Logo_47.png" width="50px">
+                    <img class=" mb-2 mx-auto relative" src="https://thegrint.com//assets/images/icons/tg_logo_name.png" width="130px">
+                </div>
+                <!--Body-->
+                <div class="login-modal-body">
+                    <div class="my-3">
+                        <span id="title-forgot-password" class="title-fmodal">Password Recovery</span>
+                    </div>
+
+
+                    <div class="mt-2">
+
+                        <div class="container-send-link-confirmation" style="display: none;">
+                            <p>
+                                We have sent a password reset
+                                <br/>instructions to: <span id="email-password-recovery" class="font-weight-bold"></span>
+                            </p>
+
+                            <p class="mt-5">
+                                Did not receive reset instructions?
+                            </p>
+                            <button type="button" id="resend-link" class="btn login-button-email mt-2">Resend Link</button>
+                        </div>
+
+                        <div class="container-send-link-confirmation">
+                            <form action="#" method="post" id="form-forgot">
+                                <p id="description-forgot-password">
+                                    Please enter your registered email to request a password reset link.
+                                </p>
+                                <span class="error-fmodal text-red" id="error" style="display: none;">
+                                    * That email is not registered with TheGrint</span>
+                                <input type="email" class="login-input px-2 py-2 form-control" name="email" id="email" placeholder="Enter your email" autocomplete="off" required="true" />
+                                <button type="submit" id="submit-form-forgot" class="btn login-button-email mt-5">Send Link</button>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+                <!-- footer -->
+                <div class="py-4 px-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-36 text-center text-14 text-gray">
+                            Need help? Contact us:
+                            <a class="text-gray" href="mailto:contactus@thegrint.com">
+                                <u>contactus@thegrint.com</u>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        $('#form-forgot').on('submit', function(e) {
+            e.preventDefault();
+            var email = $('#email').val();
+
+            if (!email || !isValidEmailAddress(email)) {
+                return;
+            }
+
+            $("#submit-form-forgot").html('Sending...');
+            $("#submit-form-forgot").prop('disabled', true);
+            $("#email-password-recovery").html(email);
+            $.ajax({
+                type: 'POST',
+                url: 'https://thegrint.com/forgotpassword/find_pwd',
+                data: {
+                    email: email
+                },
+                dataType: 'json',
+                success: function(data) {
+                    $("#submit-form-forgot").html('Send Link');
+                    $("#submit-form-forgot").prop('disabled', false);
+                    $("#email").val('');
+                    $(".container-send-link-confirmation").toggle();
+                },
+                error: function() {
+                    alert("An error ocurred. Please, try again later");
+                }
+            });
+
+        });
+
+        $("#resend-link").click(function() {
+            $(".container-send-link-confirmation").toggle();
+        });
+
+        function isValidEmailAddress(emailAddress) {
+            var pattern = new RegExp(/^(("[\w-+\s]+")|([\w-+]+(?:\.[\w-+]+)*)|("[\w-+\s]+")([\w-+]+(?:\.[\w-+]+)*))(@((?:[\w-+]+\.)*\w[\w-+]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$)|(@\[?((25[0-5]\.|2[0-4][\d]\.|1[\d]{2}\.|[\d]{1,2}\.))((25[0-5]|2[0-4][\d]|1[\d]{2}|[\d]{1,2})\.){2}(25[0-5]|2[0-4][\d]|1[\d]{2}|[\d]{1,2})\]?$)/i);
+            return pattern.test(emailAddress);
+        };
+    </script>
+
+<div class="modal tg-modal hidden animated fadeIn faster" id="inactive-modal" tabindex="-1" role="dialog" aria-labelledby="inactive-modal" aria-hidden="true">
+    <div class="modal-dialog shadow-lg modal-container bg-white  mx-auto rounded z-50" role="document">
+        <div class="modal-content">
+            <div id="container-hdcp" class="mb-2 mt-2 h-text overflow-y mx-2 content-modal">
+                <div style="color:#2D3C49; font-weight: bold;" class=" text-center th-info text-lg pb-2  ">
+                    <span>
+                        The username/email you are trying to register belongs to a previously deactivated account.                    </span><br><br>
+                    <span>
+                        If you are the owner of that account and want to reactivate it please contact us                    </span>
+                </div>
+                <div class="text-center max-w-md" style="color:#4277b9; display:grid;font-weight: bold;">
+                    <a href="mailto:contactus@thegrint.com?Subject=Reactivate%20username%20<>%20email%20<>" id="deactivate" class="mb-2 px-4" style="border-bottom:2px solid #80808057;">
+                        Contact Support </a>
+                    <a href="" class="mb-2 px-4" data-dismiss="modal" aria-label="Close" style="border-bottom:2px solid #80808057;" aria-hidden="true">
+                        Cancel!
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    $("#closeLoginCompanies").click(function() {
+        var base = 'https://thegrint.com/';
+        window.location.href = base;
+    })
+</script>
+
+<script>
+    function openModalInactive() {
+        $("#modalLoading").modal({
+            backdrop: "static",
+            keyboard: false,
+        });
+    }
+
+    function modal_show_inactive() {
+        $("#inactive-modal").modal();
+        openModalInactive();
+    }
+    let r = window.location.pathname
+    r = r.replace('/', '')
+    document.getElementById('redirect').value = r;
+</script>
+
+
+
+        <div class="back-main-color hbc px-1 px-sm-4 px-lg-4 px-md-4 ">
+            <div class="container-fluid px-1 px-sm-4 px-lg-4 px-md-4">
+                <nav class="px-1 px-sm-4 px-lg-4 px-md-4 navbar navbar-expand-sm back-main-color flex flex-row" :class="open ? 'menu-complete-screen' : 'topmenu-public' ">
+                    <span x-on:click="openMenu()" class="  navbar-toggler " data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                        <img x-show="!open" id="openMenu" src="https://thegrint.com/assets/images/icons/tg_icon_menu_white.png" style="cursor:pointer; height: 30px; margin-top: 10px; margin-bottom: 10px;" alt="logo">
+                        <img x-show="open" id="closeMenu" src="https://thegrint.com/assets/public/img/close.png" style="cursor:pointer; height: 30px; width: auto; margin-top: 10px; margin-bottom: 10px;" alt="logo">
+                    </span>
+
+                    <a class="navbar-brand float-right" href="https://thegrint.com/">
+                        <img src="https://thegrint.com/assets/public/img/The_Grint_Logo.svg" style="height: 30px; margin-top: 10px; margin-bottom: 10px;" alt="logo">
+                    </a>
+
+                    <span id="getLogin" :class="!open ? 'order-3' : '' " class="btn-login absolute  btn cursor-pointer mr-2  my-2 my-sm-0" data-toggle="modal" data-target="#loginModal">Login</span>
+
+                    <div class="collapse  navbar-collapse" :class="open ? 'open-menu mt-5 pt-5' : 'normal-menu' " id="navbarSupportedContent">
+                        <span class="nav-item " style="cursor:pointer; line-height:1">
+                            <span :class="open ? 'text-helvetica-bold' : 'text-poppins' " class="nav-link font-weight-normal" x-on:click="go('')">TheGrint</span>
+                        </span>
+                        <span class="nav-item " style="cursor:pointer; line-height:1"">
+                        <span :class=" open ? 'text-helvetica-bold' : 'text-poppins' " class=" nav-link font-weight-normal" x-on:click="go('range')">TheRange</span>
+                        </span>
+                        <span class="nav-item " style="cursor:pointer;line-height:1"">
+                        <span :class=" open ? 'text-helvetica-bold' : 'text-poppins' " class=" nav-link font-weight-normal" x-on:click="go('hdcp_lookup/course_hdcp_tool')">Handicap Lookup</span>
+                        </span>
+                        <span class="nav-item " style="cursor:pointer;line-height:1"">
+                        <span :class=" open ? 'text-helvetica-bold' : 'text-poppins' " class=" nav-link font-weight-normal" x-on:click="go('about_us')">About us </span>
+                        </span>
+
+                    </div>
+
+
+                </nav>
+            </div>
+        </div>
+
+    
+
+
+<!-- main -->
+<div class="containe-fluid main-container " style="margin-top:75px">
+    <div class="container">
+        <div class="row h-auto mb-5" style="min-height:100%">
+            <script>
+    let USERSHANDICAP = [];
+    let me = {"id":false,"username":false,"name":"MultiPlayer ","location":"Lutz, FL","image":"profile_default.jpg"};
+</script>
+
+<div class="modal fade tg-modal" id="modalLoading" tabindex="-1" role="dialog" aria-labelledby="modalLoading" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-dialog modal-dialog-centered d-flex flex-row justify-content-center align-items-center">
+            <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+            <lottie-player src="https://assets2.lottiefiles.com/packages/lf20_qx945n1c.json" background="transparent" speed="1" style="width: 700px; height: auto;" loop autoplay></lottie-player>
+        </div>
+        <a class="btn btn-primary d-none" id="showModalLoaderGreen" data-bs-toggle="modal" href="#modal_loader_green"></a>
+        <span class="d-none" id="closeModalLoaderGreen" data-bs-dismiss="modal"></a>
+    </div>
+</div><script src="https://thegrint.com/assets/js/handicap.js?9"></script>
+<div class="col-md-35 padding-4" x-data="mainHandicap()" x-init="init()">
+    <div class=" col-35">
+        <div class=" flex flex-colum my-4 px-2 ">
+            <div class="row px-2 mb-2">
+                <span class="text-16 w-sm-75 w-xs-75" x-text="providerSelected == '7' ?
+                         'Select Golf Course and Tee box (to calculate Teebox Handicap)' :
+                          'Select Golf Course and Tee box (to calculate Course Handicap™)'"> </span>
+            </div>
+            <div class="py-2 row flex fle-row">
+                <div style="width:220px" class="my-auto  px-2">
+                    <span class="title-page-2">Golf Course Setup</span>
+                </div>
+                <div class="my-auto row flex flex-row py-2">
+                    <div style="width:250px" class="my-auto form-style-blue mt-2  px-2">
+                        <input type="text" class="form-control mt-2 search-autocomplete-course" id="filterCourseScore" id-show="filterCourseNameScore" id-hidden="filterCourseIdScore" name="filterCourseScore" placeholder="Search by golf course" autocomplete="off" onblur="this.placeholder='Search by golf course'" onfocus="this.placeholder=''">
+                        <input type="hidden" id="filterCourseIdScore" name="filterCourseIdScore" class="filter-list-scores">
+                        <input type="hidden" id="filterCourseNameScore" value="">
+                        <div class="autocomplete-container container-options-course " id="container-filterCourseScore"></div>
+                    </div>
+                    <span style="top:1rem; position:relative; left:-2rem;">
+                        <i id="spinner-handicap" style="opacity: 0;" class="fa fa-spinner fa-spin " aria-hidden="true"></i>
+                    </span>
+                    <div style="width:150px" class="form-style-blue mt-2  px-2">
+                        <select id="tees" style="width:100%" class="select-tees select">
+                            <option style="display: none;" value="">Select a tee</option>
+                        </select>
+                    </div>
+                    <div x-show="teeSelected!=''" id="teeInfo" style="line-height:1;" class="mt-2 px-2 row flex flex-column">
+                        <div style="width:220px">
+                            <span class="text-16 text-oswald text-main-blue">Tee Information</span>
+                        </div>
+                        <div class="row flex flex-column  align-middle">
+                            <span id="menTee" x-text="teeMens" class="text-12 text-helvetica"></span>
+                            <span id="ladiesTee" x-text="teeLadies" class="text-12 text-helvetica "></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+
+        <div class="row mt-2 px-2">
+            <div class="mini-container px-3 py-2 " style="border-radius: 10px;box-shadow: 4px 3px 24px -4px rgba(143,143,143,0.75);">
+                <div class="row ">
+                    <span class="title-page-2">HANDICAP LOOKUP TOOL</span>
+                </div>
+                <div class="row ">
+                    <span class=""> Select your Handicap Provider
+                        <div style="width:150px" class="form-style-blue mt-2  px-2">
+                            <select id="provider" style="width:100%" class="select">
+                                                            </select>
+                        </div>
+                    </span>
+                </div>
+                <div class="row my-4" style="overflow: overlay;">
+                    <table class="table table-style-5 table-responsive-sm form-general" style="min-width: 810px !important;">
+                        <thead>
+                            <tr>
+                                <td style="min-width:12rem" class="pic-profile">Player Info</td>
+                                <td class="text-center" x-text="providerSelected != '3' ? 'Handicap' : 'Handicap Index®'"></td>
+                                <td class="text-center" x-show="providerSelected != '7' " style="width: 6rem;">Low Handicap</td>
+                                <td class="text-center" style="width: 6rem;">Attest %</td>
+                                <td class="text-center" style="width: 10rem;" x-text="providerSelected == '7' ? 'Teebox Handicap' : 'Course Handicap™'"></td>
+                                <td class="text-center" style="width: 8rem;">Scoring Record</td>
+                                <td class="text-center"></td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(user, index) in users" :key="index">
+                                <tr>
+
+                                    <td class=" text-left px-2 align-middle">
+                                        <div class="row flex flex-row">
+                                            <img x-bind:src="'https://profile.static.thegrint.com/thumb_' + user.image" class="img-profile">
+                                            <div class="flex row flex-column">
+                                                <span style="position: relative;  line-height:1" x-text="user.name" class=" username text-18 pl-2 mt-auto  mb-0"> </span>
+                                                <span style="position: relative;  " x-text="user.location" class=" username text-12 pl-2 mb-auto  mb-0"> </span>
+                                            </div>
+                                        </div>
+
+                                    </td>
+                                    <td class="px-2 text-center align-middle">
+                                        <div class="tg-circle">
+                                            <div x-bind:class="user.class" class="value" style="height: 50px;padding: 0px !important;">
+                                                <img @click='openModal()' x-bind:style="user.class != 'green' ? '' : 'opacity:0;'" src="https://thegrint.com/assets/images/icons/tg_icon_info_grint_blue.png" x-bind:class="'info-icon-h'">
+                                                <span x-show="providerSelected=='3'" x-text="user.index" x-bind:class="'i-number-h mx-2'"></span>
+                                                <span x-show="providerSelected=='7'" x-text="user.index_ghap" x-bind:class="'i-number-h mx-2'"></span>
+                                                <span x-show="providerSelected!='7' && providerSelected!='3'" x-text="user.index_federation" x-bind:class="'i-number-h mx-2'"></span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-2 text-center align-middle" x-show="providerSelected != '7' ">
+                                        <div class="my-2">
+                                            <span x-html="user.lowest" class=" text-20 username"></span>
+                                        </div>
+                                    </td>
+                                    <td class="px-2 text-center align-middle">
+                                        <div class="my-2">
+                                            <span x-html="user.attest" class="attest text-20 username"></span>
+                                        </div>
+                                    </td>
+                                    <td x-show="providerSelected!='7'" style="width: 10rem; line-height:1" x-bind:class="user.cIndex ? '' : ''" class=" text-center align-middle">
+                                        <div x-bind:class="user.cIndex ? 'tg-circle' : 'my-2'">
+                                            <div x-bind:class="user.cIndex ? user.class: ''" class="value" style="margin-top: -5px;">
+                                                <span x-text="user.cIndex ? user.cIndex : 'Select golf course to get Course Handicap™'" x-bind:class="user.cIndex ? user.class == 'red' ? 'hdcpIndex' : 'username text-20' : 'selectCourse'">
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td x-show="providerSelected=='7'" style="width: 10rem; line-height:1" x-bind:class="user.teebox_handicap ? '' : ''" class=" text-center align-middle">
+                                        <div x-bind:class="user.teebox_handicap ? 'tg-circle' : 'my-2'">
+                                            <div x-bind:class="user.teebox_handicap ? user.class: ''" class="value" style="margin-top: -5px;">
+                                                <span x-text="user.teebox_handicap ? user.teebox_handicap : 'Select golf course to get Teebox Handicap'" x-bind:class="user.teebox_handicap ? user.class == 'red' ? 'hdcpIndex' : 'username text-20' : 'selectCourse'">
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 text-center align-middle">
+                                        <div class="my-2">
+                                            <a x-bind:href="'https://thegrint.com/' + 'profile/scoring_record/' + user.id+'?handicap_company_id='+providerSelected" x-bind:target="'_blank'" rel="noopener noreferrer">
+                                                <img style="width:2rem" class="mx-auto relative" src="https://thegrint.com/assets/images/icons/tg_icon_scorecard_grint_blue.png">
+                                            </a>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 text-center align-middle">
+                                        <div @click="removeUser(user.id)">
+                                            <img style="width:1rem; cursor:pointer" class="mx-auto relative" src="https://thegrint.com/assets/images/icons/tg_icon_trash_grint_blue.png">
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="row my-4 justify-content-center">
+                    <div class="flex row flex-column w-50 w-xs-100 w-sm-50 w-md-50 w-lg-50 w-xl-50  text-center ">
+                        <div style="width:100%; max-width: 300px; " class="flex m-auto block mt-2 justify-content-center form-style-blue  px-2 autowrap">
+                            <input style="max-width:300px !important;" x-model="search" x-on:keyup="findSuggestions()" x-on:click="search = ''" id="typerUserHandicap" onfocus="this.placeholder = ''" onblur="this.placeholder = 'Search a player to add'" type="text" class="mx-auto form-control  user outline-none focus:outline-none" placeholder="Search a player to add" />
+                            <i id="spinner-user-handicap" style="opacity: 0; width:1rem; position:relative; right:-8rem; top:-1.8rem" class="fa fa-spinner fa-spin " aria-hidden="true"></i>
+                            <input type="hidden" x-model="userId" id="userId" class="mx-auto" value="">
+                            <div style=" margin-top: -1.5rem;" x-bind:class="results.length > 0 ? 'scroll-result' : ''" class="options options-autocomplete  h"></div>
+                        </div>
+                        <label x-on:click="addUser()" x-bind:class="userId != '' ? 'tg-button-main-blue'  : 'tg-button-main-blue-disabled'" class="btn mx-auto block mt-3 py-1 px-3" style="outline: none;font-size:16px">Add player</label>
+                        <span class="m-auto block mt-2 ">Search using player’s name, email, username or Handicap ID (WHS®#, GHIN# or equivalent)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal -->
+    <div class="modal fade tg-modal" id="modalHandicap" tabindex="-1" role="dialog" aria-labelledby="modalHandicap" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">What is the Attest Percentage?</h5>
+                    <button type="button" class="close close-modal" @x-on:lick="closeInfoModal()">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="h6">Attest Percentage represents the percentage of your last 20 scores that have been attested by another player.
+                        <br>
+                        The higher the percentage, the more trustworthy your handicap.
+                    </p>
+                    <br>
+                    <div class="row">
+                        <div class="col text-center">
+                            <div class="tg-circle">
+                                <div class="value red">
+                                    <span class="attest text-20 hdcpIndex">RED</span>
+                                </div>
+                            </div>
+                            0% - 30%
+                        </div>
+                        <div class="col text-center">
+                            <div class="tg-circle">
+                                <div class="value gold">
+                                    <span style="color: #263D51;" class="attest text-16 username">YELLOW</span>
+                                </div>
+                            </div>
+                            30% - 80%
+
+                        </div>
+                        <div class="col text-center">
+                            <div class="tg-circle">
+                                <div class="value green">
+                                    <span class="attest text-18 username">GREEN</span>
+                                </div>
+                            </div>
+                            <div style="line-height: 1;" class="row flex flex-column">
+                                <span>Above 80% </span>
+                                <span>(pretty legit!)</span>
+                            </div>
+
+
+                        </div>
+
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tg-button-submit" id="accept-action" data-dismiss="modal" aria-label="Close">Got it!</button>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>        </div>
+    </div>
+
+</div>
+<!--main-->
+
+
+    
+    <footer class="back-main-color text-white absolute b-0">
+        <div class="py-5">
+            <div class="container w-75 px-4  d-none  d-sm-block d-md-block d-lg-block">
+                <div class="row center  justify-center align-middle flex flex-row">
+                    <div class="col-10 my-auto align-middle text-18 text-poppins text-left ">
+                        Follow us:
+                    </div>
+                    <div class="col-26 pt-1 px-5">
+                        <div class=" row  align-middle w-xl-50 w-lg-50 w-md-75 w-sm-75 w-xs-100  justify-content-around items-start  ">
+                            <a href="https://www.facebook.com/thegrintgolf" class="cursor-pointer "><img height="40px" src="https://thegrint.com//assets/public/img/facebook.svg"></a>
+                            <a href="http://instagram.com/thegrintgolf" class="cursor-pointer my-auto"><img height="48px" src="https://thegrint.com//assets/public/img/instagram.svg"></a>
+                            <a href="https://twitter.com/TheGrintGolf" class="cursor-pointer my-auto"> <img height="48px" src="https://thegrint.com//assets/public/img/twitter.svg" alt="" class="my-auto" srcset=""></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="py-3 flex ">
+                <div class="line-white"></div>
+                <img src="https://thegrint.com//assets/public/img/Grint_Shield_Logo_47.png" class=" ml-4 xl:ml-5 md:ml-5 sm:ml-5  lf">
+
+            </div>
+            <div class="container w-75 py-3">
+                <div class=" d-none  d-sm-flex d-md-flex d-lg-flex row flex flex-row">
+                    <div class="col-11 px-4 pt-2 align-middle  px-2 flex flex-column">
+                        <span class="text-14 text-poppins">
+                            <a class="text-white" href="https://thegrint.com/about_us">TheGrint</a>
+                        </span>
+                        <br>
+                        <span class="text-12 text-poppins ">
+                            <a class="text-white" href="https://thegrint.com/about_us">Since 2011 | All rights reserved</a>
+                        </span>
+                    </div>
+                    <div class="vertical-line "></div>
+                    <div class="col-11 px-4 pt-2 align-middle flex flex-column">
+                        <span class="text-14 text-poppins">
+                            <a class="text-white" href="https://thegrint.com/about_us/member_support"> Need Help?</a>
+                        </span>
+                        <br>
+                        <span class="text-12 text-poppins ">
+                            <a class="text-white" href="https://thegrint.com/about_us/member_support"> Member Support | FAQ</a>
+                        </span>
+                    </div>
+                    <div class="vertical-line "></div>
+                    <div class="col-11 px-4 pt-2 align-middle flex flex-column">
+                        <span class="text-14 text-poppins">
+                            <a class="text-white" href="https://thegrint.com/about_us/terms_and_conditions"> Terms & Conditions</a>
+                        </span>
+                        <br>
+                        <span class="text-12 text-poppins ">
+                            <a class="text-white" href="https://thegrint.com/about_us/terms_and_conditions"> Terms of use | Privacy Policy</a>
+                        </span>
+                    </div>
+
+                </div>
+                <div class="d-flex d-sm-none d-md-none d-lg-none row flex-column flex px-5">
+                    <span class="text-14 text-poppins mb-2">
+                        <a class="text-white" href="https://thegrint.com/?show_full=yes">Full site</a>
+                    </span>
+                    <span class="text-14 text-poppins mb-2">
+                        <a class="text-white" href="https://thegrint.com/about_us/member_support">Need Help? Member Support | FAQ</a>
+                    </span>
+                    <span class="text-14 text-poppins mb-2">
+                        <a class="text-white" href="https://thegrint.com/about_us/terms_and_conditions"> Terms & Conditions</a>
+                    </span>
+                    <span class="text-14 text-poppins">
+                        <a class="text-white" href="https://thegrint.com/about_us">About Us</a>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </footer>
+    </body>
+
+    </html>
