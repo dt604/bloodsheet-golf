@@ -205,7 +205,7 @@ export default function PastMatchScorecardPage() {
         );
     }
 
-    const { holes, players, presses, myTeam, sideBets, wagerAmount } = data;
+    const { holes, players, presses, myTeam, sideBets, wagerAmount, format } = data;
     const sortedHoles = [...holes].sort((a, b) => a.number - b.number);
     while (sortedHoles.length < 18) {
         sortedHoles.push({ number: sortedHoles.length + 1, par: 4, yardage: 0, strokeIndex: 0 });
@@ -243,7 +243,9 @@ export default function PastMatchScorecardPage() {
         rowKey, title, titleColor = 'text-white', cellRenderer,
         dividerClass = 'bg-background/80 font-bold',
         totClass = 'bg-bloodRed text-white font-black',
-        frontNineSum, backNineSum, extHCP, extGROSS
+        frontNineSum, backNineSum, extHCP, extGROSS,
+        height = 'h-11',
+        stickyWidth = 'min-w-[70px] max-w-[70px]'
     }: {
         rowKey?: string | number;
         title: string;
@@ -255,14 +257,16 @@ export default function PastMatchScorecardPage() {
         backNineSum: React.ReactNode;
         extHCP?: React.ReactNode;
         extGROSS?: React.ReactNode;
+        height?: string;
+        stickyWidth?: string;
     }) {
         return (
-            <div key={rowKey} className="flex flex-row border-b border-borderColor last:border-b-0">
-                <div className={`sticky left-0 z-20 bg-background border-r border-borderColor min-w-[70px] max-w-[70px] h-11 flex items-center justify-start px-2 font-bold uppercase tracking-tighter text-[10px] ${titleColor} truncate shadow-[2px_0_5px_rgba(0,0,0,0.5)]`}>
+            <div key={rowKey} className={`flex flex-row border-b border-borderColor last:border-b-0 ${height}`}>
+                <div className={`sticky left-0 z-20 bg-background border-r border-borderColor ${stickyWidth} h-full flex items-center justify-start px-3 font-bold uppercase tracking-tighter text-[10px] ${titleColor} truncate shadow-[2px_0_5px_rgba(0,0,0,0.5)]`}>
                     {title}
                 </div>
                 {headers.map((h, i) => {
-                    const baseClass = "h-11 border-r border-borderColor flex items-center justify-center flex-shrink-0";
+                    const baseClass = `${height} border-r border-borderColor flex items-center justify-center flex-shrink-0`;
                     if (h.type === 'divider') {
                         if (h.val === 'OUT') return <div key={i} className={`${baseClass} min-w-[44px] ${dividerClass}`}>{frontNineSum}</div>;
                         if (h.val === 'IN') return <div key={i} className={`${baseClass} min-w-[44px] ${dividerClass}`}>{backNineSum}</div>;
@@ -323,7 +327,7 @@ export default function PastMatchScorecardPage() {
             const myHasBirdie = myNets.some(n => n < par);
             const oppHasBirdie = oppNets.some(n => n < par);
 
-            if (data.format === '2v2') {
+            if (format === '2v2') {
                 let my = 0, opp = 0;
                 const myLow = Math.min(...myNets), oppLow = Math.min(...oppNets);
                 if (myLow < oppLow) my += (birdiesDouble && myHasBirdie) ? 2 : 1;
@@ -446,58 +450,68 @@ export default function PastMatchScorecardPage() {
                 </div>
 
                 {/* Scorecard Scrollable Container */}
-                <div className="w-full overflow-x-auto no-scrollbar pb-6 relative">
-                    <div className="inline-flex flex-col border-y border-borderColor min-w-max mx-4 mb-2 shadow-2xl">
-
-                        {/* Header Row */}
-                        <div className="flex flex-row bg-background">
-                            <div className="sticky left-0 z-20 bg-background border-r border-borderColor min-w-[70px] max-w-[70px] h-9 flex items-center justify-start px-2 font-bold uppercase tracking-tighter text-[10px] text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.5)]">
-                                HOLE
+                <div className="w-full overflow-x-auto no-scrollbar pb-8 relative">
+                    <div className="px-4 inline-flex flex-col min-w-max gap-6">
+                        {/* Table 1: Hole & Par Information */}
+                        <div className="flex flex-col border border-borderColor shadow-lg overflow-hidden rounded-xl bg-surface/20">
+                            {/* Header Row (Hole) */}
+                            <div className="flex flex-row bg-surface border-b border-borderColor">
+                                <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] max-w-[80px] h-10 flex items-center justify-start px-3 font-black uppercase tracking-widest text-[10px] text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.5)]">
+                                    HOLE
+                                </div>
+                                {headers.map((h, i) => {
+                                    const baseClass = "h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center font-black text-[10px] flex-shrink-0";
+                                    if (h.type === 'hole') return <div key={i} className={`${baseClass} min-w-[40px] text-white/90`}>{h.val}</div>;
+                                    if (h.type === 'divider') return <div key={i} className={`${baseClass} min-w-[44px] bg-bloodRed/20 text-bloodRed tracking-widest`}>{h.val}</div>;
+                                    if (h.val === 'GROSS') return <div key={i} className={`${baseClass} min-w-[44px] bg-bloodRed text-white tracking-widest uppercase`}>{h.val}</div>;
+                                    return <div key={i} className={`${baseClass} min-w-[44px] bg-black/40 text-secondaryText`}>{h.val}</div>;
+                                })}
                             </div>
-                            {headers.map((h, i) => {
-                                const baseClass = "h-9 border-r border-borderColor flex items-center justify-center font-bold text-[10px] flex-shrink-0";
-                                if (h.type === 'hole') return <div key={i} className={`${baseClass} min-w-[40px] text-secondaryText`}>{h.val}</div>;
-                                if (h.type === 'divider') return <div key={i} className={`${baseClass} min-w-[44px] bg-bloodRed/10 text-bloodRed tracking-widest`}>{h.val}</div>;
-                                if (h.val === 'GROSS') return <div key={i} className={`${baseClass} min-w-[44px] bg-bloodRed text-white tracking-widest uppercase`}>{h.val}</div>;
-                                return <div key={i} className={`${baseClass} min-w-[44px] bg-black/60 text-secondaryText`}>{h.val}</div>;
+
+                            {/* Par Row */}
+                            {renderRowTracker({
+                                title: 'PAR',
+                                titleColor: 'text-secondaryText/80',
+                                frontNineSum: outPar,
+                                backNineSum: inPar,
+                                extHCP: '-',
+                                extGROSS: totPar,
+                                cellRenderer: (hNum) => sortedHoles.find(h => h.number === hNum)?.par || 4,
+                                dividerClass: 'bg-black/20 text-secondaryText font-bold',
+                                totClass: 'bg-bloodRed/10 text-bloodRed font-black',
+                                height: 'h-10',
+                                stickyWidth: 'min-w-[80px] max-w-[80px]'
                             })}
                         </div>
 
-                        {/* Par Row */}
-                        {renderRowTracker({
-                            title: 'PAR',
-                            titleColor: 'text-secondaryText',
-                            frontNineSum: outPar,
-                            backNineSum: inPar,
-                            extHCP: '-',
-                            extGROSS: totPar,
-                            cellRenderer: (hNum) => sortedHoles.find(h => h.number === hNum)?.par || 4
-                        })}
-
-                        {/* Player Score Rows */}
-                        {players.map((p) => {
-                            const outGross = getPlayerBlockSum(p, 'gross', outIndices);
-                            const inGross = getPlayerBlockSum(p, 'gross', inIndices);
-                            const totGross = outGross + inGross;
-                            return renderRowTracker({
-                                rowKey: p.id,
-                                title: p.fullName.split(' ')[0],
-                                titleColor: 'text-white',
-                                frontNineSum: outGross || '-',
-                                backNineSum: inGross || '-',
-                                extHCP: p.handicap,
-                                extGROSS: totGross || '-',
-                                cellRenderer: (hNum) => {
-                                    const raw = getPlayerScore(p, 'gross', hNum);
-                                    if (!raw) return <span className="text-borderColor">-</span>;
-                                    const par = sortedHoles.find(h => h.number === hNum)?.par || 4;
-                                    if (raw < par) return <div className="border border-neonGreen w-7 h-7 flex items-center justify-center rounded-full text-neonGreen font-bold bg-neonGreen/10">{raw}</div>;
-                                    if (raw === par + 1) return <div className="border border-bloodRed w-7 h-7 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
-                                    if (raw >= par + 2) return <div className="border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] w-7 h-7 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
-                                    return <span className="font-bold text-white">{raw}</span>;
-                                }
-                            });
-                        })}
+                        {/* Table 2: Player Information */}
+                        <div className="flex flex-col border border-borderColor shadow-2xl overflow-hidden rounded-xl bg-surface/10">
+                            {players.map((p) => {
+                                const outGross = getPlayerBlockSum(p, 'gross', outIndices);
+                                const inGross = getPlayerBlockSum(p, 'gross', inIndices);
+                                const totGross = outGross + inGross;
+                                return renderRowTracker({
+                                    rowKey: p.id,
+                                    title: p.fullName.split(' ')[0],
+                                    titleColor: 'text-white',
+                                    frontNineSum: outGross || '—',
+                                    backNineSum: inGross || '—',
+                                    extHCP: p.handicap,
+                                    extGROSS: totGross || '—',
+                                    height: 'h-12',
+                                    stickyWidth: 'min-w-[80px] max-w-[80px]',
+                                    cellRenderer: (hNum) => {
+                                        const raw = getPlayerScore(p, 'gross', hNum);
+                                        if (!raw) return <span className="text-borderColor/30">—</span>;
+                                        const par = sortedHoles.find(h => h.number === hNum)?.par || 4;
+                                        if (raw < par) return <div className="border border-neonGreen w-7 h-7 flex items-center justify-center rounded-full text-neonGreen font-bold bg-neonGreen/10">{raw}</div>;
+                                        if (raw === par + 1) return <div className="border border-bloodRed w-7 h-7 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
+                                        if (raw >= par + 2) return <div className="border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] w-7 h-7 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
+                                        return <span className="font-black text-white">{raw}</span>;
+                                    }
+                                });
+                            })}
+                        </div>
                     </div>
                 </div>
 

@@ -332,9 +332,10 @@ export default function LeaderboardPage() {
                 {/* Scorecard Overview */}
                 <section>
                     <div className="text-secondaryText text-xs font-bold uppercase tracking-widest mb-2 pl-1">Scorecard Overview</div>
-                    <Card className="overflow-hidden border-borderColor/50 bg-surface/50">
-                        <div className="overflow-x-auto scrollbar-hide">
-                            <div className="min-w-max">
+                    <div className="overflow-x-auto scrollbar-hide pb-4">
+                        <div className="min-w-max space-y-4">
+                            {/* Table 1: Hole & Par Information */}
+                            <div className="inline-flex flex-col border border-borderColor/50 bg-surface/50 overflow-hidden rounded-lg shadow-lg">
                                 {/* Hole Headers */}
                                 <div className="flex flex-row bg-surface border-b border-borderColor">
                                     <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] h-10 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
@@ -345,7 +346,7 @@ export default function LeaderboardPage() {
                                             key={i}
                                             className={`h-10 border-r border-borderColor flex items-center justify-center flex-shrink-0 font-black text-[10px] tracking-tighter ${h.type === 'divider' ? 'min-w-[44px] bg-black/40 text-white' :
                                                 h.type === 'header' ? 'min-w-[50px] bg-bloodRed text-white' :
-                                                    'min-w-[40px] text-secondaryText'
+                                                    'min-w-[40px] text-white/90'
                                                 }`}
                                         >
                                             {h.val}
@@ -354,7 +355,7 @@ export default function LeaderboardPage() {
                                 </div>
 
                                 {/* Par Headers */}
-                                <div className="flex flex-row bg-surface border-b border-borderColor">
+                                <div className="flex flex-row bg-surface">
                                     <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] h-8 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText/60 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
                                         PAR
                                     </div>
@@ -362,22 +363,24 @@ export default function LeaderboardPage() {
                                         if (h.type === 'divider') {
                                             const range = h.val === 'OUT' ? frontNine : backNine;
                                             const sum = range.reduce((s, hole) => s + hole.par, 0);
-                                            return <div key={i} className="h-8 border-r border-borderColor flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[44px] bg-black/40 text-secondaryText/60">{sum}</div>;
+                                            return <div key={i} className="h-8 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[44px] bg-black/40 text-secondaryText/60">{sum}</div>;
                                         }
                                         if (h.type === 'header') {
                                             const total = sortedHoles.reduce((s, hole) => s + hole.par, 0);
-                                            return <div key={i} className="h-8 border-r border-borderColor flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[50px] bg-bloodRed/10 text-bloodRed/60">{total}</div>;
+                                            return <div key={i} className="h-8 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[50px] bg-bloodRed/10 text-bloodRed/60">{total}</div>;
                                         }
                                         const holePar = sortedHoles.find(x => x.number === h.val)?.par ?? 4;
                                         return (
-                                            <div key={i} className="h-8 border-r border-borderColor flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[40px] text-secondaryText/60">
+                                            <div key={i} className="h-8 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[40px] text-secondaryText/60">
                                                 {holePar}
                                             </div>
                                         );
                                     })}
                                 </div>
+                            </div>
 
-                                {/* Player Rows */}
+                            {/* Table 2: Player Information */}
+                            <div className="inline-flex flex-col border border-borderColor/50 bg-surface/30 overflow-hidden rounded-lg shadow-2xl">
                                 {playerRows.map((row) => (
                                     <div key={row.userId} className="flex flex-row border-b border-borderColor last:border-b-0 group">
                                         <div className="sticky left-0 z-20 bg-background group-hover:bg-surfaceHover border-r border-borderColor min-w-[80px] max-w-[80px] h-12 flex items-center px-3 shadow-[2px_0_5px_rgba(0,0,0,0.3)] transition-colors">
@@ -386,7 +389,7 @@ export default function LeaderboardPage() {
                                             </span>
                                         </div>
                                         {headers.map((h, i) => {
-                                            const baseClass = "h-12 border-r border-borderColor flex items-center justify-center flex-shrink-0";
+                                            const baseClass = "h-12 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0";
                                             if (h.type === 'divider') {
                                                 const range = h.val === 'OUT' ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [10, 11, 12, 13, 14, 15, 16, 17, 18];
                                                 const sum = getPlayerSum(row.userId, range);
@@ -405,7 +408,7 @@ export default function LeaderboardPage() {
                                 ))}
                             </div>
                         </div>
-                    </Card>
+                    </div>
                 </section>
 
                 {/* Player Rows */}

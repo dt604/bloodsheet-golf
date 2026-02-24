@@ -371,8 +371,8 @@ export default function LiveScorecardPage() {
                                         </div>
                                         <div>
                                             <span className="font-bold block text-sm">{displayName}{isMe ? ' (You)' : ''}</span>
-                                            <span className={`text-xs font-semibold tracking-wider uppercase ${player.team === 'B' ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                Team {player.team}
+                                            <span className={`text-[10px] uppercase tracking-widest font-bold ${player.team === 'B' ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                Team {player.team} • HCP {(playerProfiles[player.userId]?.handicap ?? player.initialHandicap).toFixed(1)}
                                             </span>
                                         </div>
                                     </div>
