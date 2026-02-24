@@ -23,7 +23,7 @@ interface Settlement {
 export default function LedgerPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { matchId, match, players, scores, presses, course, clearMatch, loadMatch, refreshScores } = useMatchStore();
+    const { matchId, match, players, scores, presses, course, loadMatch, refreshScores } = useMatchStore();
 
     const [settlement, setSettlement] = useState<Settlement | null>(null);
 

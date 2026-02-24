@@ -117,7 +117,11 @@ export default function FriendsPage() {
                         ) : (
                             acceptedFriends.map(f => (
                                 <div key={f.id} className="flex items-center justify-between p-3 sm:p-4 bg-surface rounded-xl border border-borderColor">
-                                    <div className="flex items-center gap-3">
+                                    <div
+                                        className="flex items-center gap-3"
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => { if (f.friendProfile?.id) navigate(`/player/${f.friendProfile.id}`); }}
+                                    >
                                         {renderProfileAvatar(f.friendProfile?.avatarUrl, f.friendProfile?.fullName)}
                                         <div>
                                             <div className="font-bold text-white text-sm sm:text-base">{f.friendProfile?.fullName}</div>

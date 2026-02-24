@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Loader, Search, User } from 'lucide-react';
+import { Loader, Search } from 'lucide-react';
 
 type AuthMode = 'welcome' | 'login' | 'signup' | 'grint';
 

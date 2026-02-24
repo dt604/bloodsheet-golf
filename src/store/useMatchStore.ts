@@ -211,6 +211,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         team: sp.team,
         initial_handicap: sp.handicap,
         guest_name: sp.isGuest ? sp.fullName : null,
+        avatar_url: sp.avatarUrl ?? null,
       });
 
       allPlayers.push({

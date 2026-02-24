@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Settings, History, Users, Camera, Loader } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ChevronLeft, History, UserPlus, Check, Loader } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
 import { useAuth } from '../contexts/AuthContext';
+import { useFriendsStore } from '../store/useFriendsStore';
 import { supabase } from '../lib/supabase';
+
+interface ProfileData {
+    id: string;
+    fullName: string;
+    avatarUrl?: string;
+    handicap: number;
+    createdAt: string;
+}
 
 interface MatchHistoryItem {
     id: string;
@@ -18,8 +27,6 @@ interface MatchHistoryItem {
     holesUp: number;
 }
 
-
-
 interface Stats {
     totalMatches: number;
     wins: number;
@@ -28,12 +35,20 @@ interface Stats {
     lifetimePayout: number;
 }
 
-export default function DashboardPage() {
+export default function PlayerProfilePage() {
+    const { userId } = useParams<{ userId: string }>();
     const navigate = useNavigate();
-    const { user, profile, updateProfile } = useAuth();
+    const { user } = useAuth();
+    const isOwnProfile = user?.id === userId;
 
-    const [uploadingImage, setUploadingImage] = useState(false);
+    const {
+        friendships,
+        loadFriendships,
+        sendFriendRequest,
+    } = useFriendsStore();
 
+    const [profileData, setProfileData] = useState<ProfileData | null>(null);
+    const [loadingProfile, setLoadingProfile] = useState(true);
     const [history, setHistory] = useState<MatchHistoryItem[]>([]);
     const [stats, setStats] = useState<Stats>({
         totalMatches: 0,
@@ -43,63 +58,67 @@ export default function DashboardPage() {
         lifetimePayout: 0,
     });
 
-    async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-        if (!e.target.files || e.target.files.length === 0 || !user) return;
-        const file = e.target.files[0];
-        setUploadingImage(true);
-
-        const fileExt = file.name.split('.').pop();
-        const filePath = `${user.id}-${Math.random()}.${fileExt}`;
-
-        try {
-            const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
-            if (uploadError) throw uploadError;
-
-            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-            await updateProfile({ avatarUrl: data.publicUrl });
-        } catch (error: any) {
-            console.error('Error uploading avatar:', error.message);
-            alert('Failed to upload image. Please try again.');
-        } finally {
-            setUploadingImage(false);
-        }
-    }
-
+    // Load friendships so the Add Friend button reflects current state
     useEffect(() => {
-        if (!profile) return;
+        if (user && !isOwnProfile) {
+            loadFriendships(user.id);
+        }
+    }, [user, isOwnProfile]);
+
+    // Load profile + stats
+    useEffect(() => {
+        if (!userId) return;
 
         async function load() {
-            const userId = profile!.id;
+            setLoadingProfile(true);
 
-            // 1. All match participations (for real total count + match IDs)
+            // 1. Fetch profile row
+            const { data: prof } = await supabase
+                .from('profiles')
+                .select('id, full_name, avatar_url, handicap, created_at')
+                .eq('id', userId!)
+                .single();
+
+            if (!prof) {
+                setLoadingProfile(false);
+                return; // Guest/Grint player — no profile row
+            }
+
+            setProfileData({
+                id: prof.id,
+                fullName: prof.full_name,
+                avatarUrl: prof.avatar_url ?? undefined,
+                handicap: prof.handicap ?? 0,
+                createdAt: prof.created_at,
+            });
+            setLoadingProfile(false);
+
+            // 2. All match participations
             const { data: userMatchPlayers } = await supabase
                 .from('match_players')
                 .select('match_id, team')
-                .eq('user_id', userId);
+                .eq('user_id', userId!);
 
             const allMatchIds = (userMatchPlayers ?? []).map((mp) => mp.match_id as string);
-
             if (allMatchIds.length === 0) return;
 
-            // 2. Recent match history for display (last 10)
+            // 3. Recent 5 completed matches for history display
             const { data: recentMatches } = await supabase
                 .from('matches')
                 .select('id, format, wager_type, wager_amount, status, created_at, courses(name)')
                 .in('id', allMatchIds)
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })
-                .limit(10);
+                .limit(5);
 
-            if (recentMatches) {
+            if (recentMatches && recentMatches.length > 0) {
                 const recentMatchIds = (recentMatches as Record<string, unknown>[]).map((m) => m.id as string);
 
-                // Fetch all players for these recent matches
                 const { data: recentPlayers } = await supabase
                     .from('match_players')
                     .select('match_id, user_id, team, guest_name')
                     .in('match_id', recentMatchIds);
 
-                // Fetch profile names for all non-guest players
                 const playerUserIds = [...new Set(
                     (recentPlayers ?? []).map((p) => (p as Record<string, unknown>).user_id as string).filter(Boolean)
                 )];
@@ -109,8 +128,8 @@ export default function DashboardPage() {
                         .from('profiles')
                         .select('id, full_name')
                         .in('id', playerUserIds);
-                    for (const prof of (profilesData ?? []) as { id: string; full_name: string }[]) {
-                        profileNameMap[prof.id] = prof.full_name;
+                    for (const p of (profilesData ?? []) as { id: string; full_name: string }[]) {
+                        profileNameMap[p.id] = p.full_name;
                     }
                 }
 
@@ -145,7 +164,7 @@ export default function DashboardPage() {
                     const course = m.courses as Record<string, unknown> | null;
                     return {
                         id: matchId,
-                        courseName: course?.name as string ?? 'Unknown Course',
+                        courseName: (course?.name as string) ?? 'Unknown Course',
                         playerLabel,
                         format: m.format as string,
                         wagerType: m.wager_type as string,
@@ -157,7 +176,7 @@ export default function DashboardPage() {
                 setHistory(items);
             }
 
-            // 3. Completed matches — compute wins, lifetime payout, snakes avoided
+            // 4. Completed matches for payout / wins / snakes stats
             const { data: completedMatches } = await supabase
                 .from('matches')
                 .select('id, format, wager_amount, side_bets, courses(holes)')
@@ -168,7 +187,6 @@ export default function DashboardPage() {
             setStats((prev) => ({ ...prev, totalMatches: completedIds.length }));
 
             if (completedMatches && completedMatches.length > 0) {
-
                 const [{ data: allPlayers }, { data: allScores }] = await Promise.all([
                     supabase.from('match_players').select('match_id, user_id, team').in('match_id', completedIds),
                     supabase.from('hole_scores').select('match_id, hole_number, player_id, gross, net, trash_dots').in('match_id', completedIds),
@@ -201,21 +219,19 @@ export default function DashboardPage() {
                     const myTeamPlayers = matchPlayers.filter((p) => (p as Record<string, unknown>).team === myTeam);
                     const oppTeamPlayers = matchPlayers.filter((p) => (p as Record<string, unknown>).team === oppTeam);
 
-                    function teamScores(teamPlayers: typeof myTeamPlayers, hole: number): { net: number, gross: number }[] {
+                    function teamScores(teamPlayers: typeof myTeamPlayers, hole: number): { net: number; gross: number }[] {
                         return teamPlayers
                             .map((p) => {
                                 const pRow = p as Record<string, unknown>;
-                                const s = matchScores.find(
-                                    (sc) => {
-                                        const scRow = sc as Record<string, unknown>;
-                                        return scRow.hole_number === hole && scRow.player_id === pRow.user_id;
-                                    }
-                                );
+                                const s = matchScores.find((sc) => {
+                                    const scRow = sc as Record<string, unknown>;
+                                    return scRow.hole_number === hole && scRow.player_id === pRow.user_id;
+                                });
                                 if (!s) return undefined;
                                 const scRow = s as Record<string, unknown>;
                                 return { net: scRow.net as number, gross: scRow.gross as number };
                             })
-                            .filter((obj): obj is { net: number, gross: number } => obj !== undefined);
+                            .filter((obj): obj is { net: number; gross: number } => obj !== undefined);
                     }
 
                     function holePoints(hole: number): { my: number; opp: number } {
@@ -223,12 +239,11 @@ export default function DashboardPage() {
                         const oppScores = teamScores(oppTeamPlayers, hole);
                         if (!myScores.length || !oppScores.length) return { my: 0, opp: 0 };
 
-                        const myNets = myScores.map(s => s.net);
-                        const oppNets = oppScores.map(s => s.net);
+                        const myNets = myScores.map((s) => s.net);
+                        const oppNets = oppScores.map((s) => s.net);
 
                         const par = courseData?.holes?.find((h) => h.number === hole)?.par ?? 4;
                         const birdiesDouble = sideBets?.birdiesDouble ?? false;
-
                         const myHasBirdie = myScores.some((s) => s.net < par);
                         const oppHasBirdie = oppScores.some((s) => s.net < par);
 
@@ -242,7 +257,6 @@ export default function DashboardPage() {
                             const oppSum = oppNets.reduce((a, b) => a + b, 0);
                             if (mySum < oppSum) my += (birdiesDouble && myHasBirdie) ? 2 : 1;
                             else if (oppSum < mySum) opp += (birdiesDouble && oppHasBirdie) ? 2 : 1;
-
                             return { my, opp };
                         }
                         if (myNets[0] < oppNets[0]) return { my: (birdiesDouble && myHasBirdie) ? 2 : 1, opp: 0 };
@@ -286,7 +300,6 @@ export default function DashboardPage() {
                     lifetimePayout += matchPayout;
                     if (matchPayout > 0) wins++;
 
-                    // Snake avoided: snake was enabled and user's team never picked up a snake dot
                     if (sideBets?.snake) {
                         const mySnakeDots = matchScores.filter((s) => {
                             const sc = s as Record<string, unknown>;
@@ -309,12 +322,12 @@ export default function DashboardPage() {
                 })));
             }
 
-            // 4. Greenies count — completed matches only
+            // 5. Greenies count
             const { count: greeniesCount } = completedIds.length > 0
                 ? await supabase
                     .from('hole_scores')
                     .select('*', { count: 'exact', head: true })
-                    .eq('player_id', userId)
+                    .eq('player_id', userId!)
                     .contains('trash_dots', ['greenie'])
                     .in('match_id', completedIds)
                 : { count: 0 };
@@ -325,26 +338,15 @@ export default function DashboardPage() {
         }
 
         load();
-    }, [profile]);
+    }, [userId]);
 
-    const initials = profile?.fullName
-        ? profile.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-        : '?';
-
-    const memberYear = profile?.createdAt
-        ? new Date(profile.createdAt).getFullYear()
-        : '—';
-
-    const winRate = stats.totalMatches > 0
-        ? Math.round((stats.wins / stats.totalMatches) * 100) + '%'
-        : '—';
-
-
+    const friendship = friendships.find(
+        (f) => f.requesterId === userId || f.addresseeId === userId
+    );
 
     function formatDate(iso: string) {
         const d = new Date(iso);
         const today = new Date();
-        // Normalize both to midnight so we compare calendar days, not raw timestamps
         const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         const matchMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
         const diff = Math.round((todayMidnight.getTime() - matchMidnight.getTime()) / 86400000);
@@ -353,109 +355,144 @@ export default function DashboardPage() {
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
+    const initials = profileData?.fullName
+        ? profileData.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+        : '?';
+
+    const memberYear = profileData?.createdAt
+        ? new Date(profileData.createdAt).getFullYear()
+        : '—';
+
+    const winRate = stats.totalMatches > 0
+        ? Math.round((stats.wins / stats.totalMatches) * 100) + '%'
+        : '—';
+
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
-            {/* Header - Stationary */}
-            <header className="flex items-center justify-between p-4 px-6 border-b border-borderColor bg-background/95 backdrop-blur z-20 shrink-0">
-                <span className="text-secondaryText text-sm font-bold uppercase tracking-widest pl-2">PLAYER PROFILE</span>
-                <div className="flex items-center gap-2 -mr-2">
-                    <button onClick={() => navigate('/friends')} className="p-2 text-secondaryText hover:text-white transition-colors">
-                        <Users className="w-6 h-6" />
-                    </button>
-                    <button onClick={() => navigate('/settings')} className="p-2 text-secondaryText hover:text-white transition-colors">
-                        <Settings className="w-6 h-6" />
-                    </button>
-                </div>
+            {/* Header */}
+            <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background/95 backdrop-blur shrink-0 z-20">
+                <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
+                    <ChevronLeft className="w-6 h-6" />
+                </button>
+                <span className="font-bold text-sm tracking-widest uppercase text-secondaryText">
+                    {isOwnProfile ? 'Your Profile' : 'Player Profile'}
+                </span>
+                <div className="w-10" />
             </header>
 
-            {/* Scrollable Content */}
-            <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6">
-                {/* Ident & Ledger Bal */}
-                <section className="bg-surface rounded-2xl p-4 sm:p-6 border border-borderColor flex flex-col items-center">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden group cursor-pointer transition-transform hover:scale-105">
-                        {profile?.avatarUrl ? (
-                            <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            {loadingProfile ? (
+                <div className="flex-1 flex items-center justify-center">
+                    <Loader className="w-8 h-8 animate-spin text-bloodRed" />
+                </div>
+            ) : !profileData ? (
+                /* Guest player — no profile row */
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                    <div className="w-20 h-20 rounded-full bg-surfaceHover border-2 border-borderColor flex items-center justify-center text-3xl font-black text-secondaryText">?</div>
+                    <p className="font-bold text-white text-lg">Guest Player</p>
+                    <p className="text-secondaryText text-sm">This player doesn't have a BloodSheet account.</p>
+                </div>
+            ) : (
+                <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6">
+                    {/* Identity card */}
+                    <section className="bg-surface rounded-2xl p-4 sm:p-6 border border-borderColor flex flex-col items-center">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden">
+                            {profileData.avatarUrl ? (
+                                <img src={profileData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                                initials
+                            )}
+                        </div>
+                        <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5 sm:mb-1 truncate max-w-full px-2">{profileData.fullName}</h2>
+                        <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8">
+                            HCP {profileData.handicap} • Member since {memberYear}
+                        </span>
+
+                        <div className="w-full flex">
+                            <div className="flex-1 border-r border-borderColor flex flex-col items-center justify-center py-1 sm:py-2 px-1">
+                                <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 leading-tight">Index</span>
+                                <span className="text-3xl sm:text-4xl font-black font-sans">{profileData.handicap}</span>
+                            </div>
+                            <div className="flex-1 flex flex-col items-center justify-center py-1 sm:py-2 px-1">
+                                <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 whitespace-nowrap leading-tight text-center">BloodSheet Total</span>
+                                <span className={`text-2xl sm:text-4xl font-black font-sans ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
+                                    {stats.lifetimePayout >= 0 ? '+' : ''}${stats.lifetimePayout}
+                                </span>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Stats grid */}
+                    <section className="grid grid-cols-2 gap-2 sm:gap-3">
+                        <StatBox label="Total Matches" value={String(stats.totalMatches)} className="px-1" />
+                        <StatBox label="Win Rate" value={winRate} className="px-1" />
+                        <StatBox label="Greenies" value={String(stats.greenies)} valueColor="bloodRed" className="px-1" />
+                        <StatBox label="Snakes Avoided" value={String(stats.snakesAvoided)} valueColor="neonGreen" className="px-1" />
+                    </section>
+
+                    {/* Recent history */}
+                    <section>
+                        <div className="flex items-center gap-2 mb-3 px-2 mt-4">
+                            <History className="w-5 h-5 text-secondaryText" />
+                            <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText">Recent History</h3>
+                        </div>
+                        {history.length === 0 ? (
+                            <p className="text-secondaryText text-sm px-2">No completed matches yet.</p>
                         ) : (
-                            initials
+                            <Card className="divide-y divide-borderColor/50">
+                                {history.map((item) => (
+                                    <div
+                                        key={item.id}
+                                        className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
+                                        onClick={() => navigate(`/history/${item.id}`)}
+                                    >
+                                        <div className="min-w-0 flex-1">
+                                            <span className="font-bold text-white block">{item.courseName} • {item.format}</span>
+                                            <span className="text-xs text-secondaryText block mt-0.5">{item.playerLabel}</span>
+                                            <span className="text-xs text-secondaryText uppercase tracking-wider">
+                                                {formatDate(item.createdAt)} • {item.wagerType}
+                                            </span>
+                                        </div>
+                                        <div className="text-right shrink-0 ml-3">
+                                            <div className={`font-black text-base leading-tight ${item.payout > 0 ? 'text-neonGreen' : item.payout < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
+                                            </div>
+                                            <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                {item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </Card>
                         )}
-                        <label className="absolute inset-0 bg-background/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity z-10 w-full h-full">
-                            {uploadingImage ? <Loader className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" /> : <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-bloodRed" />}
-                            <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingImage} />
-                        </label>
+                    </section>
+
+                    {/* CTA: own profile → settings, other → friend */}
+                    <div className="pb-4">
+                        {isOwnProfile ? (
+                            <Button variant="outline" className="w-full" onClick={() => navigate('/settings')}>
+                                Edit Profile
+                            </Button>
+                        ) : !friendship ? (
+                            <Button
+                                className="w-full"
+                                onClick={() => { if (user && userId) sendFriendRequest(user.id, userId); }}
+                            >
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Add Friend
+                            </Button>
+                        ) : friendship.status === 'accepted' ? (
+                            <div className="flex items-center justify-center gap-2 py-3 rounded-xl border border-neonGreen/30 bg-neonGreen/5 text-neonGreen font-bold tracking-wider uppercase text-sm">
+                                <Check className="w-4 h-4" />
+                                Friends
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center py-3 rounded-xl border border-borderColor text-secondaryText font-bold tracking-wider uppercase text-sm">
+                                Request Sent
+                            </div>
+                        )}
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5 sm:mb-1 truncate max-w-full px-2">{profile?.fullName ?? '…'}</h2>
-                    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8">Member since {memberYear}</span>
-
-                    <div className="w-full flex">
-                        <div className="flex-1 border-r border-borderColor flex flex-col items-center justify-center py-1 sm:py-2 px-1">
-                            <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 leading-tight">Index</span>
-                            <span className="text-3xl sm:text-4xl font-black font-sans">{profile?.handicap ?? '—'}</span>
-                        </div>
-                        <div className="flex-1 flex flex-col items-center justify-center py-1 sm:py-2 px-1">
-                            <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 whitespace-nowrap leading-tight text-center">BloodSheet Total</span>
-                            <span className={`text-2xl sm:text-4xl font-black font-sans ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
-                                {stats.lifetimePayout >= 0 ? '+' : ''}${stats.lifetimePayout}
-                            </span>
-                        </div>
-                    </div>
-                </section>
-
-
-                {/* 2x2 Stats Grid */}
-                <section className="grid grid-cols-2 gap-2 sm:gap-3">
-                    <StatBox label="Total Matches" value={String(stats.totalMatches)} className="px-1" />
-                    <StatBox label="Win Rate" value={winRate} className="px-1" />
-                    <StatBox label="Greenies" value={String(stats.greenies)} valueColor="bloodRed" className="px-1" />
-                    <StatBox label="Snakes Avoided" value={String(stats.snakesAvoided)} valueColor="neonGreen" className="px-1" />
-                </section>
-
-                {/* Recent Matches */}
-                <section>
-                    <div className="flex items-center gap-2 mb-3 px-2 mt-4">
-                        <History className="w-5 h-5 text-secondaryText" />
-                        <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText">Recent History</h3>
-                    </div>
-                    {history.length === 0 ? (
-                        <p className="text-secondaryText text-sm px-2">No matches yet. Start your first one!</p>
-                    ) : (
-                        <Card className="divide-y divide-borderColor/50">
-                            {history.slice(0, 5).map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
-                                    onClick={() => navigate(`/history/${item.id}`)}
-                                >
-                                    <div>
-                                        <span className="font-bold text-white block">{item.courseName} • {item.format}</span>
-                                        <span className="text-xs text-secondaryText block mt-0.5">{item.playerLabel}</span>
-                                        <span className="text-xs text-secondaryText uppercase tracking-wider">
-                                            {formatDate(item.createdAt)} • {item.wagerType}
-                                        </span>
-                                    </div>
-                                    <div className="text-right shrink-0 ml-3">
-                                        <div className={`font-black text-base leading-tight ${item.payout > 0 ? 'text-neonGreen' : item.payout < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                            {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
-                                        </div>
-                                        <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                            {item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </Card>
-                    )}
-                </section>
-            </main>
-
-            {/* Primary Action Buttons - Stationary */}
-            <div className="bg-background border-t border-borderColor p-3 sm:p-4 flex gap-2 sm:gap-3 z-20 shrink-0 pb-safe">
-                <Button variant="outline" size="sm" className="flex-1 h-12 sm:h-14 font-bold uppercase tracking-wider text-sm sm:text-base" onClick={() => navigate('/join')}>
-                    Join Match
-                </Button>
-                <Button size="lg" className="flex-[2] h-12 sm:h-14 text-sm sm:text-base uppercase tracking-widest font-black shadow-[0_0_20px_rgba(255,0,63,0.4)]" onClick={() => navigate('/setup')}>
-                    Start New Match
-                </Button>
-            </div>
+                </main>
+            )}
         </div>
     );
 }

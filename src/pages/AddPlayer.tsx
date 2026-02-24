@@ -138,7 +138,7 @@ export default function AddPlayerPage() {
         // 2. Search The Grint Network via Edge Function
         let grintProfiles: ProfileRow[] = [];
         try {
-            const { data: grintRes, error } = await supabase.functions.invoke('grint-search', {
+            const { data: grintRes } = await supabase.functions.invoke('grint-search', {
                 body: { search: searchTerm }
             });
             if (grintRes && grintRes.data) {
@@ -180,7 +180,11 @@ export default function AddPlayerPage() {
         const isStaged = stagedPlayers.some((sp) => sp.userId === p.id);
         return (
             <div className="p-3.5 flex items-center justify-between hover:bg-surfaceHover transition-colors">
-                <div className="flex items-center gap-3">
+                <div
+                    className="flex items-center gap-3"
+                    style={!p.isGrint ? { cursor: 'pointer' } : undefined}
+                    onClick={() => { if (!p.isGrint) navigate(`/player/${p.id}`); }}
+                >
                     <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold text-white text-sm overflow-hidden shrink-0">
                         {p.avatarUrl && !p.avatarUrl.includes('profile_default.jpg') ? (
                             <img src={p.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />

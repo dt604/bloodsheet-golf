@@ -62,8 +62,12 @@ CREATE TABLE IF NOT EXISTS public.match_players (
   user_id           UUID REFERENCES public.profiles(id),
   team              TEXT NOT NULL CHECK (team IN ('A', 'B')),
   initial_handicap  DECIMAL(4,1) NOT NULL DEFAULT 0.0,
+  avatar_url        TEXT,
   PRIMARY KEY (match_id, user_id)
 );
+
+-- If you already have a match_players table, run this to add the column:
+-- ALTER TABLE public.match_players ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 -- ─── HOLE SCORES ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.hole_scores (

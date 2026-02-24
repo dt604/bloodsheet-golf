@@ -18,6 +18,8 @@ interface MatchPlayer {
     fullName: string;
     handicap: number;
     team: 'A' | 'B';
+    avatarUrl?: string;
+    isGuest?: boolean;
     scores: Record<number, { gross: number; net: number; dots: string[] }>;
 }
 
@@ -90,7 +92,7 @@ export default function PastMatchScorecardPage() {
                 // Fetch players with team
                 const { data: mps, error: mpsErr } = await supabase
                     .from('match_players')
-                    .select('user_id, initial_handicap, guest_name, team')
+                    .select('user_id, initial_handicap, guest_name, team, avatar_url')
                     .eq('match_id', matchId);
 
                 if (mpsErr) console.error('MPS err', mpsErr);
@@ -104,7 +106,7 @@ export default function PastMatchScorecardPage() {
                 if (authUserIds.length > 0) {
                     const { data: profs } = await supabase
                         .from('profiles')
-                        .select('id, full_name')
+                        .select('id, full_name, avatar_url')
                         .in('id', authUserIds);
                     if (profs) fetchedProfiles = profs;
                 }
@@ -141,11 +143,14 @@ export default function PastMatchScorecardPage() {
                             if (found && found.full_name) assignedName = found.full_name as string;
                         }
 
+                        const foundProfile = fetchedProfiles.find((p) => String(p.id).toLowerCase() === pId);
                         playersMap.set(pId, {
                             id: pId,
                             fullName: assignedName,
                             handicap: (mp.initial_handicap as number) || 0,
                             team: mp.team as 'A' | 'B',
+                            avatarUrl: (mp.avatar_url as string | undefined) ?? (foundProfile?.avatar_url as string | undefined),
+                            isGuest,
                             scores: {}
                         });
                     });
@@ -250,7 +255,7 @@ export default function PastMatchScorecardPage() {
     }
 
     function renderRowTracker({
-        rowKey, title, titleColor = 'text-white', cellRenderer,
+        rowKey, title, titleColor = 'text-white', titleContent, cellRenderer,
         dividerClass = 'bg-background/80 font-bold',
         totClass = 'bg-bloodRed text-white font-black',
         frontNineSum, backNineSum, extHCP, extGROSS,
@@ -260,6 +265,7 @@ export default function PastMatchScorecardPage() {
         rowKey?: string | number;
         title: string;
         titleColor?: string;
+        titleContent?: React.ReactNode;
         cellRenderer: (holeNum: number) => React.ReactNode;
         dividerClass?: string;
         totClass?: string;
@@ -272,8 +278,12 @@ export default function PastMatchScorecardPage() {
     }) {
         return (
             <div key={rowKey} className={`flex flex-row border-b border-borderColor last:border-b-0 ${height}`}>
-                <div className={`sticky left-0 z-20 bg-background border-r border-borderColor ${stickyWidth} h-full flex items-center justify-start px-3 font-bold uppercase tracking-tighter text-[10px] ${titleColor} truncate shadow-[2px_0_5px_rgba(0,0,0,0.5)]`}>
-                    {title}
+                <div className={`sticky left-0 z-20 bg-background border-r border-borderColor ${stickyWidth} h-full flex flex-col items-center justify-center gap-0.5 py-1.5 shadow-[2px_0_5px_rgba(0,0,0,0.5)]`}>
+                    {titleContent ?? (
+                        <span className={`font-bold uppercase tracking-tighter text-[10px] ${titleColor} truncate w-full text-center px-1`}>
+                            {title}
+                        </span>
+                    )}
                 </div>
                 {headers.map((h, i) => {
                     const baseClass = `${height} border-r border-borderColor flex items-center justify-center flex-shrink-0`;
@@ -285,7 +295,7 @@ export default function PastMatchScorecardPage() {
                         if (h.val === 'GROSS') return <div key={i} className={`${baseClass} min-w-[44px] ${totClass} text-sm`}>{extGROSS}</div>;
                     }
                     return (
-                        <div key={i} className={`${baseClass} min-w-[40px] text-xs font-semibold`}>
+                        <div key={i} className={`${baseClass} min-w-[52px] text-xs font-semibold`}>
                             {cellRenderer(h.val as number)}
                         </div>
                     );
@@ -466,12 +476,12 @@ export default function PastMatchScorecardPage() {
                         <div className="flex flex-col border border-borderColor shadow-lg overflow-hidden rounded-xl bg-surface/20">
                             {/* Header Row (Hole) */}
                             <div className="flex flex-row bg-surface border-b border-borderColor">
-                                <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] max-w-[80px] h-10 flex items-center justify-start px-3 font-black uppercase tracking-widest text-[10px] text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.5)]">
+                                <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] max-w-[80px] h-12 flex items-center justify-start px-3 font-black uppercase tracking-widest text-[10px] text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.5)]">
                                     HOLE
                                 </div>
                                 {headers.map((h, i) => {
-                                    const baseClass = "h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center font-black text-[10px] flex-shrink-0";
-                                    if (h.type === 'hole') return <div key={i} className={`${baseClass} min-w-[40px] text-white/90`}>{h.val}</div>;
+                                    const baseClass = "h-12 border-r border-borderColor last:border-r-0 flex items-center justify-center font-black text-[10px] flex-shrink-0";
+                                    if (h.type === 'hole') return <div key={i} className={`${baseClass} min-w-[52px] text-white/90`}>{h.val}</div>;
                                     if (h.type === 'divider') return <div key={i} className={`${baseClass} min-w-[44px] bg-bloodRed/20 text-bloodRed tracking-widest`}>{h.val}</div>;
                                     if (h.val === 'GROSS') return <div key={i} className={`${baseClass} min-w-[44px] bg-bloodRed text-white tracking-widest uppercase`}>{h.val}</div>;
                                     return <div key={i} className={`${baseClass} min-w-[44px] bg-black/40 text-secondaryText`}>{h.val}</div>;
@@ -504,19 +514,38 @@ export default function PastMatchScorecardPage() {
                                     rowKey: p.id,
                                     title: p.fullName.split(' ')[0],
                                     titleColor: 'text-white',
+                                    titleContent: (
+                                        <div
+                                            className="flex flex-col items-center gap-0.5 w-full"
+                                            style={!p.isGuest ? { cursor: 'pointer' } : undefined}
+                                            onClick={() => { if (!p.isGuest) navigate(`/player/${p.id}`); }}
+                                        >
+                                            <div className="w-7 h-7 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
+                                                {p.avatarUrl
+                                                    ? <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                                    : p.fullName.slice(0, 1).toUpperCase()
+                                                }
+                                            </div>
+                                            <span className="font-bold text-[9px] text-white truncate uppercase tracking-tighter w-full text-center px-1">
+                                                {p.fullName.split(' ')[0]}
+                                            </span>
+                                        </div>
+                                    ),
                                     frontNineSum: outGross || '—',
                                     backNineSum: inGross || '—',
                                     extHCP: p.handicap,
                                     extGROSS: totGross || '—',
-                                    height: 'h-12',
+                                    height: 'h-16',
                                     stickyWidth: 'min-w-[80px] max-w-[80px]',
                                     cellRenderer: (hNum) => {
                                         const raw = getPlayerScore(p, 'gross', hNum);
                                         if (!raw) return <span className="text-borderColor/30">—</span>;
                                         const par = sortedHoles.find(h => h.number === hNum)?.par || 4;
-                                        if (raw < par) return <div className="border border-neonGreen w-7 h-7 flex items-center justify-center rounded-full text-neonGreen font-bold bg-neonGreen/10">{raw}</div>;
-                                        if (raw === par + 1) return <div className="border border-bloodRed w-7 h-7 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
-                                        if (raw >= par + 2) return <div className="border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] w-7 h-7 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
+                                        if (raw <= par - 2) return <div className="border border-neonOrange w-10 h-10 flex items-center justify-center rounded-full text-neonOrange font-bold bg-neonOrange/10">{raw}</div>;
+                                        if (raw === par - 1) return <div className="border border-neonGreen w-10 h-10 flex items-center justify-center rounded-full text-neonGreen font-bold bg-neonGreen/10">{raw}</div>;
+                                        if (raw === par + 1) return <div className="border border-bloodRed w-10 h-10 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
+                                        if (raw === par + 2) return <div className="border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] w-10 h-10 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
+                                        if (raw >= par + 3) return <div className="border border-neonOrange ring-1 ring-neonOrange ring-offset-1 ring-offset-[#1C1C1E] w-10 h-10 flex items-center justify-center text-neonOrange font-bold bg-neonOrange/10">{raw}</div>;
                                         return <span className="font-black text-white">{raw}</span>;
                                     }
                                 });
@@ -527,14 +556,26 @@ export default function PastMatchScorecardPage() {
 
                 {/* Legend */}
                 <div className="px-4 mt-2">
-                    <div className="bg-surface rounded-xl border border-borderColor p-4 flex gap-4 text-[10px] text-secondaryText uppercase font-bold tracking-widest">
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full border border-bloodRed flex items-center justify-center text-bloodRed leading-none pt-0.5">3</div>
-                            <span>Under Par</span>
+                    <div className="bg-surface rounded-xl border border-borderColor px-3 py-2.5 flex items-center justify-between text-[9px] text-secondaryText uppercase font-bold tracking-wide">
+                        <div className="flex items-center gap-1">
+                            <div className="w-5 h-5 rounded-full border border-neonOrange bg-neonOrange/10 flex items-center justify-center text-neonOrange font-bold leading-none text-[9px]"></div>
+                            <span>Eagle</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border border-secondaryText bg-surface/50 flex items-center justify-center text-secondaryText leading-none pt-0.5">5</div>
-                            <span>Over Par</span>
+                        <div className="flex items-center gap-1">
+                            <div className="w-5 h-5 rounded-full border border-neonGreen bg-neonGreen/10 flex items-center justify-center text-neonGreen font-bold leading-none text-[9px]"></div>
+                            <span>Birdie</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-5 h-5 border border-bloodRed bg-bloodRed/10 flex items-center justify-center text-bloodRed font-bold leading-none text-[9px]"></div>
+                            <span>Bogey</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-5 h-5 border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] bg-bloodRed/10 flex items-center justify-center text-bloodRed font-bold leading-none text-[9px]"></div>
+                            <span>Double</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-5 h-5 border border-neonOrange ring-1 ring-neonOrange ring-offset-1 ring-offset-[#1C1C1E] bg-neonOrange/10 flex items-center justify-center text-neonOrange font-bold leading-none text-[9px]"></div>
+                            <span>Triple+</span>
                         </div>
                     </div>
                 </div>

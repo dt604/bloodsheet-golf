@@ -203,11 +203,6 @@ export default function SettingsPage() {
 
                 {/* Danger Zone */}
                 <section className="space-y-2 mt-12 px-2">
-                    <div className="flex items-center justify-between py-3 cursor-pointer hover:opacity-80 transition-opacity">
-                        <span className="font-bold text-white">Link Venmo Account</span>
-                        <ChevronRight className="w-4 h-4 text-secondaryText" />
-                    </div>
-
                     <div className="py-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={handleLogOut}>
                         <span className="font-bold text-bloodRed uppercase tracking-widest text-sm">Log Out</span>
                     </div>

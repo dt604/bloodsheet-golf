@@ -12,6 +12,7 @@ export default {
                 surfaceHover: '#3A3A3C',
                 bloodRed: '#FF003F',
                 neonGreen: '#00FF66',
+                neonOrange: '#FF8C00',
                 primaryText: '#FFFFFF',
                 secondaryText: '#A1A1AA',
                 borderColor: '#3F3F46',

@@ -12,6 +12,7 @@ import SettingsPage from './pages/Settings';
 import JoinMatchPage from './pages/JoinMatch';
 import PastMatchScorecardPage from './pages/PastMatchScorecard';
 import FriendsPage from './pages/Friends';
+import PlayerProfilePage from './pages/PlayerProfile';
 
 // Full auth required — guests are redirected to welcome
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -43,6 +44,7 @@ function AppRoutes() {
       <Route path="/join" element={<ViewerRoute><JoinMatchPage /></ViewerRoute>} />
       <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
       <Route path="/history/:matchId" element={<ProtectedRoute><PastMatchScorecardPage /></ProtectedRoute>} />
+      <Route path="/player/:userId" element={<ProtectedRoute><PlayerProfilePage /></ProtectedRoute>} />
     </Routes>
   );
 }
@@ -50,7 +52,7 @@ function AppRoutes() {
 function App() {
   return (
     <div className="h-[100dvh] bg-background text-primaryText font-sans overflow-hidden">
-      <div className="w-full max-w-md mx-auto bg-background h-full shadow-2xl relative flex flex-col overflow-hidden">
+      <div className="w-full max-w-md landscape:max-w-none lg:landscape:max-w-md mx-auto bg-background h-full shadow-2xl relative flex flex-col overflow-hidden safe-x">
         <BrowserRouter>
           <AuthProvider>
             <AppRoutes />

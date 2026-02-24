@@ -75,6 +75,7 @@ interface PlayerRow {
     holesPlayed: number;
     scoreToPar: number;
     avatarUrl?: string;
+    isGuest: boolean;
 }
 
 interface ActivityEvent {
@@ -135,7 +136,8 @@ export default function LeaderboardPage() {
                     team: p.team,
                     holesPlayed: playerScores.length,
                     scoreToPar,
-                    avatarUrl: profileMap[p.userId]?.avatarUrl,
+                    avatarUrl: profileMap[p.userId]?.avatarUrl ?? p.avatarUrl,
+                    isGuest: !!p.guestName,
                 };
             });
 
@@ -245,23 +247,37 @@ export default function LeaderboardPage() {
         if (val === 0) return <span className="text-secondaryText/30">—</span>;
 
         const par = sortedHoles.find(h => h.number === hNum)?.par ?? 4;
-        if (val < par) {
+        if (val <= par - 2) {
             return (
-                <div className="w-7 h-7 rounded-full border border-neonGreen flex items-center justify-center text-neonGreen font-bold bg-neonGreen/10">
+                <div className="w-10 h-10 rounded-full border border-neonOrange flex items-center justify-center text-neonOrange font-bold bg-neonOrange/10">
+                    {val}
+                </div>
+            );
+        }
+        if (val === par - 1) {
+            return (
+                <div className="w-10 h-10 rounded-full border border-neonGreen flex items-center justify-center text-neonGreen font-bold bg-neonGreen/10">
                     {val}
                 </div>
             );
         }
         if (val === par + 1) {
             return (
-                <div className="w-7 h-7 border border-bloodRed flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">
+                <div className="w-10 h-10 border border-bloodRed flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">
                     {val}
                 </div>
             );
         }
-        if (val >= par + 2) {
+        if (val === par + 2) {
             return (
-                <div className="w-7 h-7 border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">
+                <div className="w-10 h-10 border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">
+                    {val}
+                </div>
+            );
+        }
+        if (val >= par + 3) {
+            return (
+                <div className="w-10 h-10 border border-neonOrange ring-1 ring-neonOrange ring-offset-1 ring-offset-[#1C1C1E] flex items-center justify-center text-neonOrange font-bold bg-neonOrange/10">
                     {val}
                 </div>
             );
@@ -338,15 +354,15 @@ export default function LeaderboardPage() {
                             <div className="flex flex-col border border-borderColor shadow-lg overflow-hidden rounded-xl bg-surface/20">
                                 {/* Hole Headers */}
                                 <div className="flex flex-row bg-surface border-b border-borderColor">
-                                    <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] max-w-[80px] h-10 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
+                                    <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] max-w-[80px] h-12 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
                                         HOLE
                                     </div>
                                     {headers.map((h, i) => (
                                         <div
                                             key={i}
-                                            className={`h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-black text-[10px] tracking-tighter ${h.type === 'divider' ? 'min-w-[44px] bg-black/40 text-white' :
+                                            className={`h-12 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-black text-[10px] tracking-tighter ${h.type === 'divider' ? 'min-w-[44px] bg-black/40 text-white' :
                                                 h.type === 'header' ? 'min-w-[50px] bg-bloodRed text-white' :
-                                                    'min-w-[40px] text-white/90'
+                                                    'min-w-[52px] text-white/90'
                                                 }`}
                                         >
                                             {h.val}
@@ -356,22 +372,22 @@ export default function LeaderboardPage() {
 
                                 {/* Par Headers */}
                                 <div className="flex flex-row bg-surface">
-                                    <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] h-8 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText/60 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
+                                    <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] h-10 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText/60 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
                                         PAR
                                     </div>
                                     {headers.map((h, i) => {
                                         if (h.type === 'divider') {
                                             const range = h.val === 'OUT' ? frontNine : backNine;
                                             const sum = range.reduce((s, hole) => s + hole.par, 0);
-                                            return <div key={i} className="h-8 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[44px] bg-black/40 text-secondaryText/60">{sum}</div>;
+                                            return <div key={i} className="h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[44px] bg-black/40 text-secondaryText/60">{sum}</div>;
                                         }
                                         if (h.type === 'header') {
                                             const total = sortedHoles.reduce((s, hole) => s + hole.par, 0);
-                                            return <div key={i} className="h-8 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[50px] bg-bloodRed/10 text-bloodRed/60">{total}</div>;
+                                            return <div key={i} className="h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[50px] bg-bloodRed/10 text-bloodRed/60">{total}</div>;
                                         }
                                         const holePar = sortedHoles.find(x => x.number === h.val)?.par ?? 4;
                                         return (
-                                            <div key={i} className="h-8 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[40px] text-secondaryText/60">
+                                            <div key={i} className="h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[52px] text-secondaryText/60">
                                                 {holePar}
                                             </div>
                                         );
@@ -382,9 +398,15 @@ export default function LeaderboardPage() {
                             {/* Table 2: Player Information */}
                             <div className="flex flex-col border border-borderColor shadow-2xl overflow-hidden rounded-xl bg-surface/10">
                                 {playerRows.map((row) => (
-                                    <div key={row.userId} className="flex flex-row border-b border-borderColor last:border-b-0 group h-12">
-                                        <div className="sticky left-0 z-20 bg-background group-hover:bg-surfaceHover border-r border-borderColor min-w-[80px] max-w-[80px] h-full flex items-center px-3 shadow-[2px_0_5px_rgba(0,0,0,0.3)] transition-colors">
-                                            <span className="font-bold text-[11px] text-white truncate uppercase tracking-tighter">
+                                    <div key={row.userId} className="flex flex-row border-b border-borderColor last:border-b-0 group h-16">
+                                        <div className="sticky left-0 z-20 bg-background group-hover:bg-surfaceHover border-r border-borderColor min-w-[80px] max-w-[80px] h-full flex flex-col items-center justify-center gap-0.5 py-1.5 shadow-[2px_0_5px_rgba(0,0,0,0.3)] transition-colors">
+                                            <div className="w-7 h-7 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
+                                                {row.avatarUrl
+                                                    ? <img src={row.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                                    : row.fullName.slice(0, 1).toUpperCase()
+                                                }
+                                            </div>
+                                            <span className="font-bold text-[9px] text-white truncate uppercase tracking-tighter w-full text-center px-1">
                                                 {row.fullName.split(' ')[0]}
                                             </span>
                                         </div>
@@ -399,7 +421,7 @@ export default function LeaderboardPage() {
                                                 return <div key={i} className={`${baseClass} min-w-[50px] bg-bloodRed/10 font-black text-sm text-bloodRed`}>{total || '—'}</div>;
                                             }
                                             return (
-                                                <div key={i} className={`${baseClass} min-w-[40px] text-xs font-black`}>
+                                                <div key={i} className={`${baseClass} min-w-[52px] text-xs font-black`}>
                                                     {renderScoreCell(row.userId, h.val as number)}
                                                 </div>
                                             );
@@ -429,7 +451,12 @@ export default function LeaderboardPage() {
                             const toParStr = row.holesPlayed === 0 ? '—' : row.scoreToPar === 0 ? 'E' : row.scoreToPar > 0 ? `+${row.scoreToPar}` : `${row.scoreToPar}`;
 
                             return (
-                                <Card key={row.userId} className="p-3 flex items-center justify-between border-borderColor/50 hover:bg-surfaceHover transition-colors">
+                                <Card
+                                    key={row.userId}
+                                    className="p-3 flex items-center justify-between border-borderColor/50 hover:bg-surfaceHover transition-colors"
+                                    onClick={() => { if (!row.isGuest) navigate(`/player/${row.userId}`); }}
+                                    style={!row.isGuest ? { cursor: 'pointer' } : undefined}
+                                >
                                     <div className="flex items-center gap-3">
                                         <div className={`w-[38px] h-[38px] rounded-full bg-surfaceHover border flex items-center justify-center font-bold text-white text-sm overflow-hidden shrink-0 ${row.team === 'A' ? 'border-secondaryText' : 'border-bloodRed/60'
                                             }`}>
