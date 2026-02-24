@@ -17,6 +17,17 @@ interface ProfileRow {
     username?: string;
 }
 
+// generateUUID() requires iOS 15.4+ — use a safe fallback for older iPhones
+function generateUUID(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return generateUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+}
+
 export default function AddPlayerPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -151,7 +162,7 @@ export default function AddPlayerPage() {
     function handleSelectRegistered(p: ProfileRow) {
         if (p.isGrint) {
             // Treat Grint players as ghosts/guests so we don't trip foreign key constraints on the backend
-            stagePlayer({ userId: crypto.randomUUID(), fullName: p.fullName, handicap: p.handicap, team, avatarUrl: p.avatarUrl, isGuest: true });
+            stagePlayer({ userId: generateUUID(), fullName: p.fullName, handicap: p.handicap, team, avatarUrl: p.avatarUrl, isGuest: true });
         } else {
             stagePlayer({ userId: p.id, fullName: p.fullName, handicap: p.handicap, team, avatarUrl: p.avatarUrl });
         }
@@ -160,7 +171,7 @@ export default function AddPlayerPage() {
 
     function handleAddGuest() {
         if (!guestName.trim()) return;
-        const guestId = crypto.randomUUID();
+        const guestId = generateUUID();
         stagePlayer({ userId: guestId, fullName: guestName.trim(), handicap: guestHandicap, team, isGuest: true });
         navigate('/setup');
     }
