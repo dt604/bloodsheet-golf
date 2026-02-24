@@ -6,7 +6,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Toggle } from '../components/ui/Toggle';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
-import { searchCourses } from '../lib/courseApi';
+import { searchCourses, searchNearbyCourses } from '../lib/courseApi';
 import { Course } from '../types';
 
 export default function MatchSetupPage() {
@@ -64,6 +64,62 @@ export default function MatchSetupPage() {
         } finally {
             setCourseSearching(false);
         }
+    }
+    async function handleNearbySearch() {
+        // 1. Check for Secure Context (iPhone requires HTTPS for GPS unless it's localhost)
+        if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+            setCourseError('GPS requires a secure (HTTPS) connection on mobile. Try searching by city name instead.');
+            return;
+        }
+
+        if (!navigator.geolocation) {
+            setCourseError('Geolocation is not supported by your browser.');
+            return;
+        }
+
+        setCourseSearching(true);
+        setCourseError('Getting your location...');
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                setCourseError('Finding nearby courses...');
+                try {
+                    // Try to get a city name from coordinates using a free reverse geocoder
+                    // This ensures it works even if the Golf API only supports name-based search
+                    const revRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=10`);
+                    const revData = await revRes.json();
+                    const cityName = revData.address?.city || revData.address?.town || revData.address?.county || '';
+
+                    if (cityName) {
+                        setCourseQuery(cityName);
+                        const results = await searchCourses(cityName);
+                        setCourseResults(results);
+                        if (results.length === 0) setCourseError(`No courses found near ${cityName}.`);
+                    } else {
+                        // Fallback to direct coordinate search if geocoding fails
+                        const results = await searchNearbyCourses(position.coords.latitude, position.coords.longitude);
+                        setCourseResults(results);
+                    }
+                } catch {
+                    // Final fallback
+                    try {
+                        const results = await searchNearbyCourses(position.coords.latitude, position.coords.longitude);
+                        setCourseResults(results);
+                    } catch {
+                        setCourseError('Could not identify courses near you. Please search by name.');
+                    }
+                } finally {
+                    setCourseSearching(false);
+                }
+            },
+            (err) => {
+                setCourseSearching(false);
+                if (err.code === 1) setCourseError('Location access was denied. Check your browser settings.');
+                else if (err.code === 3) setCourseError('Location request timed out. Try again or search by name.');
+                else setCourseError('Failed to get your location.');
+            },
+            { timeout: 15000, enableHighAccuracy: true }
+        );
     }
 
     async function handleCopyCode() {
@@ -291,12 +347,25 @@ export default function MatchSetupPage() {
                                 <input
                                     type="text"
                                     className="block w-full pl-9 pr-10 py-3 border border-borderColor rounded-xl bg-surface text-white placeholder-secondaryText focus:outline-none focus:ring-1 focus:ring-bloodRed focus:border-bloodRed text-sm transition-all"
-                                    placeholder="Start typing a course name…"
+                                    placeholder="Search by course name…"
                                     value={courseQuery}
                                     onChange={(e) => setCourseQuery(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleCourseSearch()}
                                 />
-                                {courseSearching && <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondaryText animate-spin pointer-events-none" />}
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                    {courseSearching ? (
+                                        <Loader className="w-4 h-4 text-bloodRed animate-spin" />
+                                    ) : (
+                                        <button
+                                            onClick={handleNearbySearch}
+                                            className="p-1 px-2 bg-bloodRed/10 rounded-lg text-bloodRed hover:bg-bloodRed/20 transition-colors flex items-center gap-1.5"
+                                            title="Find courses near me"
+                                        >
+                                            <MapPin className="w-3 h-3" />
+                                            <span className="text-[10px] font-black uppercase tracking-tighter">Near Me</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             {courseError && <p className="text-bloodRed text-xs font-semibold px-1">{courseError}</p>}
                             {courseResults.length > 0 && (

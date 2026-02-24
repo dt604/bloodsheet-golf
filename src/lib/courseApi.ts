@@ -44,21 +44,32 @@ function extractHoles(apiCourse: ApiCourse): Course['holes'] {
 }
 
 export async function searchCourses(name: string): Promise<Course[]> {
-  const res = await fetch(
-    `https://${RAPIDAPI_HOST}/search?name=${encodeURIComponent(name)}`,
-    {
-      headers: {
-        'x-rapidapi-host': RAPIDAPI_HOST,
-        'x-rapidapi-key': RAPIDAPI_KEY,
-      },
-    }
-  );
+  const url = `https://${RAPIDAPI_HOST}/search?name=${encodeURIComponent(name)}`;
+  return fetchAndMapCourses(url);
+}
+
+export async function searchNearbyCourses(lat: number, lng: number, radius: number = 25): Promise<Course[]> {
+  // Note: Adjusting param names based on common RapidAPI golf course API patterns
+  const url = `https://${RAPIDAPI_HOST}/search?lat=${lat}&lng=${lng}&radius=${radius}`;
+  return fetchAndMapCourses(url);
+}
+
+async function fetchAndMapCourses(url: string): Promise<Course[]> {
+  const res = await fetch(url, {
+    headers: {
+      'x-rapidapi-host': RAPIDAPI_HOST,
+      'x-rapidapi-key': RAPIDAPI_KEY,
+    },
+  });
 
   if (!res.ok) throw new Error(`Course search failed: ${res.status}`);
 
   const data: ApiCourse[] = await res.json();
 
-  return data.map((c) => ({
+  // If the API returns a single object instead of an array (common in some endpoints)
+  const coursesRaw = Array.isArray(data) ? data : [data];
+
+  return coursesRaw.map((c) => ({
     id: c._id,
     name: c.name + (c.city ? ` • ${c.city}, ${c.state}` : ''),
     holes: extractHoles(c),
