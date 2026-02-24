@@ -118,6 +118,8 @@ CREATE POLICY "Authenticated users can create matches"
   ON public.matches FOR INSERT WITH CHECK (auth.uid() = created_by);
 CREATE POLICY "Match creator can update match"
   ON public.matches FOR UPDATE USING (auth.uid() = created_by);
+CREATE POLICY "Match creator can delete match"
+  ON public.matches FOR DELETE USING (auth.uid() = created_by);
 
 -- Match Players
 CREATE POLICY "Match players viewable by authenticated users"

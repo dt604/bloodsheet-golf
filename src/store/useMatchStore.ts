@@ -101,6 +101,8 @@ interface MatchStoreState {
 
   completeMatch: (matchId: string) => Promise<void>;
 
+  deleteMatch: (matchId: string) => Promise<void>;
+
   // Refresh only scores + presses — does NOT touch the subscription channel
   refreshScores: (matchId: string) => Promise<void>;
 
@@ -340,6 +342,11 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       match: state.match ? { ...state.match, status: 'completed' } : null,
     }));
     localStorage.removeItem('activeMatchId');
+  },
+
+  // ── Permanently delete a match and all related data ─────────
+  async deleteMatch(matchId) {
+    await supabase.from('matches').delete().eq('id', matchId);
   },
 
   // ── Refresh scores + presses only (no subscription teardown) ─

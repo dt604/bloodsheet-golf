@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Flag, Receipt } from 'lucide-react';
+import { ArrowLeft, Flag, Receipt, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useMatchStore } from '../store/useMatchStore';
+import { Button } from '../components/ui/Button';
 
 interface CourseHole {
     number: number;
@@ -54,9 +56,17 @@ export default function PastMatchScorecardPage() {
     const { matchId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { deleteMatch } = useMatchStore();
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [data, setData] = useState<MatchScorecardData | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    async function handleDelete() {
+        if (!matchId) return;
+        await deleteMatch(matchId);
+        navigate('/dashboard');
+    }
 
     useEffect(() => {
         async function fetchScorecard() {
@@ -424,13 +434,13 @@ export default function PastMatchScorecardPage() {
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-background pb-12 font-sans overflow-hidden">
-            <header className="flex flex-col border-b border-borderColor bg-surface/90 backdrop-blur z-30 flex-shrink-0">
+        <div className="flex flex-col h-full bg-background font-sans overflow-y-auto overflow-x-hidden momentum-scroll pb-20 safe-bottom">
+            <header className="flex flex-col border-b border-borderColor bg-surface/90 backdrop-blur sticky top-0 z-30 flex-shrink-0">
                 <div className="flex items-center p-4">
                     <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <div className="flex-1 ml-2">
+                    <div className="flex-1 ml-2 min-w-0">
                         <h2 className="text-xl font-black text-white tracking-tighter truncate">{data.courseName}</h2>
                         <span className="text-xs font-bold text-bloodRed uppercase tracking-widest">{data.format}</span>
                     </div>
@@ -441,7 +451,7 @@ export default function PastMatchScorecardPage() {
                 </div>
             </header>
 
-            <div className="flex-1 w-full overflow-hidden flex flex-col pt-4">
+            <div className="flex-1 w-full flex flex-col pt-4">
                 <div className="px-4 mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-widest text-secondaryText">
                     <div className="flex items-center gap-2">
                         <Flag className="w-4 h-4 text-bloodRed" />
@@ -573,12 +583,44 @@ export default function PastMatchScorecardPage() {
                         </div>
                     </div>
                 )}
+
+                {/* Delete Match */}
+                <div className="px-4 pt-2 pb-6">
+                    <Button
+                        size="lg"
+                        className="w-full bg-bloodRed hover:bg-bloodRed/80 border-bloodRed"
+                        onClick={() => setShowDeleteConfirm(true)}
+                    >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Match
+                    </Button>
+                </div>
             </div>
 
             <style>{`
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
+                    <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm p-6 space-y-4">
+                        <h3 className="text-xl font-black text-center">Delete Match?</h3>
+                        <p className="text-sm text-secondaryText text-center">
+                            This will permanently delete all scores, presses, and betting data for this match.
+                        </p>
+                        <div className="flex gap-3 pt-2">
+                            <Button variant="outline" size="lg" className="flex-1" onClick={() => setShowDeleteConfirm(false)}>
+                                Cancel
+                            </Button>
+                            <Button size="lg" className="flex-1 bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={handleDelete}>
+                                Delete
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

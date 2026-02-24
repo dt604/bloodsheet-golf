@@ -332,19 +332,19 @@ export default function LeaderboardPage() {
                 {/* Scorecard Overview */}
                 <section>
                     <div className="text-secondaryText text-xs font-bold uppercase tracking-widest mb-2 pl-1">Scorecard Overview</div>
-                    <div className="overflow-x-auto scrollbar-hide pb-4">
-                        <div className="min-w-max space-y-4">
+                    <div className="overflow-x-auto scrollbar-hide pb-8">
+                        <div className="px-4 inline-flex flex-col min-w-max gap-6">
                             {/* Table 1: Hole & Par Information */}
-                            <div className="inline-flex flex-col border border-borderColor/50 bg-surface/50 overflow-hidden rounded-lg shadow-lg">
+                            <div className="flex flex-col border border-borderColor shadow-lg overflow-hidden rounded-xl bg-surface/20">
                                 {/* Hole Headers */}
                                 <div className="flex flex-row bg-surface border-b border-borderColor">
-                                    <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] h-10 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
+                                    <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] max-w-[80px] h-10 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
                                         HOLE
                                     </div>
                                     {headers.map((h, i) => (
                                         <div
                                             key={i}
-                                            className={`h-10 border-r border-borderColor flex items-center justify-center flex-shrink-0 font-black text-[10px] tracking-tighter ${h.type === 'divider' ? 'min-w-[44px] bg-black/40 text-white' :
+                                            className={`h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-black text-[10px] tracking-tighter ${h.type === 'divider' ? 'min-w-[44px] bg-black/40 text-white' :
                                                 h.type === 'header' ? 'min-w-[50px] bg-bloodRed text-white' :
                                                     'min-w-[40px] text-white/90'
                                                 }`}
@@ -380,16 +380,16 @@ export default function LeaderboardPage() {
                             </div>
 
                             {/* Table 2: Player Information */}
-                            <div className="inline-flex flex-col border border-borderColor/50 bg-surface/30 overflow-hidden rounded-lg shadow-2xl">
+                            <div className="flex flex-col border border-borderColor shadow-2xl overflow-hidden rounded-xl bg-surface/10">
                                 {playerRows.map((row) => (
-                                    <div key={row.userId} className="flex flex-row border-b border-borderColor last:border-b-0 group">
-                                        <div className="sticky left-0 z-20 bg-background group-hover:bg-surfaceHover border-r border-borderColor min-w-[80px] max-w-[80px] h-12 flex items-center px-3 shadow-[2px_0_5px_rgba(0,0,0,0.3)] transition-colors">
+                                    <div key={row.userId} className="flex flex-row border-b border-borderColor last:border-b-0 group h-12">
+                                        <div className="sticky left-0 z-20 bg-background group-hover:bg-surfaceHover border-r border-borderColor min-w-[80px] max-w-[80px] h-full flex items-center px-3 shadow-[2px_0_5px_rgba(0,0,0,0.3)] transition-colors">
                                             <span className="font-bold text-[11px] text-white truncate uppercase tracking-tighter">
                                                 {row.fullName.split(' ')[0]}
                                             </span>
                                         </div>
                                         {headers.map((h, i) => {
-                                            const baseClass = "h-12 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0";
+                                            const baseClass = "h-full border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0";
                                             if (h.type === 'divider') {
                                                 const range = h.val === 'OUT' ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [10, 11, 12, 13, 14, 15, 16, 17, 18];
                                                 const sum = getPlayerSum(row.userId, range);
@@ -399,7 +399,7 @@ export default function LeaderboardPage() {
                                                 return <div key={i} className={`${baseClass} min-w-[50px] bg-bloodRed/10 font-black text-sm text-bloodRed`}>{total || '—'}</div>;
                                             }
                                             return (
-                                                <div key={i} className={`${baseClass} min-w-[40px] text-xs`}>
+                                                <div key={i} className={`${baseClass} min-w-[40px] text-xs font-black`}>
                                                     {renderScoreCell(row.userId, h.val as number)}
                                                 </div>
                                             );
