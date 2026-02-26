@@ -80,7 +80,7 @@ export default function DashboardPage() {
 
             const allMatchIds = (userMatchPlayers ?? []).map((mp) => mp.match_id as string);
 
-            // 1. Auto-Resume Check: Find the MOST RECENT active match the user is part of
+            // 1. Auto-Resume Check: Find the MOST RECENT active match (Build Trigger)
             // We join match_players with matches to find active rounds in a single shot
             const { data: activeJoin, error: activeError } = await supabase
                 .from('match_players')
