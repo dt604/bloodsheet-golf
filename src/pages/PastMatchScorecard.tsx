@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Flag, Receipt, Trash2, Edit2 } from 'lucide-react';
+import { ArrowLeft, Flag, Receipt, Trash2, Edit2, Activity, Target, Zap, Droplets } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatchStore } from '../store/useMatchStore';
@@ -251,72 +251,18 @@ export default function PastMatchScorecardPage() {
         { type: 'divider', val: 'OUT' },
         ...backNine.map(h => ({ type: 'hole', val: h.number })),
         { type: 'divider', val: 'IN' },
-        { type: 'header', val: 'HCP' },
-        { type: 'header', val: 'GROSS' }
+        { type: 'header', val: 'GROSS' },
+        { type: 'header', val: 'NET' }
     ];
 
-    const outIndices = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-    const inIndices = new Set([10, 11, 12, 13, 14, 15, 16, 17, 18]);
+    const outIndices = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const inIndices = [10, 11, 12, 13, 14, 15, 16, 17, 18];
 
-    function getPlayerScore(player: MatchPlayer, type: 'gross' | 'net', holeNum: number) {
-        return player.scores[holeNum]?.[type] || 0;
-    }
-
-    function getPlayerBlockSum(player: MatchPlayer, type: 'gross' | 'net', holeset: Set<number>) {
-        let sum = 0;
-        holeset.forEach(h => sum += getPlayerScore(player, type, h));
-        return sum;
-    }
-
-    function renderRowTracker({
-        rowKey, title, titleColor = 'text-white', titleContent, cellRenderer,
-        dividerClass = 'bg-background/80 font-bold',
-        totClass = 'bg-bloodRed text-white font-black',
-        frontNineSum, backNineSum, extHCP, extGROSS,
-        height = 'h-11',
-        stickyWidth = 'min-w-[70px] max-w-[70px]'
-    }: {
-        rowKey?: string | number;
-        title: string;
-        titleColor?: string;
-        titleContent?: React.ReactNode;
-        cellRenderer: (holeNum: number) => React.ReactNode;
-        dividerClass?: string;
-        totClass?: string;
-        frontNineSum: React.ReactNode;
-        backNineSum: React.ReactNode;
-        extHCP?: React.ReactNode;
-        extGROSS?: React.ReactNode;
-        height?: string;
-        stickyWidth?: string;
-    }) {
-        return (
-            <div key={rowKey} className={`flex flex-row border-b border-borderColor last:border-b-0 ${height}`}>
-                <div className={`sticky left-0 z-20 bg-background border-r border-borderColor ${stickyWidth} h-full flex flex-col items-center justify-center gap-0.5 py-1.5 shadow-[2px_0_5px_rgba(0,0,0,0.5)]`}>
-                    {titleContent ?? (
-                        <span className={`font-bold uppercase tracking-tighter text-[10px] ${titleColor} truncate w-full text-center px-1`}>
-                            {title}
-                        </span>
-                    )}
-                </div>
-                {headers.map((h, i) => {
-                    const baseClass = `${height} border-r border-borderColor flex items-center justify-center flex-shrink-0`;
-                    if (h.type === 'divider') {
-                        if (h.val === 'OUT') return <div key={i} className={`${baseClass} min-w-[44px] ${dividerClass}`}>{frontNineSum}</div>;
-                        if (h.val === 'IN') return <div key={i} className={`${baseClass} min-w-[44px] ${dividerClass}`}>{backNineSum}</div>;
-                    } else if (h.type === 'header') {
-                        if (h.val === 'HCP') return <div key={i} className={`${baseClass} min-w-[44px] bg-black/40 text-secondaryText font-bold text-[11px]`}>{extHCP}</div>;
-                        if (h.val === 'GROSS') return <div key={i} className={`${baseClass} min-w-[44px] ${totClass} text-sm`}>{extGROSS}</div>;
-                    }
-                    return (
-                        <div key={i} className={`${baseClass} min-w-[52px] text-xs font-semibold`}>
-                            {cellRenderer(h.val as number)}
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    }
+    // --- Handicap Dots Logic (Relative to Lowest HCP) ---
+    const matchHcps = players.map(p => Math.round(p.handicap));
+    const lowestMatchHcp = matchHcps.length > 0 ? Math.min(...matchHcps) : 0;
+    const highestMatchHcp = matchHcps.length > 0 ? Math.max(...matchHcps) : 0;
+    const maxHcpDiffRel = highestMatchHcp - lowestMatchHcp;
 
     // ── Settlement Calculation ────────────────────────────────────────────────
     let settlementItems: SettlementLineItem[] | null = null;
@@ -529,112 +475,250 @@ export default function PastMatchScorecardPage() {
                 </div>
 
                 {/* Scorecard Scrollable Container */}
-                <div className="w-full overflow-x-auto no-scrollbar pb-8 relative">
+                <div className="w-full overflow-x-auto no-scrollbar pb-8 relative -mx-4">
                     <div className="px-4 inline-flex flex-col min-w-max gap-6">
                         {/* Table 1: Hole & Par Information */}
-                        <div className="flex flex-col border border-borderColor shadow-lg overflow-hidden rounded-xl bg-surface/20">
-                            {/* Header Row (Hole) */}
-                            <div className="flex flex-row bg-surface border-b border-borderColor">
-                                <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] max-w-[80px] h-12 flex items-center justify-start px-3 font-black uppercase tracking-widest text-[10px] text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.5)]">
+                        <div className="flex flex-col bg-surface/20 mb-2">
+                            {/* Hole Headers */}
+                            <div className="flex flex-row bg-surface">
+                                <div className="sticky left-0 z-20 bg-surface min-w-[80px] max-w-[80px] h-12 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText shadow-[4px_0_10px_rgba(0,0,0,0.3)]">
                                     HOLE
                                 </div>
+                                {headers.map((h, i) => (
+                                    <div
+                                        key={i}
+                                        className={`h-12 flex items-center justify-center flex-shrink-0 font-black text-[10px] tracking-tighter ${h.type === 'divider' ? 'min-w-[44px] bg-black/40 text-white' :
+                                            h.type === 'header' ? (h.val === 'NET' ? 'min-w-[50px] bg-neonGreen/10 text-neonGreen' : 'min-w-[50px] bg-bloodRed text-white') :
+                                                'min-w-[52px] text-white/90'
+                                            }`}
+                                    >
+                                        {h.val}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Par Headers */}
+                            <div className="flex flex-row bg-surface/40 border-b border-borderColor/10">
+                                <div className="sticky left-0 z-20 bg-surface min-w-[80px] h-10 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText/80 shadow-[4px_0_10px_rgba(0,0,0,0.3)]">
+                                    PAR
+                                </div>
                                 {headers.map((h, i) => {
-                                    const baseClass = "h-12 border-r border-borderColor last:border-r-0 flex items-center justify-center font-black text-[10px] flex-shrink-0";
-                                    if (h.type === 'hole') return <div key={i} className={`${baseClass} min-w-[52px] text-white/90`}>{h.val}</div>;
-                                    if (h.type === 'divider') return <div key={i} className={`${baseClass} min-w-[44px] bg-bloodRed/20 text-bloodRed tracking-widest`}>{h.val}</div>;
-                                    if (h.val === 'GROSS') return <div key={i} className={`${baseClass} min-w-[44px] bg-bloodRed text-white tracking-widest uppercase`}>{h.val}</div>;
-                                    return <div key={i} className={`${baseClass} min-w-[44px] bg-black/40 text-secondaryText`}>{h.val}</div>;
+                                    if (h.type === 'divider') {
+                                        const sum = h.val === 'OUT' ? outPar : inPar;
+                                        return <div key={i} className="h-10 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[44px] bg-black/40 text-secondaryText/60">{sum}</div>;
+                                    }
+                                    if (h.type === 'header') {
+                                        const isNet = h.val === 'NET';
+                                        return (
+                                            <div key={i} className={`h-10 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[50px] ${isNet ? 'bg-neonGreen/10 text-neonGreen/60' : 'bg-bloodRed/10 text-bloodRed/60'}`}>
+                                                {totPar}
+                                            </div>
+                                        );
+                                    }
+                                    const holePar = sortedHoles.find(x => x.number === h.val)?.par ?? 4;
+                                    return (
+                                        <div key={i} className="h-10 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[52px] text-secondaryText/60">
+                                            {holePar}
+                                        </div>
+                                    );
                                 })}
                             </div>
 
-                            {/* Par Row */}
-                            {renderRowTracker({
-                                title: 'PAR',
-                                titleColor: 'text-secondaryText/80',
-                                frontNineSum: outPar,
-                                backNineSum: inPar,
-                                extHCP: '-',
-                                extGROSS: totPar,
-                                cellRenderer: (hNum) => sortedHoles.find(h => h.number === hNum)?.par || 4,
-                                dividerClass: 'bg-black/20 text-secondaryText font-bold',
-                                totClass: 'bg-bloodRed/10 text-bloodRed font-black',
-                                height: 'h-10',
-                                stickyWidth: 'min-w-[80px] max-w-[80px]'
-                            })}
+                            {/* Index Headers */}
+                            <div className="flex flex-row bg-surface/20">
+                                <div className="sticky left-0 z-20 bg-surface min-w-[80px] h-9 flex items-center px-3 font-black text-[9px] uppercase tracking-[0.2em] text-secondaryText/50 shadow-[4px_0_10px_rgba(0,0,0,0.3)]">
+                                    INDEX
+                                </div>
+                                {headers.map((h, i) => {
+                                    if (h.type === 'divider') return <div key={i} className="h-9 flex items-center justify-center flex-shrink-0 min-w-[44px] bg-black/20" />;
+                                    if (h.type === 'header') return <div key={i} className="h-9 flex items-center justify-center flex-shrink-0 min-w-[50px] bg-black/20" />;
+
+                                    const hIdx = sortedHoles.find(x => x.number === h.val)?.strokeIndex ?? 18;
+                                    const dotsCount = Math.floor(maxHcpDiffRel / 18) + (maxHcpDiffRel % 18 >= hIdx ? 1 : 0);
+                                    const isStrokeHole = dotsCount > 0;
+
+                                    return (
+                                        <div key={i} className="h-9 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[52px] relative">
+                                            {isStrokeHole ? (
+                                                <div className="w-5 h-5 rounded-full bg-bloodRed/20 border border-bloodRed/40 flex items-center justify-center shadow-[0_0_8px_rgba(255,0,63,0.2)]">
+                                                    <span className="text-bloodRed text-[9px] font-black leading-none">
+                                                        {hIdx}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-secondaryText/40">{hIdx}</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         {/* Table 2: Player Information */}
-                        <div className="flex flex-col border border-borderColor shadow-2xl overflow-hidden rounded-xl bg-surface/10">
+                        <div className="flex flex-col gap-2">
                             {players.map((p) => {
-                                const outGross = getPlayerBlockSum(p, 'gross', outIndices);
-                                const inGross = getPlayerBlockSum(p, 'gross', inIndices);
+                                const outGross = outIndices.reduce((sum, h) => sum + (p.scores[h]?.gross || 0), 0);
+                                const inGross = inIndices.reduce((sum, h) => sum + (p.scores[h]?.gross || 0), 0);
                                 const totGross = outGross + inGross;
-                                return renderRowTracker({
-                                    rowKey: p.id,
-                                    title: p.fullName.split(' ')[0],
-                                    titleColor: 'text-white',
-                                    titleContent: (
+                                const outNet = outIndices.reduce((sum, h) => sum + (p.scores[h]?.net || 0), 0);
+                                const inNet = inIndices.reduce((sum, h) => sum + (p.scores[h]?.net || 0), 0);
+                                const totNet = outNet + inNet;
+
+                                const playerHcpDiffRelative = Math.max(0, Math.round(p.handicap) - lowestMatchHcp);
+
+                                return (
+                                    <div key={p.id} className="flex flex-row group h-16 bg-surface/30 shadow-md">
                                         <div
-                                            className="flex flex-col items-center gap-0.5 w-full"
-                                            style={!p.isGuest ? { cursor: 'pointer' } : undefined}
+                                            className="sticky left-0 z-20 bg-background group-hover:bg-surfaceHover min-w-[80px] max-w-[80px] h-full flex flex-col items-center justify-center gap-0.5 py-1.5 shadow-[4px_0_10px_rgba(0,0,0,0.5)] transition-colors cursor-pointer"
                                             onClick={() => { if (!p.isGuest) navigate(`/player/${p.id}`); }}
                                         >
-                                            <div className="w-7 h-7 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
+                                            <div className="w-7 h-7 rounded-full bg-surface border border-borderColor flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
                                                 {p.avatarUrl
                                                     ? <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" />
                                                     : p.fullName.slice(0, 1).toUpperCase()
                                                 }
                                             </div>
-                                            <span className="font-bold text-[9px] text-white truncate uppercase tracking-tighter w-full text-center px-1">
+                                            <span className="font-bold text-[9px] text-white truncate uppercase tracking-tighter w-full text-center px-1 leading-none pt-0.5">
                                                 {p.fullName.split(' ')[0]}
                                             </span>
+                                            <span className="text-[7px] font-black text-secondaryText/60 tracking-widest leading-none pb-0.5">
+                                                HCP {Math.round(p.handicap)}
+                                            </span>
                                         </div>
-                                    ),
-                                    frontNineSum: outGross || '—',
-                                    backNineSum: inGross || '—',
-                                    extHCP: p.handicap,
-                                    extGROSS: totGross || '—',
-                                    height: 'h-16',
-                                    stickyWidth: 'min-w-[80px] max-w-[80px]',
-                                    cellRenderer: (hNum) => {
-                                        const raw = getPlayerScore(p, 'gross', hNum);
-                                        if (!raw) return <span className="text-borderColor/30">—</span>;
-                                        const par = sortedHoles.find(h => h.number === hNum)?.par || 4;
-                                        if (raw <= par - 2) return <div className="border border-neonOrange w-10 h-10 flex items-center justify-center rounded-full text-neonOrange font-bold bg-neonOrange/10">{raw}</div>;
-                                        if (raw === par - 1) return <div className="border border-neonGreen w-10 h-10 flex items-center justify-center rounded-full text-neonGreen font-bold bg-neonGreen/10">{raw}</div>;
-                                        if (raw === par + 1) return <div className="border border-bloodRed w-10 h-10 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
-                                        if (raw === par + 2) return <div className="border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] w-10 h-10 flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">{raw}</div>;
-                                        if (raw >= par + 3) return <div className="border border-neonOrange ring-1 ring-neonOrange ring-offset-1 ring-offset-[#1C1C1E] w-10 h-10 flex items-center justify-center text-neonOrange font-bold bg-neonOrange/10">{raw}</div>;
-                                        return <span className="font-black text-white">{raw}</span>;
-                                    }
-                                });
+
+                                        {headers.map((h, i) => {
+                                            const baseClass = "h-full flex items-center justify-center flex-shrink-0";
+                                            if (h.type === 'divider') {
+                                                const sum = h.val === 'OUT' ? outGross : inGross;
+                                                return <div key={i} className={`${baseClass} min-w-[44px] bg-black/20 font-black text-xs text-white transition-colors`}>{sum || '—'}</div>;
+                                            } else if (h.type === 'header') {
+                                                const isNet = h.val === 'NET';
+                                                const total = isNet ? totNet : totGross;
+                                                return (
+                                                    <div key={i} className={`${baseClass} min-w-[50px] ${isNet ? 'bg-neonGreen/10 text-neonGreen font-black' : 'bg-bloodRed/10 text-bloodRed font-black'} text-sm`}>
+                                                        {total || '—'}
+                                                    </div>
+                                                );
+                                            }
+
+                                            // Score Cell
+                                            const score = p.scores[h.val as number];
+                                            if (!score || !score.gross) return <div key={i} className={`${baseClass} min-w-[52px] text-borderColor/30 text-xs font-black`}>—</div>;
+
+                                            const val = score.gross;
+                                            const par = sortedHoles.find(sh => sh.number === h.val)?.par || 4;
+                                            const trash = score.dots || [];
+
+                                            let shape;
+                                            if (val <= par - 2) {
+                                                shape = (
+                                                    <div className="w-8 h-8 rounded-full border border-[0.5px] border-cyan-400 ring-1 ring-cyan-400 ring-offset-1 ring-offset-background flex items-center justify-center text-cyan-400 text-[11px] font-black bg-cyan-400/5 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                                                        {val}
+                                                    </div>
+                                                );
+                                            } else if (val === par - 1) {
+                                                shape = (
+                                                    <div className="w-8 h-8 rounded-full border border-neonGreen flex items-center justify-center text-neonGreen text-[11px] font-black bg-neonGreen/10 shadow-[0_0_8px_rgba(0,255,102,0.1)]">
+                                                        {val}
+                                                    </div>
+                                                );
+                                            } else if (val === par + 1) {
+                                                shape = (
+                                                    <div className="w-8 h-8 border border-amber-400 flex items-center justify-center text-amber-400 text-[11px] font-black bg-amber-400/5">
+                                                        {val}
+                                                    </div>
+                                                );
+                                            } else if (val === par + 2) {
+                                                shape = (
+                                                    <div className="w-8 h-8 border border-bloodRed flex items-center justify-center text-bloodRed text-[11px] font-black bg-bloodRed/10">
+                                                        {val}
+                                                    </div>
+                                                );
+                                            } else if (val >= par + 3) {
+                                                shape = (
+                                                    <div className="w-8 h-8 border border-[0.5px] border-[#FF00FF] ring-1 ring-[#FF00FF] ring-offset-1 ring-offset-background flex items-center justify-center text-[#FF00FF] text-[11px] font-black bg-[#FF00FF]/5 shadow-[0_0_10px_rgba(255,0,255,0.2)]">
+                                                        {val}
+                                                    </div>
+                                                );
+                                            } else {
+                                                shape = <span className="font-black text-white text-xs">{val}</span>;
+                                            }
+
+                                            return (
+                                                <div key={i} className={`${baseClass} min-w-[52px] text-xs font-black relative`}>
+                                                    <div className="relative flex items-center justify-center w-8 h-8">
+                                                        {shape}
+                                                        {trash.includes('greenie') && (
+                                                            <Target className="absolute -top-0.5 -right-0.5 w-[9px] h-[9px] text-neonGreen drop-shadow-[0_0_3px_rgba(0,255,102,0.6)]" />
+                                                        )}
+                                                        {trash.includes('snake') && (
+                                                            <Zap className="absolute -bottom-0.5 -right-0.5 w-[9px] h-[9px] text-[#FF00FF] fill-[#FF00FF] drop-shadow-[0_0_3px_rgba(255,0,255,0.6)]" />
+                                                        )}
+                                                        {trash.includes('sandie') && (
+                                                            <Droplets className="absolute -top-0.5 -left-0.5 w-[9px] h-[9px] text-cyan-400 fill-cyan-400 drop-shadow-[0_0_3px_rgba(34,211,238,0.6)]" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
                             })}
                         </div>
                     </div>
                 </div>
 
-                {/* Legend */}
-                <div className="px-4 mt-2">
-                    <div className="bg-surface rounded-xl border border-borderColor px-3 py-2.5 flex items-center justify-between text-[9px] text-secondaryText uppercase font-bold tracking-wide">
-                        <div className="flex items-center gap-1">
-                            <div className="w-5 h-5 rounded-full border border-neonOrange bg-neonOrange/10 flex items-center justify-center text-neonOrange font-bold leading-none text-[9px]"></div>
-                            <span>Eagle</span>
+                {/* Scorecard Legend - Refined Guidance Card */}
+                <div className="px-4 mt-4">
+                    <div className="p-3 rounded-xl bg-surface/40 border border-borderColor/30 backdrop-blur-md relative overflow-hidden group">
+                        {/* Background Decor */}
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-bloodRed/5 blur-3xl -mr-12 -mt-12 transition-colors group-hover:bg-bloodRed/10" />
+
+                        <div className="flex items-center gap-2 mb-3 px-0.5">
+                            <Activity className="w-3 h-3 text-secondaryText" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-secondaryText/80">Scorecard Key</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-5 h-5 rounded-full border border-neonGreen bg-neonGreen/10 flex items-center justify-center text-neonGreen font-bold leading-none text-[9px]"></div>
-                            <span>Birdie</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-5 h-5 border border-bloodRed bg-bloodRed/10 flex items-center justify-center text-bloodRed font-bold leading-none text-[9px]"></div>
-                            <span>Bogey</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-5 h-5 border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] bg-bloodRed/10 flex items-center justify-center text-bloodRed font-bold leading-none text-[9px]"></div>
-                            <span>Double</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-5 h-5 border border-neonOrange ring-1 ring-neonOrange ring-offset-1 ring-offset-[#1C1C1E] bg-neonOrange/10 flex items-center justify-center text-neonOrange font-bold leading-none text-[9px]"></div>
-                            <span>Triple+</span>
+
+                        <div className="flex flex-col gap-4">
+                            {/* Scoring Logic */}
+                            <div className="flex flex-wrap gap-x-5 gap-y-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 rounded-full border border-[0.5px] border-cyan-400 ring-1 ring-cyan-400 ring-offset-1 ring-offset-background/40" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Eagle+</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 rounded-full border border-neonGreen bg-neonGreen/5" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Birdie</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 border border-amber-400 bg-amber-400/5" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Bogey</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 border border-bloodRed bg-bloodRed/5" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Double</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 border border-[0.5px] border-[#FF00FF] ring-1 ring-[#FF00FF] ring-offset-1 ring-offset-background/40" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Triple+</span>
+                                </div>
+                            </div>
+
+                            {/* Trophies Logic */}
+                            <div className="flex flex-wrap gap-x-6 gap-y-3 pt-3 border-t border-white/5">
+                                <div className="flex items-center gap-2">
+                                    <Target className="w-3.5 h-3.5 text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.4)]" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Greenie</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Zap className="w-3.5 h-3.5 text-[#FF00FF] fill-[#FF00FF] drop-shadow-[0_0_5px_rgba(255,0,255,0.4)]" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Snake</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Droplets className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.4)]" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Sandie</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -711,24 +795,26 @@ export default function PastMatchScorecardPage() {
             `}</style>
 
             {/* Delete Confirmation Modal */}
-            {showDeleteConfirm && (
-                <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
-                    <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm p-6 space-y-4">
-                        <h3 className="text-xl font-black text-center">Delete Match?</h3>
-                        <p className="text-sm text-secondaryText text-center">
-                            This will permanently delete all scores, presses, and betting data for this match.
-                        </p>
-                        <div className="flex gap-3 pt-2">
-                            <Button variant="outline" size="lg" className="flex-1" onClick={() => setShowDeleteConfirm(false)}>
-                                Cancel
-                            </Button>
-                            <Button size="lg" className="flex-1 bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={handleDelete}>
-                                Delete
-                            </Button>
+            {
+                showDeleteConfirm && (
+                    <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
+                        <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm p-6 space-y-4">
+                            <h3 className="text-xl font-black text-center">Delete Match?</h3>
+                            <p className="text-sm text-secondaryText text-center">
+                                This will permanently delete all scores, presses, and betting data for this match.
+                            </p>
+                            <div className="flex gap-3 pt-2">
+                                <Button variant="outline" size="lg" className="flex-1" onClick={() => setShowDeleteConfirm(false)}>
+                                    Cancel
+                                </Button>
+                                <Button size="lg" className="flex-1 bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={handleDelete}>
+                                    Delete
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

@@ -96,14 +96,15 @@ export default function LiveScorecardPage() {
     const currentHole = parseInt(hole || '1', 10);
 
     const { user, profile } = useAuth();
-    const { matchId, match, course, players, scores, lastScoreUpdate, saveScore, initiatePress, loadMatch, refreshScores, clearMatch } = useMatchStore();
-
+    const { matchId, match, course, players, scores, lastScoreUpdate, saveScore, initiatePress, loadMatch, refreshScores, refreshGroupScores, clearMatch, groupState, activeMatchIds } = useMatchStore();
     const [saving, setSaving] = useState(false);
     const [codeCopied, setCodeCopied] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [editingStrokeIdx, setEditingStrokeIdx] = useState(false);
     const [strokeIdxInput, setStrokeIdxInput] = useState(1);
     const [pingMessage, setPingMessage] = useState<{ message: string; timestamp: number } | null>(null);
+    const [focusedMatchIdx, setFocusedMatchIdx] = useState(0);
+    const isGroupMode = activeMatchIds.length > 1;
 
     async function handleShare() {
         const code = match?.joinCode ?? '';
@@ -182,15 +183,24 @@ export default function LiveScorecardPage() {
     useEffect(() => {
         const storedMatchId = matchId || localStorage.getItem('activeMatchId');
         if (!storedMatchId) return;
-        const interval = setInterval(() => refreshScores(storedMatchId), 3000);
+        const interval = setInterval(() => {
+            if (isGroupMode) refreshGroupScores();
+            else refreshScores(storedMatchId);
+        }, 3000);
         return () => clearInterval(interval);
-    }, [matchId, refreshScores]);
+    }, [matchId, isGroupMode, refreshScores, refreshGroupScores]);
 
     // Load profiles for all players in the match
     useEffect(() => {
         if (players.length === 0) return;
+
         async function fetchProfiles() {
-            const ids = players.map((p) => p.userId);
+            const ids = isGroupMode && groupState
+                ? [...new Set(groupState.matches.flatMap(m => m.players.map(p => p.userId)))]
+                : players.map((p) => p.userId);
+
+            if (ids.length === 0) return;
+
             const { data } = await supabase
                 .from('profiles')
                 .select('id, full_name, handicap, avatar_url')
@@ -217,14 +227,14 @@ export default function LiveScorecardPage() {
             setPlayerProfiles(map);
         }
         fetchProfiles();
-    }, [players]);
+    }, [players, isGroupMode, groupState]);
 
     // Initialise local score state from existing DB scores for this hole
     const _foundHole = course?.holes.find((h) => h.number === currentHole);
     const holeData = {
         number: currentHole,
         par: _foundHole?.par ?? 4,
-        strokeIndex: _foundHole?.strokeIndex || currentHole, // fall back to hole number if 0/missing
+        strokeIndex: _foundHole?.strokeIndex || currentHole,
         yardage: _foundHole?.yardage ?? 400,
     };
 
@@ -233,12 +243,18 @@ export default function LiveScorecardPage() {
     }, [currentHole]);
 
     useEffect(() => {
-        if (isDirty) return; // Don't wipe out local inputs if they are currently typing/tapping
+        if (isDirty) return;
 
         const init: Record<string, number> = {};
         const initTrash: Record<string, string[]> = {};
+
+        // Use all available scores from the group state if available, otherwise fallback to primary match scores
+        const allRelevantScores = isGroupMode && groupState
+            ? groupState.matches.flatMap(m => m.scores)
+            : scores;
+
         for (const p of players) {
-            const existing = scores.find(
+            const existing = allRelevantScores.find(
                 (s) => s.holeNumber === currentHole && s.playerId === p.userId
             );
             init[p.userId] = existing?.gross ?? holeData.par;
@@ -246,7 +262,7 @@ export default function LiveScorecardPage() {
         }
         setLocalScores(init);
         setActiveTrash(initTrash);
-    }, [currentHole, players, scores, holeData.par, isDirty]);
+    }, [currentHole, players, scores, holeData.par, isDirty, isGroupMode, groupState]);
 
     function toggleTrash(userId: string, type: string) {
         setIsDirty(true);
@@ -279,31 +295,64 @@ export default function LiveScorecardPage() {
     async function saveCurrentHoleScores() {
         if (!match || !matchId) return;
 
-        await Promise.all(
-            players.map((p) => {
-                const gross = localScores[p.userId] ?? holeData.par;
-                const baseHcp = Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap);
+        if (isGroupMode && groupState) {
+            // Save scores per match, using that match's handicap differential
+            await Promise.all(
+                groupState.matches.flatMap((entry) => {
+                    const matchLowestHcp = Math.min(
+                        ...entry.players.map((p) =>
+                            Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0)
+                        )
+                    );
+                    return entry.players.map((p) => {
+                        const gross = localScores[p.userId] ?? holeData.par;
+                        const baseHcp = Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0);
+                        const adjustedHcp = Math.max(0, baseHcp - Math.max(0, matchLowestHcp));
+                        const net = calcNet(gross, adjustedHcp, holeData.strokeIndex);
+                        return saveScore({
+                            matchId: entry.matchId,
+                            holeNumber: currentHole,
+                            playerId: p.userId,
+                            gross,
+                            net,
+                            trashDots: activeTrash[p.userId] ?? [],
+                        });
+                    });
+                })
+            );
+        } else {
+            const matchHcps = players.map(p => Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0));
+            const lowestHcp = matchHcps.length > 0 ? Math.min(...matchHcps) : 0;
 
-                // 2v2: no individual handicap (team differential only); 1v1: differential (play off lowest)
-                const adjustedHcp = match.format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
-                const net = calcNet(gross, adjustedHcp, holeData.strokeIndex);
-
-                return saveScore({
-                    matchId,
-                    holeNumber: currentHole,
-                    playerId: p.userId,
-                    gross,
-                    net,
-                    trashDots: activeTrash[p.userId] ?? [],
-                });
-            })
-        );
+            await Promise.all(
+                players.map((p) => {
+                    const gross = localScores[p.userId] ?? holeData.par;
+                    const baseHcp = Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0);
+                    const adjustedHcp = match?.format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
+                    const net = calcNet(gross, adjustedHcp, holeData.strokeIndex);
+                    return saveScore({
+                        matchId: matchId!,
+                        holeNumber: currentHole,
+                        playerId: p.userId,
+                        gross,
+                        net,
+                        trashDots: activeTrash[p.userId] ?? [],
+                    });
+                })
+            );
+        }
     }
 
     // Check if the DB already has a score for every player for this specific hole
-    const allPlayersSaved = players.length > 0 && players.every(p =>
-        scores.some(s => s.holeNumber === currentHole && s.playerId === p.userId)
-    );
+    const allPlayersSaved = isGroupMode && groupState
+        ? groupState.matches.every((entry) =>
+            entry.players.every((p) =>
+                entry.scores.some((s) => s.holeNumber === currentHole && s.playerId === p.userId)
+            )
+        )
+        : players.length > 0 && players.every((p) =>
+            scores.some((s) => s.holeNumber === currentHole && s.playerId === p.userId)
+        );
     const isScorekeeper = match?.createdBy === user?.id;
     const needsSave = isScorekeeper && (isDirty || !allPlayersSaved);
 
@@ -318,7 +367,11 @@ export default function LiveScorecardPage() {
         if (currentHole !== lastHole) {
             navigate(`/play/${currentHole === 18 ? 1 : currentHole + 1}`);
         } else {
-            await useMatchStore.getState().completeMatch(matchId!);
+            if (isGroupMode) {
+                await Promise.all(activeMatchIds.map((id) => useMatchStore.getState().completeMatch(id)));
+            } else {
+                await useMatchStore.getState().completeMatch(matchId!);
+            }
             navigate('/ledger');
         }
     }
@@ -387,8 +440,32 @@ export default function LiveScorecardPage() {
     }
 
     const holesUp = calcHolesUp(teamAIds, teamBIds, scoresWithAdjusted, match.format ?? '1v1', course, match.sideBets?.birdiesDouble, match.sideBets, teamHandicapDiff);
+
+    // ── Group mode: per-match holes-up calculation ────────────
+    function calcGroupMatchHolesUp(entry: typeof groupState extends null ? never : NonNullable<typeof groupState>['matches'][0]): number {
+        const mTeamAIds = entry.players.filter((p) => p.team === 'A').map((p) => p.userId);
+        const mTeamBIds = entry.players.filter((p) => p.team === 'B').map((p) => p.userId);
+        const mLowestHcp = Math.min(
+            ...entry.players.map((p) => Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap))
+        );
+        const mScoresAdj = entry.scores.map((s) => {
+            const p = entry.players.find((x) => x.userId === s.playerId);
+            const baseHcp = p ? Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap) : 0;
+            const adjHcp = Math.max(0, baseHcp - Math.max(0, mLowestHcp));
+            const holeStrokeIdx = course?.holes.find((h) => h.number === s.holeNumber)?.strokeIndex ?? 18;
+            return { ...s, adjustedNet: calcNet(s.gross, adjHcp, holeStrokeIdx) };
+        });
+        return calcHolesUp(mTeamAIds, mTeamBIds, mScoresAdj, '1v1', course, entry.match.sideBets?.birdiesDouble, entry.match.sideBets);
+    }
+
+    // Focused match for press button logic in group mode
+    const focusedEntry = isGroupMode && groupState ? groupState.matches[Math.min(focusedMatchIdx, groupState.matches.length - 1)] : null;
+    const focusedHolesUp = focusedEntry ? calcGroupMatchHolesUp(focusedEntry) : holesUp;
+
     // Team A is down when holesUp < 0; Team B is down when holesUp > 0
-    const downTeam: 'A' | 'B' | null = holesUp < 0 ? 'A' : holesUp > 0 ? 'B' : null;
+    const downTeam: 'A' | 'B' | null = isGroupMode
+        ? (focusedHolesUp < 0 ? 'A' : focusedHolesUp > 0 ? 'B' : null)
+        : (holesUp < 0 ? 'A' : holesUp > 0 ? 'B' : null);
 
     let isStrokeHole = false;
     if (match.format === '2v2') {
@@ -494,6 +571,42 @@ export default function LiveScorecardPage() {
                         <span className="block text-lg sm:text-xl font-bold font-sans">{holeData.yardage}</span>
                     </div>
                 </div>
+
+                {/* Match Ticker Strip — shown only in multi-match mode */}
+                {isGroupMode && groupState && (
+                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                        {groupState.matches.map((entry, i) => {
+                            const mHolesUp = calcGroupMatchHolesUp(entry);
+                            const pA = entry.players.find(p => p.team === 'A');
+                            const pB = entry.players.find(p => p.team === 'B');
+                            const nameA = pA?.guestName ?? playerProfiles[pA?.userId ?? '']?.fullName.split(' ')[0] ?? 'P1';
+                            const nameB = pB?.guestName ?? playerProfiles[pB?.userId ?? '']?.fullName.split(' ')[0] ?? 'P2';
+
+                            const abbr = (s: string) => s.length > 3 ? s.slice(0, 3).toUpperCase() : s.toUpperCase();
+                            const isFocused = focusedMatchIdx === i;
+
+                            return (
+                                <button
+                                    key={entry.matchId}
+                                    onClick={() => setFocusedMatchIdx(i)}
+                                    className={`shrink-0 px-4 py-2.5 rounded-xl border transition-all flex flex-col items-center gap-1 min-w-[90px] ${isFocused
+                                        ? 'bg-surface border-neonGreen/40 shadow-[0_0_15px_rgba(0,255,102,0.1)] ring-1 ring-neonGreen/10'
+                                        : 'bg-surface/30 border-borderColor/20 text-secondaryText/60 hover:border-borderColor/40'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-1 text-[8px] font-black tracking-tighter uppercase">
+                                        <span className={isFocused ? 'text-white' : ''}>{abbr(nameA)}</span>
+                                        <span className="text-bloodRed/60 font-serif italic lowercase">v</span>
+                                        <span className={isFocused ? 'text-white' : ''}>{abbr(nameB)}</span>
+                                    </div>
+                                    <div className={`font-black text-sm leading-none ${mHolesUp > 0 ? 'text-neonGreen' : mHolesUp < 0 ? 'text-bloodRed' : 'text-white'}`}>
+                                        {mHolesUp === 0 ? 'AS' : `${Math.abs(mHolesUp)} ${mHolesUp > 0 ? 'UP' : 'DN'}`}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* Scoring Engine */}
                 <div className="space-y-4">

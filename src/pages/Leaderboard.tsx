@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Share, Activity, Users } from 'lucide-react';
+import { ChevronLeft, Share, Activity, Users, LayoutGrid, User, Target, Zap, Droplets } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useMatchStore } from '../store/useMatchStore';
 import { supabase } from '../lib/supabase';
+import { MatchPlayer, HoleScore } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): number {
     if (adjustedHandicap <= 0) return gross;
@@ -113,9 +116,17 @@ function calcMatchPlay(
     };
 }
 
-function matchLabel(holesUp: number): string {
-    if (holesUp === 0) return 'AS';
-    return `${Math.abs(holesUp)} ${holesUp > 0 ? 'UP' : 'DN'}`;
+function matchLabel(holesUp: number, holesPlayed: number = 0): string {
+    if (holesPlayed === 0) return 'AS';
+    const holesRemaining = 18 - holesPlayed;
+    const absUp = Math.abs(holesUp);
+
+    // Dormie/Final checks
+    if (absUp > holesRemaining) return 'FINAL';
+    if (absUp === 0) return 'AS';
+    if (absUp === holesRemaining) return 'DORMIE';
+
+    return `${absUp} ${holesUp > 0 ? 'UP' : 'DN'}`;
 }
 
 // ─── Component ────────────────────────────────────────────────
@@ -139,153 +150,262 @@ interface ActivityEvent {
 
 export default function LeaderboardPage() {
     const navigate = useNavigate();
-    const { matchId, match, course, players, scores, presses, loadMatch, refreshScores } = useMatchStore();
+    const {
+        matchId: primaryMatchId,
+        match: primaryMatch,
+        course,
+        players: primaryPlayers,
+        scores: primaryScores,
+        presses: primaryPresses,
+        loadMatch,
+        refreshScores,
+        groupState,
+        activeMatchIds,
+        refreshGroupScores,
+        lastScoreUpdate
+    } = useMatchStore();
+
+    const { user } = useAuth();
+    const [pingMessage, setPingMessage] = useState<{ message: string; timestamp: number } | null>(null);
+
+    const [focusedMatchIdx, setFocusedMatchIdx] = useState(0);
+    const [showAllPlayers, setShowAllPlayers] = useState(false);
+    const isGroupMode = activeMatchIds.length > 1;
+
+    // Resolve which data to show for the "Detailed" view (Scorecard/Stats)
+    const focusedEntry = isGroupMode && groupState ? groupState.matches[focusedMatchIdx] : null;
+
+    // All unique players if in overview mode
+    const allGroupPlayers = useMemo<MatchPlayer[]>(() => {
+        if (!isGroupMode || !groupState) return primaryPlayers;
+        const seen = new Set<string>();
+        const unique: MatchPlayer[] = [];
+        for (const entry of groupState.matches) {
+            for (const p of entry.players) {
+                if (!seen.has(p.userId)) {
+                    seen.add(p.userId);
+                    unique.push(p);
+                }
+            }
+        }
+        return unique;
+    }, [isGroupMode, groupState, primaryPlayers]);
+
+    const allGroupScores = useMemo<HoleScore[]>(() => {
+        if (!isGroupMode || !groupState) return primaryScores;
+        const merged: HoleScore[] = [];
+        const seen = new Set<string>();
+        for (const entry of groupState.matches) {
+            for (const s of entry.scores) {
+                const key = `${s.playerId}-${s.holeNumber}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    merged.push(s);
+                }
+            }
+        }
+        return merged;
+    }, [isGroupMode, groupState, primaryScores]);
+
+    const currentMatch = focusedEntry ? focusedEntry.match : primaryMatch;
+    const currentPlayers = showAllPlayers ? allGroupPlayers : (focusedEntry ? focusedEntry.players : primaryPlayers);
+    const currentScores = showAllPlayers ? allGroupScores : (focusedEntry ? focusedEntry.scores : primaryScores);
 
     const [playerRows, setPlayerRows] = useState<PlayerRow[]>([]);
+    const [playerProfiles, setPlayerProfiles] = useState<Record<string, { fullName: string; handicap: number; avatarUrl?: string }>>({});
+
+    // Watch for Real-time Score Updates (Ping)
+    useEffect(() => {
+        if (!lastScoreUpdate || !user) return;
+
+        // Skip if update was from self
+        if (lastScoreUpdate.playerId === user.id) return;
+
+        // Trigger Haptic if supported
+        if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+
+        // Find the player's name who updated the score
+        const pName = playerProfiles[lastScoreUpdate.playerId]?.fullName.split(' ')[0] ?? 'Someone';
+
+        setPingMessage({
+            message: `${pName} updated Hole ${lastScoreUpdate.holeNumber}`,
+            timestamp: Date.now()
+        });
+
+        // Clear ping after 3 seconds
+        const t = setTimeout(() => setPingMessage(null), 3000);
+        return () => clearTimeout(t);
+    }, [lastScoreUpdate, user?.id, playerProfiles]);
 
     // Full load if match not in store yet; otherwise sync scores from DB on mount
     useEffect(() => {
-        if (!matchId) return;
-        if (!match) {
-            loadMatch(matchId);
+        if (!primaryMatchId) return;
+        if (!primaryMatch) {
+            loadMatch(primaryMatchId);
         } else {
-            refreshScores(matchId);
+            if (isGroupMode) refreshGroupScores();
+            else refreshScores(primaryMatchId);
         }
-    }, [matchId]);
+    }, [primaryMatchId]);
 
-    // Polling fallback — refreshes every 5s in case Realtime events are missed
+    // Polling fallback
     useEffect(() => {
-        if (!matchId) return;
-        const interval = setInterval(() => refreshScores(matchId), 5000);
+        if (!primaryMatchId) return;
+        const interval = setInterval(() => {
+            if (isGroupMode) refreshGroupScores();
+            else refreshScores(primaryMatchId);
+        }, 5000);
         return () => clearInterval(interval);
-    }, [matchId]);
+    }, [primaryMatchId, isGroupMode]);
 
     useEffect(() => {
-        if (players.length === 0) return;
+        const allPlayerIds = isGroupMode && groupState
+            ? [...new Set(groupState.matches.flatMap(m => m.players.map(p => p.userId)))]
+            : primaryPlayers.map(p => p.userId);
 
-        async function buildRows() {
-            const ids = players.map((p) => p.userId);
+        if (allPlayerIds.length === 0) return;
+
+        async function loadProfiles() {
             const { data: profiles } = await supabase
                 .from('profiles')
                 .select('id, full_name, handicap, avatar_url')
-                .in('id', ids);
+                .in('id', allPlayerIds);
 
-            const profileMap: Record<string, { fullName: string; handicap: number; avatarUrl?: string }> = {};
+            const map: Record<string, { fullName: string; handicap: number; avatarUrl?: string }> = {};
             for (const row of (profiles ?? []) as { id: string; full_name: string; handicap: number; avatar_url: string | null }[]) {
-                profileMap[row.id] = { fullName: row.full_name, handicap: row.handicap, avatarUrl: row.avatar_url ?? undefined };
+                map[row.id] = { fullName: row.full_name, handicap: row.handicap, avatarUrl: row.avatar_url ?? undefined };
             }
-
-            const rows: PlayerRow[] = players.map((p) => {
-                const playerScores = scores.filter((s) => s.playerId === p.userId);
-                const scoreToPar = playerScores.reduce((sum, s) => {
-                    const holePar = course?.holes.find((h) => h.number === s.holeNumber)?.par ?? 4;
-                    return sum + (s.gross - holePar);
-                }, 0);
-
-                return {
-                    userId: p.userId,
-                    fullName: p.guestName ?? profileMap[p.userId]?.fullName ?? 'Player',
-                    handicap: profileMap[p.userId]?.handicap ?? p.initialHandicap,
-                    team: p.team,
-                    holesPlayed: playerScores.length,
-                    scoreToPar,
-                    avatarUrl: profileMap[p.userId]?.avatarUrl ?? p.avatarUrl,
-                    isGuest: !!p.guestName,
-                };
-            });
-
-            // Team A first, then Team B
-            rows.sort((a, b) => a.team.localeCompare(b.team));
-            setPlayerRows(rows);
+            setPlayerProfiles(map);
         }
+        loadProfiles();
+    }, [primaryPlayers, isGroupMode, groupState]);
 
-        buildRows();
-    }, [players, scores]);
+    useEffect(() => {
+        if (primaryPlayers.length === 0) return;
 
-    const teamAIds = players.filter((p) => p.team === 'A').map((p) => p.userId);
-    const teamBIds = players.filter((p) => p.team === 'B').map((p) => p.userId);
-    const format = match?.format ?? '1v1';
+        // Build player rows for the scorecard view
+        const rows: PlayerRow[] = currentPlayers.map((p) => {
+            const playerScores = currentScores.filter((s) => s.playerId === p.userId);
+            const scoreToPar = playerScores.reduce((sum, s) => {
+                const holePar = course?.holes.find((h: any) => h.number === s.holeNumber)?.par ?? 4;
+                return sum + (s.gross - holePar);
+            }, 0);
 
-    // Calculate lowest handicap to adjust relative net scores for match display
-    const allHcps = playerRows.map(p => Math.round(p.handicap));
-    const lowestHcp = Math.min(...allHcps); // lowest HCP in the match — everyone plays off this player
+            return {
+                userId: p.userId,
+                fullName: p.guestName ?? playerProfiles[p.userId]?.fullName ?? 'Player',
+                handicap: playerProfiles[p.userId]?.handicap ?? p.initialHandicap,
+                team: p.team,
+                holesPlayed: playerScores.length,
+                scoreToPar,
+                avatarUrl: playerProfiles[p.userId]?.avatarUrl ?? p.avatarUrl,
+                isGuest: !!p.guestName,
+            };
+        });
 
-    const scoresWithAdjusted = scores.map(s => {
-        const p = playerRows.find(x => x.userId === s.playerId);
-        const baseHcp = p ? Math.round(p.handicap) : 0;
-        // 2v2: no individual handicap (team differential only); 1v1: differential (play off lowest)
-        const adjustedHcp = format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
-        const holeStrokeIdx = course?.holes.find(h => h.number === s.holeNumber)?.strokeIndex ?? 18;
+        rows.sort((a, b) => a.team.localeCompare(b.team));
+        setPlayerRows(rows);
+    }, [currentPlayers, currentScores, playerProfiles, course]);
+
+    const teamAIds = currentPlayers.filter((p) => p.team === 'A').map((p) => p.userId);
+    const teamBIds = currentPlayers.filter((p) => p.team === 'B').map((p) => p.userId);
+    const format = currentMatch?.format ?? '1v1';
+
+    const matchHcps = currentPlayers.map(p => Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap));
+    const lowestMatchHcp = matchHcps.length > 0 ? Math.min(...matchHcps) : 0;
+
+    const groupHcps = allGroupPlayers.map(p => Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap));
+    const globalLowestHcp = groupHcps.length > 0 ? Math.min(...groupHcps) : 0;
+    const globalMaxDiff = groupHcps.length > 0 ? (Math.max(...groupHcps) - globalLowestHcp) : 0;
+
+    const scoresWithAdjusted = currentScores.map(s => {
+        const p = currentPlayers.find(x => x.userId === s.playerId);
+        const baseHcp = p ? Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap) : 0;
+        const adjustedHcp = format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestMatchHcp));
+        const holeStrokeIdx = course?.holes.find((h: any) => h.number === s.holeNumber)?.strokeIndex ?? 18;
         return {
             ...s,
             adjustedNet: calcNet(s.gross, adjustedHcp, holeStrokeIdx)
         };
     });
 
-    // Team handicap differential for 2v2 spotted strokes
     let teamHandicapDiff: { diff: number; spottedTeam: 'A' | 'B' | null } | undefined;
     if (format === '2v2') {
-        const teamAHcp = playerRows.filter(p => p.team === 'A').reduce((sum, p) => sum + Math.round(p.handicap), 0);
-        const teamBHcp = playerRows.filter(p => p.team === 'B').reduce((sum, p) => sum + Math.round(p.handicap), 0);
+        const teamAHcp = currentPlayers.filter(p => p.team === 'A').reduce((sum: number, p: MatchPlayer) => sum + Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap), 0);
+        const teamBHcp = currentPlayers.filter(p => p.team === 'B').reduce((sum: number, p: MatchPlayer) => sum + Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap), 0);
         const diff = Math.abs(teamAHcp - teamBHcp);
         const spottedTeam = teamAHcp > teamBHcp ? 'A' : teamBHcp > teamAHcp ? 'B' : null;
         teamHandicapDiff = { diff, spottedTeam };
     }
 
-    const matchPlaySplits = calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format, course, match?.sideBets?.birdiesDouble, match?.sideBets, teamHandicapDiff);
+    const matchPlaySplits = calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format, course, currentMatch?.sideBets?.birdiesDouble, currentMatch?.sideBets, teamHandicapDiff);
     const { holesUp, holesPlayed } = matchPlaySplits.overall;
 
-    console.log('[Leaderboard]', {
-        matchId,
-        matchLoaded: !!match,
-        players: players.map(p => ({ id: p.userId.slice(-4), team: p.team })),
-        scores: scores.map(s => ({ hole: s.holeNumber, player: s.playerId.slice(-4), gross: s.gross, net: s.net })),
-        teamAIds: teamAIds.map(id => id.slice(-4)),
-        teamBIds: teamBIds.map(id => id.slice(-4)),
-        holesUp,
-        holesPlayed,
-    });
 
-    // Hero label: from Team A's perspective
-    const hasOpponent = teamAIds.length > 0 && teamBIds.length > 0;
-    const heroLabel = matchLabel(holesUp);
+    const heroLabel = matchLabel(holesUp, holesPlayed);
     const heroLeader = holesUp > 0 ? 'A' : holesUp < 0 ? 'B' : null;
 
-    // Activity feed
+    const hcpDiffForDots = showAllPlayers ? globalMaxDiff : (format === '2v2' ? (teamHandicapDiff?.diff ?? 0) : (Math.max(0, ...matchHcps) - lowestMatchHcp));
+
+    // Activity feed aggregated from all matches in group
     const activityEvents: ActivityEvent[] = [];
-    for (const press of presses) {
-        activityEvents.push({
-            id: press.id,
-            message: (
-                <>
-                    <strong className="text-white">Team {press.pressedByTeam}</strong> initiated a{' '}
-                    <strong className="text-bloodRed uppercase tracking-wider">Press</strong> on Hole {press.startHole}.
-                </>
-            ),
-            color: 'bg-bloodRed/80',
-        });
-    }
-    for (const score of scores) {
-        for (const dot of score.trashDots) {
-            const player = playerRows.find((r) => r.userId === score.playerId);
+
+    // 1. Scan for Presses (Match-specific)
+    const entriesToScan = isGroupMode && groupState ? groupState.matches : [{
+        matchId: primaryMatchId!,
+        match: primaryMatch!,
+        players: primaryPlayers,
+        scores: primaryScores,
+        presses: primaryPresses
+    }];
+
+    for (const entry of entriesToScan) {
+        if (!entry.match) continue;
+        const opponent = entry.players.find(p => p.team === 'B');
+        const oppName = opponent?.guestName ?? playerProfiles[opponent?.userId ?? '']?.fullName.split(' ')[0] ?? 'Opp';
+
+        for (const press of entry.presses) {
             activityEvents.push({
-                id: `${score.matchId}-${score.holeNumber}-${score.playerId}-${dot}`,
+                id: `press-${press.id}`, // DB ID is already global
                 message: (
                     <>
-                        <strong className="text-white">{player?.fullName ?? 'A player'}</strong> earned a{' '}
-                        <strong className="text-neonGreen capitalize">{dot}</strong> on Hole {score.holeNumber}.
+                        <strong className="text-white">Team {press.pressedByTeam}</strong> pressed <strong className="text-bloodRed">{oppName}</strong> on Hole {press.startHole}.
+                    </>
+                ),
+                color: 'bg-bloodRed/80',
+            });
+        }
+    }
+
+    // 2. Scan for Scores/Trophies (Global to group)
+    // Using allGroupScores prevents duplicates if a player is in multiple match pairings
+    for (const score of allGroupScores) {
+        const player = allGroupPlayers.find((r) => r.userId === score.playerId);
+        const pName = player?.guestName ?? playerProfiles[score.playerId]?.fullName ?? 'Player';
+
+        for (const dot of score.trashDots) {
+            activityEvents.push({
+                // Global ID: hole + player + trophy type
+                id: `trophy-${score.holeNumber}-${score.playerId}-${dot}`,
+                message: (
+                    <>
+                        <strong className="text-white">{pName}</strong> earned a <strong className="text-neonGreen capitalize">{dot}</strong> on Hole {score.holeNumber}.
                     </>
                 ),
                 color: 'bg-neonGreen/80',
             });
         }
     }
-    activityEvents.reverse();
 
-    const startingHole = match?.sideBets?.startingHole ?? 1;
+    // Filter by ID just to be safe and reverse for chronological (newest first)
+    const uniqueEvents = activityEvents.filter((ev, idx, self) =>
+        self.findIndex(t => t.id === ev.id) === idx
+    );
+    uniqueEvents.reverse();
+
+    const startingHole = currentMatch?.sideBets?.startingHole ?? 1;
     const lastHole = ((startingHole - 2 + 18) % 18) + 1;
-    const uniqueHolesScored = new Set(scores.map((s) => s.holeNumber)).size;
-    // Next hole to play = startingHole offset by how many holes are already scored (wraps at 18)
+    const uniqueHolesScored = new Set(currentScores.map((s) => s.holeNumber)).size;
     const holeNum = uniqueHolesScored === 0
         ? startingHole
         : uniqueHolesScored >= 18
@@ -304,62 +424,106 @@ export default function LeaderboardPage() {
         { type: 'divider' as const, val: 'OUT', splitData: matchPlaySplits.front9 },
         ...backNine.map(h => ({ type: 'hole' as const, val: h.number })),
         { type: 'divider' as const, val: 'IN', splitData: matchPlaySplits.back9 },
-        { type: 'header' as const, val: 'GROSS' }
+        { type: 'header' as const, val: 'GROSS' },
+        { type: 'header' as const, val: 'NET' }
     ];
 
     function getPlayerScore(pId: string, hNum: number) {
-        return scores.find(s => s.playerId === pId && s.holeNumber === hNum)?.gross || 0;
+        return currentScores.find(s => s.playerId === pId && s.holeNumber === hNum)?.gross || 0;
+    }
+
+    function getPlayerNetScore(pId: string, hNum: number) {
+        return scoresWithAdjusted.find(s => s.playerId === pId && s.holeNumber === hNum)?.adjustedNet || 0;
     }
 
     function getPlayerSum(pId: string, range: number[]) {
         return range.reduce((sum, h) => sum + getPlayerScore(pId, h), 0);
     }
 
+    function getPlayerNetSum(pId: string, range: number[]) {
+        return range.reduce((sum, h) => sum + getPlayerNetScore(pId, h), 0);
+    }
+
     function renderScoreCell(pId: string, hNum: number) {
-        const val = getPlayerScore(pId, hNum);
+        const scoreEntry = currentScores.find(s => s.playerId === pId && s.holeNumber === hNum);
+        const val = scoreEntry?.gross || 0;
         if (val === 0) return <span className="text-secondaryText/30">—</span>;
 
         const par = sortedHoles.find(h => h.number === hNum)?.par ?? 4;
+        const trash = scoreEntry?.trashDots ?? [];
+
+        // --- Premium Score Visualization ---
+        let shape;
+
         if (val <= par - 2) {
-            return (
-                <div className="w-10 h-10 rounded-full border border-neonOrange flex items-center justify-center text-neonOrange font-bold bg-neonOrange/10">
+            shape = (
+                <div className="w-8 h-8 rounded-full border border-[0.5px] border-cyan-400 ring-1 ring-cyan-400 ring-offset-1 ring-offset-background flex items-center justify-center text-cyan-400 text-[11px] font-black bg-cyan-400/5 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
                     {val}
                 </div>
             );
-        }
-        if (val === par - 1) {
-            return (
-                <div className="w-10 h-10 rounded-full border border-neonGreen flex items-center justify-center text-neonGreen font-bold bg-neonGreen/10">
+        } else if (val === par - 1) {
+            shape = (
+                <div className="w-8 h-8 rounded-full border border-neonGreen flex items-center justify-center text-neonGreen text-[11px] font-black bg-neonGreen/10 shadow-[0_0_8px_rgba(0,255,102,0.1)]">
                     {val}
                 </div>
             );
-        }
-        if (val === par + 1) {
-            return (
-                <div className="w-10 h-10 border border-bloodRed flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">
+        } else if (val === par + 1) {
+            shape = (
+                <div className="w-8 h-8 border border-amber-400 flex items-center justify-center text-amber-400 text-[11px] font-black bg-amber-400/5">
                     {val}
                 </div>
             );
-        }
-        if (val === par + 2) {
-            return (
-                <div className="w-10 h-10 border border-bloodRed ring-1 ring-bloodRed ring-offset-1 ring-offset-[#1C1C1E] flex items-center justify-center text-bloodRed font-bold bg-bloodRed/10">
+        } else if (val === par + 2) {
+            shape = (
+                <div className="w-8 h-8 border border-bloodRed flex items-center justify-center text-bloodRed text-[11px] font-black bg-bloodRed/10">
                     {val}
                 </div>
             );
-        }
-        if (val >= par + 3) {
-            return (
-                <div className="w-10 h-10 border border-neonOrange ring-1 ring-neonOrange ring-offset-1 ring-offset-[#1C1C1E] flex items-center justify-center text-neonOrange font-bold bg-neonOrange/10">
+        } else if (val >= par + 3) {
+            shape = (
+                <div className="w-8 h-8 border border-[0.5px] border-[#FF00FF] ring-1 ring-[#FF00FF] ring-offset-1 ring-offset-background flex items-center justify-center text-[#FF00FF] text-[11px] font-black bg-[#FF00FF]/5 shadow-[0_0_10px_rgba(255,0,255,0.2)]">
                     {val}
                 </div>
             );
+        } else {
+            shape = <span className="font-black text-white text-xs">{val}</span>;
         }
-        return <span className="font-bold text-white">{val}</span>;
+
+        return (
+            <div className="relative flex items-center justify-center w-8 h-8">
+                {shape}
+                {/* Side Bet Trophies */}
+                {trash.includes('greenie') && (
+                    <Target className="absolute -top-0.5 -right-0.5 w-[9px] h-[9px] text-neonGreen drop-shadow-[0_0_3px_rgba(0,255,102,0.6)]" />
+                )}
+                {trash.includes('snake') && (
+                    <Zap className="absolute -bottom-0.5 -right-0.5 w-[9px] h-[9px] text-[#FF00FF] fill-[#FF00FF] drop-shadow-[0_0_3px_rgba(255,0,255,0.6)]" />
+                )}
+                {trash.includes('sandie') && (
+                    <Droplets className="absolute -top-0.5 -left-0.5 w-[9px] h-[9px] text-cyan-400 fill-cyan-400 drop-shadow-[0_0_3px_rgba(34,211,238,0.6)]" />
+                )}
+            </div>
+        );
     }
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden relative">
+            {/* Realtime Score Update Ping */}
+            <AnimatePresence>
+                {pingMessage && (
+                    <motion.div
+                        initial={{ y: -50, opacity: 0, x: '-50%' }}
+                        animate={{ y: 0, opacity: 1, x: '-50%' }}
+                        exit={{ y: -50, opacity: 0, x: '-50%' }}
+                        className="absolute top-4 left-1/2 z-50 pointer-events-none"
+                    >
+                        <div className="bg-surface/90 backdrop-blur-md border border-neonGreen/50 rounded-full px-4 py-2 flex items-center gap-3 shadow-[0_0_20px_rgba(0,255,102,0.2)]">
+                            <div className="w-2 h-2 rounded-full bg-neonGreen animate-pulse shadow-[0_0_8px_rgba(0,255,102,1)]" />
+                            <span className="text-[10px] font-black tracking-widest uppercase text-neonGreen">{pingMessage.message}</span>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             {/* Header - Stationary */}
             <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background/95 backdrop-blur shrink-0 z-20">
                 <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
@@ -378,14 +542,77 @@ export default function LeaderboardPage() {
 
             {/* Scrollable Content */}
             <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6 pb-20">
+                {/* Multi-Match Group Overview */}
+                {isGroupMode && groupState && (
+                    <section>
+                        <div className="text-secondaryText text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2 pl-1">
+                            <LayoutGrid className="w-3.5 h-3.5" /> Pairing Summaries
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
+                            {groupState.matches.map((entry, i) => {
+                                const splits = calcMatchPlay(
+                                    entry.players.filter((p: MatchPlayer) => p.team === 'A').map((p: MatchPlayer) => p.userId),
+                                    entry.players.filter((p: MatchPlayer) => p.team === 'B').map((p: MatchPlayer) => p.userId),
+                                    entry.scores.map((s: HoleScore) => {
+                                        const p = entry.players.find(x => x.userId === s.playerId);
+                                        const pData = playerProfiles[s.playerId] || { handicap: p?.initialHandicap ?? 0 };
+                                        const mHcps = entry.players.map(x => Math.round(playerProfiles[x.userId]?.handicap ?? x.initialHandicap));
+                                        const mLHcp = Math.min(...mHcps);
+                                        const adj = Math.max(0, Math.round(pData.handicap) - Math.max(0, mLHcp));
+                                        return { ...s, adjustedNet: calcNet(s.gross, adj, course?.holes.find((h: any) => h.number === s.holeNumber)?.strokeIndex ?? 18) };
+                                    }),
+                                    '1v1',
+                                    course,
+                                    entry.match.sideBets?.birdiesDouble,
+                                    entry.match.sideBets
+                                );
+                                const mHolesUp = splits.overall.holesUp;
+                                const mHolesPlayed = splits.overall.holesPlayed;
+                                const pA = entry.players.find(p => p.team === 'A');
+                                const pB = entry.players.find(p => p.team === 'B');
+                                const nameA = pA?.guestName ?? playerProfiles[pA?.userId ?? '']?.fullName.split(' ')[0] ?? 'P1';
+                                const nameB = pB?.guestName ?? playerProfiles[pB?.userId ?? '']?.fullName.split(' ')[0] ?? 'P2';
+
+                                // Clean abbreviations (e.g., Danny -> DAN, Diddy -> DID)
+                                const abbr = (s: string) => s.length > 3 ? s.slice(0, 3).toUpperCase() : s.toUpperCase();
+                                const isFocused = focusedMatchIdx === i;
+
+                                return (
+                                    <button
+                                        key={entry.matchId}
+                                        onClick={() => setFocusedMatchIdx(i)}
+                                        className={`shrink-0 w-32 p-3 rounded-xl border transition-all flex flex-col items-center justify-between text-center ${isFocused ? 'bg-surface border-neonGreen/50 shadow-[0_0_15px_rgba(0,255,102,0.15)] ring-1 ring-neonGreen/20' : 'bg-surface/40 border-borderColor/30 hover:border-borderColor/60'}`}
+                                    >
+                                        <div className="flex items-center gap-1 text-[9px] font-black tracking-tighter mb-2 w-full justify-center">
+                                            <span className={isFocused ? 'text-white' : 'text-secondaryText/80'}>{abbr(nameA)}</span>
+                                            <span className="text-bloodRed/60 font-serif italic lowercase px-0.5">v</span>
+                                            <span className={isFocused ? 'text-white' : 'text-secondaryText/80'}>{abbr(nameB)}</span>
+                                        </div>
+                                        <div className={`text-xl font-black leading-none ${mHolesUp > 0 ? 'text-neonGreen drop-shadow-[0_0_8px_rgba(0,255,102,0.3)]' : mHolesUp < 0 ? 'text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.3)]' : 'text-white/80'}`}>
+                                            {matchLabel(mHolesUp, mHolesPlayed)}
+                                        </div>
+                                        <div className="text-[8px] font-black text-secondaryText/50 uppercase mt-2 tracking-[0.2em]">THRU {mHolesPlayed}</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
+
                 {/* Hero Match Score Card */}
                 <section>
-                    <div className="text-secondaryText text-xs font-bold uppercase tracking-widest mb-2 pl-1">Match Score</div>
-                    {!hasOpponent && (
-                        <div className="mb-3 px-1 py-2 rounded-lg bg-surface border border-borderColor/50">
-                            <p className="text-xs text-secondaryText text-center">No opponent in this match yet — add one from Match Setup to see head-to-head scoring.</p>
-                        </div>
-                    )}
+                    <div className="text-secondaryText text-xs font-bold uppercase tracking-widest mb-2 pl-1 flex items-center justify-between">
+                        <span>
+                            {focusedEntry ? (() => {
+                                const pA = focusedEntry.players.find(p => p.team === 'A');
+                                const pB = focusedEntry.players.find(p => p.team === 'B');
+                                const nameA = pA?.guestName ?? playerProfiles[pA?.userId ?? '']?.fullName.split(' ')[0] ?? 'P1';
+                                const nameB = pB?.guestName ?? playerProfiles[pB?.userId ?? '']?.fullName.split(' ')[0] ?? 'P2';
+                                return `${nameA} vs ${nameB}`;
+                            })() : 'Match Score'}
+                        </span>
+                        {isGroupMode && <span className="text-[10px] bg-bloodRed/20 text-bloodRed px-2 py-0.5 rounded-full font-black">MATCH {focusedMatchIdx + 1}</span>}
+                    </div>
                     <Card className="flex items-center justify-between p-5 py-8 border border-borderColor shadow-lg relative overflow-hidden bg-gradient-to-br from-surface to-background">
                         {/* Team A */}
                         <div className={`text-center z-10 transition-opacity ${heroLeader === 'B' ? 'opacity-40' : ''}`}>
@@ -424,7 +651,7 @@ export default function LeaderboardPage() {
                             { label: 'BACK', data: matchPlaySplits.back9, isComplete: matchPlaySplits.back9.holesPlayed === 9 },
                             { label: 'OVERALL', data: matchPlaySplits.overall, isComplete: matchPlaySplits.overall.holesPlayed === 18 }
                         ].map((split, i) => {
-                            const leaderLabel = matchLabel(split.data.holesUp).replace(' UP', '').replace(' DN', '');
+                            const leaderLabel = matchLabel(split.data.holesUp, split.data.holesPlayed).replace(' UP', '').replace(' DN', '');
                             const isAS = split.data.holesUp === 0;
                             const tALeads = split.data.holesUp > 0;
 
@@ -457,7 +684,26 @@ export default function LeaderboardPage() {
 
                 {/* Scorecard Overview */}
                 <section>
-                    <div className="text-secondaryText text-xs font-bold uppercase tracking-widest mb-2 pl-1">Scorecard Overview</div>
+                    <div className="flex items-center justify-between mb-4 pl-1">
+                        <div className="text-secondaryText text-xs font-bold uppercase tracking-widest">Scorecard Overview</div>
+
+                        {isGroupMode && (
+                            <div className="flex bg-surface/40 p-1 rounded-lg border border-borderColor/20">
+                                <button
+                                    onClick={() => setShowAllPlayers(false)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-tight transition-all ${!showAllPlayers ? 'bg-bloodRed text-white shadow-[0_0_10px_rgba(255,0,63,0.3)]' : 'text-secondaryText hover:text-white'}`}
+                                >
+                                    <User className="w-3 h-3" /> Match
+                                </button>
+                                <button
+                                    onClick={() => setShowAllPlayers(true)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-tight transition-all ${showAllPlayers ? 'bg-bloodRed text-white shadow-[0_0_10px_rgba(255,0,63,0.3)]' : 'text-secondaryText hover:text-white'}`}
+                                >
+                                    <Users className="w-3 h-3" /> Everyone
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <div className="overflow-x-auto scrollbar-hide pb-8 -mx-4">
                         <div className="px-4 inline-flex flex-col min-w-max gap-6">
                             {/* Table 1: Hole & Par Information */}
@@ -481,7 +727,7 @@ export default function LeaderboardPage() {
                                 </div>
 
                                 {/* Par Headers */}
-                                <div className="flex flex-row bg-surface/40">
+                                <div className="flex flex-row bg-surface/40 border-b border-borderColor/10">
                                     <div className="sticky left-0 z-20 bg-surface min-w-[80px] h-10 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText/80 shadow-[4px_0_10px_rgba(0,0,0,0.3)]">
                                         PAR
                                     </div>
@@ -493,12 +739,51 @@ export default function LeaderboardPage() {
                                         }
                                         if (h.type === 'header') {
                                             const total = sortedHoles.reduce((s, hole) => s + hole.par, 0);
-                                            return <div key={i} className="h-10 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[50px] bg-bloodRed/10 text-bloodRed/60">{total}</div>;
+                                            const isNet = h.val === 'NET';
+                                            return (
+                                                <div key={i} className={`h-10 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[50px] ${isNet ? 'bg-neonGreen/10 text-neonGreen/60' : 'bg-bloodRed/10 text-bloodRed/60'}`}>
+                                                    {total}
+                                                </div>
+                                            );
                                         }
                                         const holePar = sortedHoles.find(x => x.number === h.val)?.par ?? 4;
                                         return (
                                             <div key={i} className="h-10 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[52px] text-secondaryText/60">
                                                 {holePar}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Index Headers */}
+                                <div className="flex flex-row bg-surface/20">
+                                    <div className="sticky left-0 z-20 bg-surface min-w-[80px] h-9 flex items-center px-3 font-black text-[9px] uppercase tracking-[0.2em] text-secondaryText/50 shadow-[4px_0_10px_rgba(0,0,0,0.3)]">
+                                        INDEX
+                                    </div>
+                                    {headers.map((h, i) => {
+                                        if (h.type === 'divider') {
+                                            return <div key={i} className="h-9 flex items-center justify-center flex-shrink-0 min-w-[44px] bg-black/20" />;
+                                        }
+                                        if (h.type === 'header') {
+                                            return <div key={i} className="h-9 flex items-center justify-center flex-shrink-0 min-w-[50px] bg-black/20" />;
+                                        }
+                                        const hIdx = sortedHoles.find(x => x.number === h.val)?.strokeIndex ?? 99;
+                                        const dotsCount = Math.floor(hcpDiffForDots / 18) + (hcpDiffForDots % 18 >= hIdx ? 1 : 0);
+                                        const isStrokeHole = dotsCount > 0;
+
+                                        return (
+                                            <div key={i} className="h-9 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[52px] relative">
+                                                {isStrokeHole ? (
+                                                    <div className="w-5 h-5 rounded-full bg-bloodRed/20 border border-bloodRed/40 flex items-center justify-center shadow-[0_0_8px_rgba(255,0,63,0.2)]">
+                                                        <span className="text-bloodRed text-[9px] font-black leading-none">
+                                                            {hIdx === 99 ? '—' : hIdx}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-secondaryText/40">
+                                                        {hIdx === 99 ? '—' : hIdx}
+                                                    </span>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -545,8 +830,16 @@ export default function LeaderboardPage() {
 
                                                 return <div key={i} className={`${baseClass} min-w-[44px] ${splitBgClass} font-black text-xs ${splitTextClass} transition-colors`}>{sum || '—'}</div>;
                                             } else if (h.type === 'header') {
-                                                const total = getPlayerSum(row.userId, Array.from({ length: 18 }, (_, i) => i + 1));
-                                                return <div key={i} className={`${baseClass} min-w-[50px] bg-bloodRed/10 font-black text-sm text-bloodRed`}>{total || '—'}</div>;
+                                                const isNet = h.val === 'NET';
+                                                const total = isNet
+                                                    ? getPlayerNetSum(row.userId, Array.from({ length: 18 }, (_, i) => i + 1))
+                                                    : getPlayerSum(row.userId, Array.from({ length: 18 }, (_, i) => i + 1));
+
+                                                return (
+                                                    <div key={i} className={`${baseClass} min-w-[50px] ${isNet ? 'bg-neonGreen/10 text-neonGreen' : 'bg-bloodRed/10 text-bloodRed'} font-black text-sm`}>
+                                                        {total || '—'}
+                                                    </div>
+                                                );
                                             }
                                             return (
                                                 <div key={i} className={`${baseClass} min-w-[52px] text-xs font-black`}>
@@ -556,6 +849,59 @@ export default function LeaderboardPage() {
                                         })}
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Scorecard Legend - Refined Guidance Card */}
+                    <div className="mt-6 mx-1 p-3 rounded-xl bg-surface/20 border border-borderColor/20 backdrop-blur-md relative overflow-hidden group">
+                        {/* Background Decor */}
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-bloodRed/5 blur-3xl -mr-12 -mt-12 transition-colors group-hover:bg-bloodRed/10" />
+
+                        <div className="flex items-center gap-2 mb-3 px-0.5">
+                            <Activity className="w-3 h-3 text-secondaryText" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-secondaryText/80">Scorecard Key</span>
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                            {/* Scoring Logic */}
+                            <div className="flex flex-wrap gap-x-5 gap-y-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 rounded-full border border-[0.5px] border-cyan-400 ring-1 ring-cyan-400 ring-offset-1 ring-offset-background/40" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Eagle+</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 rounded-full border border-neonGreen bg-neonGreen/5" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Birdie</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 border border-amber-400 bg-amber-400/5" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Bogey</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 border border-bloodRed bg-bloodRed/5" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Double</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 border border-[0.5px] border-[#FF00FF] ring-1 ring-[#FF00FF] ring-offset-1 ring-offset-background/40" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Triple+</span>
+                                </div>
+                            </div>
+
+                            {/* Trophies Logic */}
+                            <div className="flex flex-wrap gap-x-6 gap-y-3 pt-3 border-t border-white/5">
+                                <div className="flex items-center gap-2">
+                                    <Target className="w-3.5 h-3.5 text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.4)]" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Greenie</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Zap className="w-3.5 h-3.5 text-[#FF00FF] fill-[#FF00FF] drop-shadow-[0_0_5px_rgba(255,0,255,0.4)]" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Snake</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Droplets className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.4)]" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Sandie</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -572,7 +918,7 @@ export default function LeaderboardPage() {
                         {playerRows.map((row) => {
                             // Each player sees the score from their team's perspective
                             const playerHolesUp = row.team === 'A' ? holesUp : -holesUp;
-                            const standing = matchLabel(playerHolesUp);
+                            const standing = matchLabel(playerHolesUp, row.holesPlayed);
                             const isUp = playerHolesUp > 0;
                             const isDown = playerHolesUp < 0;
 
@@ -629,14 +975,14 @@ export default function LeaderboardPage() {
                 </section>
 
                 {/* Live Activity Feed */}
-                {activityEvents.length > 0 && (
+                {uniqueEvents.length > 0 && (
                     <section>
                         <div className="text-secondaryText text-xs font-bold uppercase tracking-widest flex items-center justify-between px-1 mb-3">
                             <span>Live Activity Feed</span>
                             <Activity className="w-4 h-4 text-bloodRed animate-pulse" />
                         </div>
                         <Card className="divide-y divide-borderColor/50">
-                            {activityEvents.slice(0, 5).map((ev) => (
+                            {uniqueEvents.slice(0, 8).map((ev) => (
                                 <div key={ev.id} className="p-3.5 flex items-start gap-3">
                                     <div className={`w-2 h-2 rounded-full ${ev.color} mt-1.5 shrink-0`} />
                                     <p className="text-sm font-medium text-secondaryText leading-relaxed">{ev.message}</p>

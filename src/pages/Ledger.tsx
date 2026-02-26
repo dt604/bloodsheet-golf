@@ -19,14 +19,17 @@ interface Settlement {
     opponentName: string;
     total: number;
     items: LineItem[];
+    userInMatch?: boolean;
 }
 
 export default function LedgerPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { matchId, match, players, scores, presses, course, loadMatch, refreshScores } = useMatchStore();
+    const { matchId, match, players, scores, presses, course, loadMatch, refreshScores, groupState, activeMatchIds } = useMatchStore();
 
     const [settlement, setSettlement] = useState<Settlement | null>(null);
+    const [groupSettlements, setGroupSettlements] = useState<Settlement[]>([]);
+    const isGroupMode = activeMatchIds.length > 1;
 
     // On mount: full load if store is empty, otherwise refresh scores only
     useEffect(() => {
@@ -40,32 +43,30 @@ export default function LedgerPage() {
         let cancelled = false;
 
         async function calculate() {
-            const opponentIds = players
-                .filter((p) => p.userId !== user!.id)
+            // Fetch names for ALL non-guest players (not just non-user)
+            const allPlayerIds = players
+                .filter((p) => !p.guestName)
                 .map((p) => p.userId);
 
             const nameMap: Record<string, string> = {};
-            if (opponentIds.length > 0) {
+            if (allPlayerIds.length > 0) {
                 const { data } = await supabase
                     .from('profiles')
                     .select('id, full_name')
-                    .in('id', opponentIds);
+                    .in('id', allPlayerIds);
                 for (const row of (data ?? []) as { id: string; full_name: string }[]) {
                     nameMap[row.id] = row.full_name;
                 }
             }
 
-            const myPlayer = players.find((p) => p.userId === user!.id);
-            if (!myPlayer) return;
+            const teamAPlayer = players.find((p) => p.team === 'A');
+            const teamBPlayer = players.find((p) => p.team === 'B');
+            const teamAName = teamAPlayer?.guestName ?? nameMap[teamAPlayer?.userId ?? ''] ?? 'Player A';
+            const teamBName = teamBPlayer?.guestName ?? nameMap[teamBPlayer?.userId ?? ''] ?? 'Player B';
+            const oppName = `${teamAName} vs ${teamBName}`;
 
-            const myTeam = myPlayer.team;
+            const myTeam = players.find((p) => p.userId === user!.id)?.team ?? 'A';
             const oppTeam: 'A' | 'B' = myTeam === 'A' ? 'B' : 'A';
-
-            // First player on the opposing team (for display name)
-            const oppPlayer = players.find((p) => p.team === oppTeam);
-            if (!oppPlayer) return;
-
-            const oppName = oppPlayer.guestName ?? nameMap[oppPlayer.userId] ?? 'Opponent';
 
             const myTeamPlayers = players.filter((p) => p.team === myTeam);
             const oppTeamPlayers = players.filter((p) => p.team === oppTeam);
@@ -216,7 +217,136 @@ export default function LedgerPage() {
         return () => { cancelled = true; };
     }, [match, players, scores, presses, user]);
 
-    const total = settlement?.total ?? 0;
+    // ── Group mode: compute settlement per match ─────────────
+    useEffect(() => {
+        if (!isGroupMode || !groupState || !user) return;
+        let cancelled = false;
+
+        async function calculateGroup() {
+            // Fetch names for ALL non-guest players across all matches
+            const allPlayerIds = [...new Set(
+                groupState!.matches.flatMap((entry) =>
+                    entry.players.filter((p) => !p.guestName).map((p) => p.userId)
+                )
+            )];
+            const nameMap: Record<string, string> = {};
+            if (allPlayerIds.length > 0) {
+                const { data } = await supabase.from('profiles').select('id, full_name').in('id', allPlayerIds);
+                for (const row of (data ?? []) as { id: string; full_name: string }[]) {
+                    nameMap[row.id] = row.full_name;
+                }
+            }
+
+            const settlements: Settlement[] = [];
+
+            for (const entry of groupState!.matches) {
+                // Default to Team A perspective if user isn't in this match
+                const myTeam = entry.players.find((p) => p.userId === user!.id)?.team ?? 'A';
+                const oppTeam: 'A' | 'B' = myTeam === 'A' ? 'B' : 'A';
+                const oppPlayer = entry.players.find((p) => p.team === oppTeam);
+                if (!oppPlayer) continue;
+
+                const userInMatch = entry.players.some((p) => p.userId === user!.id);
+                const teamAPlayer = entry.players.find((p) => p.team === 'A');
+                const teamBPlayer = entry.players.find((p) => p.team === 'B');
+                const teamAName = teamAPlayer?.guestName ?? nameMap[teamAPlayer?.userId ?? ''] ?? 'Player A';
+                const teamBName = teamBPlayer?.guestName ?? nameMap[teamBPlayer?.userId ?? ''] ?? 'Player B';
+                const oppName = `${teamAName} vs ${teamBName}`;
+                const myTeamPlayers = entry.players.filter((p) => p.team === myTeam);
+                const oppTeamPlayers = entry.players.filter((p) => p.team === oppTeam);
+
+                function teamScoresOnHole(teamPlayers: typeof myTeamPlayers, hole: number) {
+                    return teamPlayers
+                        .map((p) => {
+                            const s = entry.scores.find((sc) => sc.holeNumber === hole && sc.playerId === p.userId);
+                            return s ? { net: s.net, gross: s.gross } : undefined;
+                        })
+                        .filter((s): s is { net: number; gross: number } => s !== undefined);
+                }
+
+                const holesPlayed: number[] = [];
+                for (let h = 1; h <= 18; h++) {
+                    if (teamScoresOnHole(myTeamPlayers, h).length > 0 && teamScoresOnHole(oppTeamPlayers, h).length > 0) {
+                        holesPlayed.push(h);
+                    }
+                }
+
+                function holePoints(hole: number): { my: number; opp: number } {
+                    const myScores = teamScoresOnHole(myTeamPlayers, hole);
+                    const oppScores = teamScoresOnHole(oppTeamPlayers, hole);
+                    if (!myScores.length || !oppScores.length) return { my: 0, opp: 0 };
+                    const par = course?.holes?.find((h) => h.number === hole)?.par ?? 4;
+                    const birdiesDouble = entry.match.sideBets?.birdiesDouble ?? false;
+                    const myHasBirdie = myScores.some((s) => s.gross < par);
+                    const oppHasBirdie = oppScores.some((s) => s.gross < par);
+                    if (myScores[0].net < oppScores[0].net) return { my: (birdiesDouble && myHasBirdie) ? 2 : 1, opp: 0 };
+                    if (oppScores[0].net < myScores[0].net) return { my: 0, opp: (birdiesDouble && oppHasBirdie) ? 2 : 1 };
+                    return { my: 0, opp: 0 };
+                }
+
+                function nassauResult(holes: number[]): number {
+                    let myPts = 0, oppPts = 0;
+                    for (const h of holes) {
+                        const { my, opp } = holePoints(h);
+                        myPts += my;
+                        oppPts += opp;
+                    }
+                    if (myPts > oppPts) return entry.match.wagerAmount;
+                    if (oppPts > myPts) return -entry.match.wagerAmount;
+                    return 0;
+                }
+
+                const front9Holes = holesPlayed.filter((h) => h <= 9);
+                const back9Holes = holesPlayed.filter((h) => h > 9);
+                const front9Amount = front9Holes.length >= 9 ? nassauResult(front9Holes) : 0;
+                const back9Amount = back9Holes.length >= 9 ? nassauResult(back9Holes) : 0;
+                const overallAmount = holesPlayed.length >= 18 ? nassauResult(holesPlayed) : 0;
+
+                const items: LineItem[] = [
+                    { label: 'Front 9', sublabel: front9Amount > 0 ? 'Won' : front9Amount < 0 ? 'Lost' : 'Pushed', amount: front9Amount },
+                    { label: 'Back 9', sublabel: back9Amount > 0 ? 'Won' : back9Amount < 0 ? 'Lost' : 'Pushed', amount: back9Amount },
+                    { label: 'Overall', sublabel: overallAmount > 0 ? 'Won' : overallAmount < 0 ? 'Lost' : 'Pushed', amount: overallAmount },
+                ];
+
+                for (const press of entry.presses) {
+                    const pressHoles = holesPlayed.filter((h) => h >= press.startHole);
+                    const pressAmount = nassauResult(pressHoles);
+                    items.push({ label: 'Press', sublabel: `Hole ${press.startHole}`, amount: pressAmount, isPress: true });
+                }
+
+                const trashVal = entry.match.sideBets.trashValue ?? 5;
+                function trashItem(dot: string, label: string) {
+                    const myDots = entry.scores.filter(
+                        (s) => myTeamPlayers.some((p) => p.userId === s.playerId) && s.trashDots.includes(dot)
+                    ).length;
+                    const oppDots = entry.scores.filter(
+                        (s) => oppTeamPlayers.some((p) => p.userId === s.playerId) && s.trashDots.includes(dot)
+                    ).length;
+                    if (myDots === 0 && oppDots === 0) return;
+                    if (dot === 'snake') {
+                        items.push({ label, sublabel: myDots > oppDots ? 'You held the snake 🐍' : 'Opponent held the snake 🐍', amount: (oppDots - myDots) * trashVal });
+                    } else {
+                        items.push({ label, sublabel: `${myDots} won, ${oppDots} lost`, amount: (myDots - oppDots) * trashVal });
+                    }
+                }
+                if (entry.match.sideBets.greenies) trashItem('greenie', 'Greenies');
+                if (entry.match.sideBets.sandies) trashItem('sandie', 'Sandies');
+                if (entry.match.sideBets.snake) trashItem('snake', 'Snake');
+
+                const total = items.reduce((sum, i) => sum + i.amount, 0);
+                settlements.push({ opponentName: oppName, total, items, userInMatch });
+            }
+
+            if (!cancelled) setGroupSettlements(settlements);
+        }
+
+        calculateGroup();
+        return () => { cancelled = true; };
+    }, [isGroupMode, groupState, user, course]);
+
+    const total = isGroupMode
+        ? groupSettlements.filter((s) => s.userInMatch !== false).reduce((sum, s) => sum + s.total, 0)
+        : (settlement?.total ?? 0);
     const isWinner = total > 0;
 
     useEffect(() => {
@@ -257,11 +387,13 @@ export default function LedgerPage() {
         }
     }, [isWinner, total]);
 
-    const settlementLabel = total > 0
-        ? `${settlement?.opponentName ?? 'Opponent'} Owes You`
-        : total < 0
-            ? `You Owe ${settlement?.opponentName ?? 'Opponent'}`
-            : 'All Square';
+    const settlementLabel = isGroupMode
+        ? (total > 0 ? 'Net Winnings' : total < 0 ? 'Net You Owe' : 'All Square')
+        : (total > 0
+            ? `Winnings: ${settlement?.opponentName}`
+            : total < 0
+                ? `Total Owed: ${settlement?.opponentName}`
+                : 'All Square');
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden relative">
@@ -291,12 +423,57 @@ export default function LedgerPage() {
                         {total > 0 ? '+' : ''}${Math.abs(total)}
                     </div>
                     <p className="mt-4 text-sm text-white font-bold opacity-80 relative z-10">
-                        {match?.format} • ${match?.wagerAmount} {match?.wagerType} vs {settlement?.opponentName ?? '…'}
+                        {isGroupMode
+                            ? `${activeMatchIds.length} Matches • ${match?.wagerType}`
+                            : `${match?.format} • $${match?.wagerAmount} ${match?.wagerType}: ${settlement?.opponentName ?? '…'}`
+                        }
                     </p>
                 </section>
 
-                {/* Detailed Breakdown */}
-                {settlement && (
+                {/* ── Group Mode: per-match breakdown + net total ── */}
+                {isGroupMode && groupSettlements.length > 0 && (
+                    <section className="space-y-4 animate-in slide-in-from-bottom-8 fade-in duration-700 delay-200">
+                        {groupSettlements.map((s, idx) => (
+                            <div key={idx}>
+                                <div className="flex items-center justify-between mb-2 px-1">
+                                    <span className="text-sm font-bold text-secondaryText uppercase tracking-wider">
+                                        {s.opponentName}
+                                    </span>
+                                    <span className={`text-sm font-black ${s.total > 0 ? 'text-neonGreen' : s.total < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                        {s.total > 0 ? '+' : ''}${s.total}
+                                    </span>
+                                </div>
+                                <Card className="divide-y divide-borderColor/50 font-sans border-borderColor">
+                                    {s.items.map((item, i) => (
+                                        <div
+                                            key={i}
+                                            className={`p-3.5 flex items-center justify-between hover:bg-surfaceHover transition-colors ${item.isPress ? 'bg-bloodRed/5 border-l-2 border-l-bloodRed' : ''}`}
+                                        >
+                                            <div>
+                                                <span className={`font-bold text-sm block ${item.isPress ? 'text-bloodRed' : 'text-white'}`}>{item.label}</span>
+                                                <span className="text-xs text-secondaryText">{item.sublabel}</span>
+                                            </div>
+                                            <span className={`font-bold ${item.amount > 0 ? 'text-neonGreen' : item.amount < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                {item.amount > 0 ? '+' : ''}${item.amount}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </Card>
+                            </div>
+                        ))}
+
+                        {/* Net total across all matches */}
+                        <Card className="p-5 flex items-center justify-between bg-surface border-borderColor">
+                            <span className="font-bold tracking-wider uppercase text-white">Net Settlement</span>
+                            <span className={`font-black text-2xl ${isWinner ? 'text-neonGreen' : total < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                {total > 0 ? '+' : ''}${total}
+                            </span>
+                        </Card>
+                    </section>
+                )}
+
+                {/* ── Single-match breakdown ────────────────── */}
+                {!isGroupMode && settlement && (
                     <section className="animate-in slide-in-from-bottom-8 fade-in h-fill-mode-both duration-700 delay-200">
                         <div className="flex items-center justify-between mb-3 px-1">
                             <span className="text-sm font-bold text-secondaryText uppercase tracking-wider">Line Item Breakdown</span>

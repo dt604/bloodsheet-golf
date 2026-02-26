@@ -32,8 +32,9 @@ export default function AddPlayerPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const team = (searchParams.get('team') ?? 'B') as 'A' | 'B';
+    const isPoolMode = searchParams.get('pool') === '1';
     const { user } = useAuth();
-    const { stagedPlayers, stagePlayer } = useMatchStore();
+    const { stagedPlayers, stagePlayer, poolPlayers, addPoolPlayer } = useMatchStore();
     const { friendships, loadFriendships, sendFriendRequest } = useFriendsStore();
 
     const [mode, setMode] = useState<'search' | 'guest'>('search');
@@ -160,11 +161,18 @@ export default function AddPlayerPage() {
     }
 
     function handleSelectRegistered(p: ProfileRow) {
-        if (p.isGrint) {
-            // Treat Grint players as ghosts/guests so we don't trip foreign key constraints on the backend
-            stagePlayer({ userId: generateUUID(), fullName: p.fullName, handicap: p.handicap, team, avatarUrl: p.avatarUrl, isGuest: true });
+        if (isPoolMode) {
+            if (p.isGrint) {
+                addPoolPlayer({ userId: generateUUID(), fullName: p.fullName, handicap: p.handicap, avatarUrl: p.avatarUrl, isGuest: true });
+            } else {
+                addPoolPlayer({ userId: p.id, fullName: p.fullName, handicap: p.handicap, avatarUrl: p.avatarUrl });
+            }
         } else {
-            stagePlayer({ userId: p.id, fullName: p.fullName, handicap: p.handicap, team, avatarUrl: p.avatarUrl });
+            if (p.isGrint) {
+                stagePlayer({ userId: generateUUID(), fullName: p.fullName, handicap: p.handicap, team, avatarUrl: p.avatarUrl, isGuest: true });
+            } else {
+                stagePlayer({ userId: p.id, fullName: p.fullName, handicap: p.handicap, team, avatarUrl: p.avatarUrl });
+            }
         }
         navigate('/setup');
     }
@@ -172,12 +180,18 @@ export default function AddPlayerPage() {
     function handleAddGuest() {
         if (!guestName.trim()) return;
         const guestId = generateUUID();
-        stagePlayer({ userId: guestId, fullName: guestName.trim(), handicap: guestHandicap, team, isGuest: true });
+        if (isPoolMode) {
+            addPoolPlayer({ userId: guestId, fullName: guestName.trim(), handicap: guestHandicap, isGuest: true });
+        } else {
+            stagePlayer({ userId: guestId, fullName: guestName.trim(), handicap: guestHandicap, team, isGuest: true });
+        }
         navigate('/setup');
     }
 
     function PlayerRow({ p }: { p: ProfileRow }) {
-        const isStaged = stagedPlayers.some((sp) => sp.userId === p.id);
+        const isStaged = isPoolMode
+            ? poolPlayers.some((sp) => sp.userId === p.id)
+            : stagedPlayers.some((sp) => sp.userId === p.id);
         return (
             <div className="p-3.5 flex items-center justify-between hover:bg-surfaceHover transition-colors">
                 <div
@@ -242,7 +256,7 @@ export default function AddPlayerPage() {
                 <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
                     <ChevronLeft className="w-6 h-6" />
                 </button>
-                <span className="font-bold text-lg tracking-wide uppercase">Add Player to Team {team}</span>
+                <span className="font-bold text-lg tracking-wide uppercase">{isPoolMode ? 'Add Player to Group' : `Add Player to Team ${team}`}</span>
                 <div className="w-10" />
             </header>
 
@@ -328,7 +342,7 @@ export default function AddPlayerPage() {
 
                             {recentPartners.length === 0 && allPlayers.length === 0 && results.length === 0 && search.trim() === '' && (
                                 <div className="text-secondaryText text-sm px-2 mt-4 text-center space-y-2">
-                                    <p>Search BloodSheet or The Grint by Name, Email, or Username to add them to Team {team}.</p>
+                                    <p>Search BloodSheet or The Grint by Name, Email, or Username to add them {isPoolMode ? 'to the group' : `to Team ${team}`}.</p>
                                     <p>If they don't have an account, add them as a Guest!</p>
                                 </div>
                             )}
@@ -376,7 +390,7 @@ export default function AddPlayerPage() {
                             onClick={handleAddGuest}
                             disabled={!guestName.trim()}
                         >
-                            Add {guestName.trim() || 'Guest'} to Team {team}
+                            Add {guestName.trim() || 'Guest'} {isPoolMode ? 'to Group' : `to Team ${team}`}
                         </Button>
                     </main>
                 )}

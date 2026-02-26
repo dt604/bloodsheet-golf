@@ -50,11 +50,13 @@ CREATE TABLE IF NOT EXISTS public.matches (
   status        TEXT NOT NULL DEFAULT 'setup' CHECK (status IN ('setup', 'in_progress', 'completed')),
   side_bets     JSONB NOT NULL DEFAULT '{"greenies":true,"sandies":true,"snake":true,"autoPress":false,"trashValue":5}',
   created_by    UUID REFERENCES public.profiles(id),
+  group_id      UUID,
   created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- If you already have a matches table, run this to add the column:
+-- If you already have a matches table, run these to add columns:
 -- ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS join_code TEXT UNIQUE;
+-- ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS group_id UUID;
 
 -- ─── MATCH PLAYERS ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.match_players (

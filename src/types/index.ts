@@ -8,6 +8,36 @@ export interface User {
   handicap: number;
 }
 
+// ── Multi-match 1v1 group types ───────────────────────────────
+
+export interface PoolPlayer {
+  userId: string;
+  fullName: string;
+  handicap: number;
+  isGuest?: boolean;
+  avatarUrl?: string;
+}
+
+export interface MatchSlot {
+  id: string;
+  player1Id: string | null; // null = creator (current user)
+  opponentId: string | null;
+  wager: number;
+}
+
+export interface GroupMatchEntry {
+  matchId: string;
+  match: Match;
+  players: MatchPlayer[];
+  scores: HoleScore[];
+  presses: Press[];
+}
+
+export interface GroupState {
+  groupId: string;
+  matches: GroupMatchEntry[];
+}
+
 export interface MatchPlayer {
   userId: string;
   team: 'A' | 'B';
@@ -48,6 +78,7 @@ export interface Match {
   id: string;
   joinCode?: string;
   courseId: string;
+  groupId?: string;
   format: MatchFormat;
   wagerAmount: number;
   wagerType: WagerType;
