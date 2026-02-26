@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, MapPin, Settings2, Plus, Search, Loader, Copy, Check } from 'lucide-react';
+import { ChevronLeft, MapPin, Settings2, Plus, Minus, X, Search, Loader, Copy, Check } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Toggle } from '../components/ui/Toggle';
@@ -15,9 +15,17 @@ export default function MatchSetupPage() {
     const createMatch = useMatchStore((s) => s.createMatch);
     const stagedPlayers = useMatchStore((s) => s.stagedPlayers);
     const removeStagedPlayer = useMatchStore((s) => s.removeStagedPlayer);
+    const updateStagedPlayerHandicap = useMatchStore((s) => s.updateStagedPlayerHandicap);
     const format = useMatchStore((s) => s.pendingFormat);
     const setFormat = useMatchStore((s) => s.setPendingFormat);
     const [wager, setWager] = useState(10);
+
+    const [creatorHcp, setCreatorHcp] = useState<number>(0);
+    useEffect(() => {
+        if (profile?.handicap !== undefined) {
+            setCreatorHcp(Math.round(profile.handicap));
+        }
+    }, [profile?.handicap]);
 
     // Course search
     const [courseQuery, setCourseQuery] = useState('');
@@ -182,7 +190,8 @@ export default function MatchSetupPage() {
                     createdBy: user.id,
                 },
                 selectedCourse,
-                user.id
+                user.id,
+                creatorHcp
             );
             // Show join code modal before navigating to scorecard
             const code = useMatchStore.getState().match?.joinCode ?? null;
@@ -236,52 +245,93 @@ export default function MatchSetupPage() {
                         </div>
                         <CardContent className="p-0">
                             {/* Team A — creator (always) */}
-                            <div className="p-4 border-b border-borderColor/50 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold overflow-hidden shrink-0">
-                                        {profile?.avatarUrl ? (
-                                            <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                        ) : (
-                                            initials
-                                        )}
+                            <div className="p-4 border-b border-borderColor/50 flex flex-col gap-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-inner">
+                                            {profile?.avatarUrl ? (
+                                                <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                initials
+                                            )}
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-sm block">{profile?.fullName ?? 'You'}</span>
+                                            <span className="text-[9px] text-secondaryText tracking-widest font-black uppercase mt-0.5">Team A</span>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span className="font-bold block">{profile?.fullName ?? 'You'}</span>
-                                        <span className="text-xs text-secondaryText">HCP: {profile?.handicap ?? 0}</span>
+                                    <div className="flex items-center bg-surfaceHover/50 rounded-xl p-1 border border-borderColor/30 backdrop-blur-sm">
+                                        <button
+                                            className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-bloodRed transition-all rounded-lg active:bg-bloodRed/20 active:scale-95"
+                                            onClick={() => setCreatorHcp(Math.max(0, creatorHcp - 1))}
+                                        >
+                                            <Minus className="w-4 h-4" />
+                                        </button>
+                                        <div className="w-10 flex flex-col items-center justify-center">
+                                            <span className="text-sm font-black leading-none">{creatorHcp}</span>
+                                            <span className="text-[8px] text-secondaryText font-bold uppercase tracking-wider mt-0.5">HCP</span>
+                                        </div>
+                                        <button
+                                            className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-neonGreen transition-all rounded-lg active:bg-neonGreen/20 active:scale-95"
+                                            onClick={() => setCreatorHcp(creatorHcp + 1)}
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </div>
-                                <span className="text-xs bg-surfaceHover px-2 py-1 rounded text-secondaryText">Team A</span>
                             </div>
 
                             {/* Team A partner slot — 2v2 only */}
                             {format === '2v2' && (() => {
                                 const partner = stagedPlayers.find((p) => p.team === 'A');
                                 return partner ? (
-                                    <div className="p-4 border-b border-borderColor/50 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold overflow-hidden shrink-0">
-                                                {partner.avatarUrl ? (
-                                                    <img src={partner.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    partner.fullName.slice(0, 1).toUpperCase()
-                                                )}
+                                    <div className="p-4 border-b border-borderColor/50 flex flex-col gap-3 group relative">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-inner">
+                                                    {partner.avatarUrl ? (
+                                                        <img src={partner.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        partner.fullName.slice(0, 1).toUpperCase()
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-sm block">{partner.fullName}</span>
+                                                    <span className="text-[9px] text-secondaryText tracking-widest font-black uppercase mt-0.5">Team A</span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <span className="font-bold block">{partner.fullName}</span>
-                                                <span className="text-xs text-secondaryText">HCP: {partner.handicap}</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center bg-surfaceHover/50 rounded-xl p-1 border border-borderColor/30 backdrop-blur-sm">
+                                                    <button
+                                                        className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-bloodRed transition-all rounded-lg active:bg-bloodRed/20 active:scale-95"
+                                                        onClick={() => updateStagedPlayerHandicap(partner.userId, Math.max(0, partner.handicap - 1))}
+                                                    >
+                                                        <Minus className="w-4 h-4" />
+                                                    </button>
+                                                    <div className="w-10 flex flex-col items-center justify-center">
+                                                        <span className="text-sm font-black leading-none">{partner.handicap}</span>
+                                                        <span className="text-[8px] text-secondaryText font-bold uppercase tracking-wider mt-0.5">HCP</span>
+                                                    </div>
+                                                    <button
+                                                        className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-neonGreen transition-all rounded-lg active:bg-neonGreen/20 active:scale-95"
+                                                        onClick={() => updateStagedPlayerHandicap(partner.userId, partner.handicap + 1)}
+                                                    >
+                                                        <Plus className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                                <button
+                                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-bloodRed/10 text-bloodRed hover:bg-bloodRed hover:text-white transition-all border border-bloodRed/20"
+                                                    onClick={() => removeStagedPlayer(partner.userId)}
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs bg-surfaceHover px-2 py-1 rounded text-secondaryText">Team A</span>
-                                            <button className="text-xs text-secondaryText hover:text-white transition-colors" onClick={() => removeStagedPlayer(partner.userId)}>✕</button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <button className="w-full p-4 border-b border-borderColor/50 flex items-center gap-3 hover:bg-surfaceHover transition-colors text-left" onClick={() => navigate('/add-player?team=A')}>
-                                        <div className="w-10 h-10 rounded-full border border-dashed border-secondaryText flex items-center justify-center">
-                                            <Plus className="w-5 h-5 text-secondaryText" />
-                                        </div>
-                                        <span className="font-semibold text-secondaryText">Add Teammate (Team A)</span>
+                                    <button className="w-full p-4 border-b border-borderColor/50 flex items-center justify-center gap-2 hover:bg-surfaceHover transition-colors text-secondaryText hover:text-white group" onClick={() => navigate('/add-player?team=A')}>
+                                        <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                        <span className="text-xs font-bold uppercase tracking-widest">Add Teammate</span>
                                     </button>
                                 );
                             })()}
@@ -293,33 +343,55 @@ export default function MatchSetupPage() {
                                 return (
                                     <>
                                         {teamB.map((opp) => (
-                                            <div key={opp.userId} className="p-4 border-b border-borderColor/50 flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold overflow-hidden shrink-0">
-                                                        {opp.avatarUrl ? (
-                                                            <img src={opp.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            opp.fullName.slice(0, 1).toUpperCase()
-                                                        )}
+                                            <div key={opp.userId} className="p-4 border-b border-borderColor/50 flex flex-col gap-3 group relative">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-inner">
+                                                            {opp.avatarUrl ? (
+                                                                <img src={opp.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                opp.fullName.slice(0, 1).toUpperCase()
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-bold text-sm block">{opp.fullName}</span>
+                                                            <span className="text-[9px] text-bloodRed tracking-widest font-black uppercase mt-0.5">Team B</span>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <span className="font-bold block">{opp.fullName}</span>
-                                                        <span className="text-xs text-secondaryText">HCP: {opp.handicap}</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex items-center bg-surfaceHover/50 rounded-xl p-1 border border-borderColor/30 backdrop-blur-sm">
+                                                            <button
+                                                                className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-bloodRed transition-all rounded-lg active:bg-bloodRed/20 active:scale-95"
+                                                                onClick={() => updateStagedPlayerHandicap(opp.userId, Math.max(0, opp.handicap - 1))}
+                                                            >
+                                                                <Minus className="w-4 h-4" />
+                                                            </button>
+                                                            <div className="w-10 flex flex-col items-center justify-center">
+                                                                <span className="text-sm font-black leading-none">{opp.handicap}</span>
+                                                                <span className="text-[8px] text-secondaryText font-bold uppercase tracking-wider mt-0.5">HCP</span>
+                                                            </div>
+                                                            <button
+                                                                className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-neonGreen transition-all rounded-lg active:bg-neonGreen/20 active:scale-95"
+                                                                onClick={() => updateStagedPlayerHandicap(opp.userId, opp.handicap + 1)}
+                                                            >
+                                                                <Plus className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                        <button
+                                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-bloodRed/10 text-bloodRed hover:bg-bloodRed hover:text-white transition-all border border-bloodRed/20"
+                                                            onClick={() => removeStagedPlayer(opp.userId)}
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
                                                     </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs bg-surfaceHover px-2 py-1 rounded text-bloodRed font-semibold">Team B</span>
-                                                    <button className="text-xs text-secondaryText hover:text-white transition-colors" onClick={() => removeStagedPlayer(opp.userId)}>✕</button>
                                                 </div>
                                             </div>
                                         ))}
                                         {teamB.length < slotsNeeded && (
-                                            <button className="w-full p-4 flex items-center gap-3 hover:bg-surfaceHover transition-colors text-left" onClick={() => navigate('/add-player?team=B')}>
-                                                <div className="w-10 h-10 rounded-full border border-dashed border-secondaryText flex items-center justify-center">
-                                                    <Plus className="w-5 h-5 text-secondaryText" />
-                                                </div>
-                                                <span className="font-semibold text-secondaryText">
-                                                    {teamB.length === 0 ? 'Add Player (Team B)' : 'Add 2nd Player (Team B)'}
+                                            <button className="w-full p-4 border-b border-borderColor/50 flex items-center justify-center gap-2 hover:bg-surfaceHover transition-colors text-bloodRed hover:text-white group" onClick={() => navigate('/add-player?team=B')}>
+                                                <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                <span className="text-xs font-bold uppercase tracking-widest">
+                                                    {teamB.length === 0 ? 'Add Opponent' : 'Add 2nd Opponent'}
                                                 </span>
                                             </button>
                                         )}
@@ -333,7 +405,7 @@ export default function MatchSetupPage() {
                                 const teamB = stagedPlayers.filter((p) => p.team === 'B');
                                 if (teamB.length === 0) return null;
 
-                                const teamAHcp = Math.round((profile?.handicap ?? 0) + (partnerA?.handicap ?? 0));
+                                const teamAHcp = Math.round(creatorHcp + (partnerA?.handicap ?? 0));
                                 const teamBHcp = Math.round(teamB.reduce((sum, p) => sum + p.handicap, 0));
                                 const diff = Math.abs(teamAHcp - teamBHcp);
 
@@ -349,14 +421,16 @@ export default function MatchSetupPage() {
                                 const spottingTeam = spottedTeam === 'A' ? 'B' : 'A';
 
                                 return (
-                                    <div className="p-3 border-t border-borderColor/50">
-                                        <div className="flex justify-between text-xs text-secondaryText mb-1.5">
-                                            <span>Team A — <span className="text-white font-bold">{teamAHcp}</span> HCP</span>
-                                            <span>Team B — <span className="text-white font-bold">{teamBHcp}</span> HCP</span>
+                                    <div className="p-4 bg-gradient-to-b from-transparent to-surfaceHover/30">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest text-center flex-1">Team A ({teamAHcp})</span>
+                                            <span className="text-[10px] text-bloodRed font-black uppercase tracking-widest text-center flex-1">Team B ({teamBHcp})</span>
                                         </div>
-                                        <p className="text-xs font-bold text-neonGreen text-center">
-                                            Team {spottingTeam} spots Team {spottedTeam} {diff} stroke{diff !== 1 ? 's' : ''}
-                                        </p>
+                                        <div className="bg-background/80 rounded-xl p-3 border border-borderColor flex items-center justify-center">
+                                            <p className="text-xs font-black uppercase tracking-widest text-neonGreen text-center drop-shadow-[0_0_8px_rgba(0,255,102,0.5)]">
+                                                Team {spottingTeam} spots Team {spottedTeam} <span className="text-sm px-1">{diff}</span> stroke{diff !== 1 ? 's' : ''}
+                                            </p>
+                                        </div>
                                     </div>
                                 );
                             })()}

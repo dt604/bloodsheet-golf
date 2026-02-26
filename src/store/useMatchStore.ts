@@ -84,11 +84,13 @@ interface MatchStoreState {
   stagedPlayers: StagedPlayer[];
   stagePlayer: (player: StagedPlayer) => void;
   removeStagedPlayer: (userId: string) => void;
+  updateStagedPlayerHandicap: (userId: string, handicap: number) => void;
 
   createMatch: (
     matchData: Omit<Match, 'id'>,
     course: Course,
-    createdBy: string
+    createdBy: string,
+    creatorHandicapOverride?: number
   ) => Promise<string>;
 
   loadMatch: (matchId: string) => Promise<void>;
@@ -142,8 +144,16 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     set((state) => ({ stagedPlayers: state.stagedPlayers.filter((p) => p.userId !== userId) }));
   },
 
+  updateStagedPlayerHandicap(userId, handicap) {
+    set((state) => ({
+      stagedPlayers: state.stagedPlayers.map((p) =>
+        p.userId === userId ? { ...p, handicap } : p
+      ),
+    }));
+  },
+
   // ── Create a new match row in Supabase ──────────────────────
-  async createMatch(matchData, course, createdBy) {
+  async createMatch(matchData, course, createdBy, creatorHandicapOverride) {
     set({ loading: true, error: null });
 
     // Upsert course cache
@@ -178,13 +188,16 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     const match = dbToMatch(data as Record<string, unknown>);
     localStorage.setItem('activeMatchId', match.id);
 
-    // Fetch creator's handicap for accurate initial_handicap
-    const { data: creatorProfile } = await supabase
-      .from('profiles')
-      .select('handicap')
-      .eq('id', createdBy)
-      .single();
-    const creatorHandicap = (creatorProfile as { handicap: number } | null)?.handicap ?? 0;
+    // Determine creator's handicap (use override if provided, otherwise fetch from profile)
+    let creatorHandicap = creatorHandicapOverride;
+    if (creatorHandicap === undefined) {
+      const { data: creatorProfile } = await supabase
+        .from('profiles')
+        .select('handicap')
+        .eq('id', createdBy)
+        .single();
+      creatorHandicap = (creatorProfile as { handicap: number } | null)?.handicap ?? 0;
+    }
 
     // Add the creator as Team A player
     await supabase.from('match_players').insert({
