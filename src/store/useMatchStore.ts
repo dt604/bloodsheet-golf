@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { Match, MatchPlayer, HoleScore, Press, Course } from '../types';
 
@@ -74,11 +73,14 @@ interface MatchStoreState {
   presses: Press[];
   loading: boolean;
   error: string | null;
-  _channel: RealtimeChannel | null;
+  _channel: any | null; // Keep a ref to the real-time channel
 
   // Persisted setup state (survives navigate-away to AddPlayer and back)
   pendingFormat: '1v1' | '2v2';
-  setPendingFormat: (format: '1v1' | '2v2') => void;
+  lastScoreUpdate: { playerId: string; holeNumber: number; timestamp: number } | null;
+
+  // Actions
+  setPendingFormat: (fmt: '1v1' | '2v2') => void;
 
   // Staged before match is created — set by AddPlayer, flushed in createMatch
   stagedPlayers: StagedPlayer[];
@@ -126,11 +128,10 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   error: null,
   _channel: null,
   pendingFormat: '1v1',
+  lastScoreUpdate: null,
   stagedPlayers: [],
 
-  setPendingFormat(format) {
-    set({ pendingFormat: format });
-  },
+  setPendingFormat: (fmt) => set({ pendingFormat: fmt }),
 
   stagePlayer(player) {
     set((state) => {
@@ -391,15 +392,22 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
           if (payload.eventType === 'DELETE') return;
           const score = dbToScore(payload.new as Record<string, unknown>);
           set((state) => {
+            const newLastScoreUpdate = {
+              playerId: score.playerId,
+              holeNumber: score.holeNumber,
+              timestamp: Date.now()
+            };
+
             const idx = state.scores.findIndex(
               (s) => s.holeNumber === score.holeNumber && s.playerId === score.playerId
             );
+
             if (idx >= 0) {
               const updated = [...state.scores];
               updated[idx] = score;
-              return { scores: updated };
+              return { scores: updated, lastScoreUpdate: newLastScoreUpdate };
             }
-            return { scores: [...state.scores, score] };
+            return { scores: [...state.scores, score], lastScoreUpdate: newLastScoreUpdate };
           });
         }
       )

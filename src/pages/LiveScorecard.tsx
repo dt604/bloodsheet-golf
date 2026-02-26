@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): number {
     if (adjustedHandicap <= 0) return gross;
@@ -90,13 +91,14 @@ export default function LiveScorecardPage() {
     const currentHole = parseInt(hole || '1', 10);
 
     const { user, profile } = useAuth();
-    const { matchId, match, course, players, scores, saveScore, initiatePress, loadMatch, refreshScores, clearMatch } = useMatchStore();
+    const { matchId, match, course, players, scores, lastScoreUpdate, saveScore, initiatePress, loadMatch, refreshScores, clearMatch } = useMatchStore();
 
     const [saving, setSaving] = useState(false);
     const [codeCopied, setCodeCopied] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [editingStrokeIdx, setEditingStrokeIdx] = useState(false);
     const [strokeIdxInput, setStrokeIdxInput] = useState(1);
+    const [pingMessage, setPingMessage] = useState<{ message: string; timestamp: number } | null>(null);
 
     async function handleShare() {
         const code = match?.joinCode ?? '';
@@ -137,6 +139,27 @@ export default function LiveScorecardPage() {
 
     // Load player profiles for display names
     const [playerProfiles, setPlayerProfiles] = useState<Record<string, { fullName: string; handicap: number; avatarUrl?: string }>>({});
+
+    // Watch for Real-time Score Updates (Ping)
+    useEffect(() => {
+        if (!lastScoreUpdate || !user) return;
+
+        // Ensure we don't ping infinitely or for ourselves. 
+        // We know ALL scores for a hole are saved simultaneously, so we just debounce the generic alert.
+        if (lastScoreUpdate.playerId === user.id) return;
+
+        // Trigger Haptic
+        if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+
+        setPingMessage({
+            message: `Scores updated for Hole ${lastScoreUpdate.holeNumber}`,
+            timestamp: Date.now()
+        });
+
+        // Clear ping after 3 seconds
+        const t = setTimeout(() => setPingMessage(null), 3000);
+        return () => clearTimeout(t);
+    }, [lastScoreUpdate, user?.id]);
 
     // Full load if match not in store yet; otherwise refresh scores only
     useEffect(() => {
@@ -363,7 +386,17 @@ export default function LiveScorecardPage() {
     const downTeam: 'A' | 'B' | null = holesUp < 0 ? 'A' : holesUp > 0 ? 'B' : null;
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-background overflow-hidden">
+        <div className="flex-1 flex flex-col h-full bg-background overflow-hidden relative">
+            {/* Realtime Ping Toast */}
+            {pingMessage && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-none">
+                    <div className="bg-surface/90 backdrop-blur-md border border-neonGreen/50 rounded-full px-4 py-2 flex items-center gap-3 shadow-[0_0_20px_rgba(0,255,102,0.2)]">
+                        <div className="w-2 h-2 rounded-full bg-neonGreen animate-pulse shadow-[0_0_8px_rgba(0,255,102,1)]" />
+                        <span className="text-[10px] font-bold tracking-widest uppercase text-neonGreen">{pingMessage.message}</span>
+                    </div>
+                </div>
+            )}
+
             {/* Header - Stationary */}
             <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background shrink-0 z-10">
                 <button
@@ -458,116 +491,141 @@ export default function LiveScorecardPage() {
                         const isOver = score > holeData.par;
 
                         return (
-                            <Card
+                            <motion.div
+                                layout
                                 key={player.userId}
-                                className={`p-4 transition-all duration-300 ${isUnder ? 'border-neonGreen/50 bg-neonGreen/5' : 'border-borderColor/50'
-                                    } ${!isMe ? 'opacity-80' : ''}`}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
                             >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-surfaceHover flex items-center justify-center font-bold text-white border border-borderColor overflow-hidden shrink-0">
-                                            {playerProfiles[player.userId]?.avatarUrl ? (
-                                                <img src={playerProfiles[player.userId].avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                            ) : (
-                                                initials
+                                <Card
+                                    className={`p-4 transition-all duration-300 relative overflow-hidden ${isUnder ? 'border-neonGreen/40 bg-neonGreen/5 shadow-[0_0_20px_rgba(0,255,102,0.05)]' : 'border-borderColor/50'} ${!isMe ? (isUnder ? 'opacity-90' : 'opacity-70') : ''}`}
+                                >
+                                    {isUnder && (
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-neonGreen/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+                                    )}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-surfaceHover flex items-center justify-center font-bold text-white border border-borderColor overflow-hidden shrink-0">
+                                                {playerProfiles[player.userId]?.avatarUrl ? (
+                                                    <img src={playerProfiles[player.userId].avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    initials
+                                                )}
+                                            </div>
+                                            <div>
+                                                <span className="font-bold block text-sm">{displayName}{isMe ? ' (You)' : ''}</span>
+                                                <span className={`text-[10px] uppercase tracking-widest font-bold ${player.team === 'B' ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                    Team {player.team} • HCP {(playerProfiles[player.userId]?.handicap ?? player.initialHandicap).toFixed(1)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-3 sm:gap-4 relative z-10">
+                                            {isScorekeeper && (
+                                                <button
+                                                    onClick={() => {
+                                                        if (navigator.vibrate) navigator.vibrate(20);
+                                                        adjustScore(player.userId, -1);
+                                                    }}
+                                                    className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-secondaryText active:bg-neonGreen/20 active:text-neonGreen transition-colors active:scale-90"
+                                                >
+                                                    <Minus className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                            <div className="w-12 text-center relative flex justify-center items-center h-12 overflow-hidden">
+                                                <AnimatePresence mode="popLayout" initial={false}>
+                                                    <motion.span
+                                                        key={score}
+                                                        initial={{ opacity: 0, y: -20, scale: 0.8 }}
+                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                        exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                                                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                                                        className={`absolute text-4xl font-black ${isUnder ? 'text-neonGreen drop-shadow-[0_0_8px_rgba(0,255,102,0.8)]' : isOver ? 'text-white' : 'text-white/90'}`}
+                                                    >
+                                                        {score}
+                                                    </motion.span>
+                                                </AnimatePresence>
+
+                                                {/* Handicap dot: 1v1 only — 2v2 uses team differential instead */}
+                                                {match.format !== '2v2' && (() => {
+                                                    const baseHcp = playerProfiles[player.userId]?.handicap ?? player.initialHandicap;
+                                                    const adjustedHcp = Math.max(0, baseHcp - Math.max(0, lowestHcp));
+                                                    const extraStrokes = Math.floor(adjustedHcp / 18) + ((adjustedHcp % 18) >= holeData.strokeIndex ? 1 : 0);
+
+                                                    if (extraStrokes > 0) {
+                                                        return (
+                                                            <div className="absolute -top-1 -right-1 flex gap-0.5">
+                                                                {Array.from({ length: extraStrokes }).map((_, i) => (
+                                                                    <div key={i} className="w-2 h-2 rounded-full bg-bloodRed shadow-[0_0_8px_rgba(255,0,63,0.8)]" />
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+                                            </div>
+                                            {isScorekeeper && (
+                                                <button
+                                                    onClick={() => {
+                                                        if (navigator.vibrate) navigator.vibrate(20);
+                                                        adjustScore(player.userId, 1);
+                                                    }}
+                                                    className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-secondaryText active:bg-bloodRed/20 active:text-bloodRed transition-colors active:scale-90"
+                                                >
+                                                    <Plus className="w-5 h-5" />
+                                                </button>
                                             )}
                                         </div>
-                                        <div>
-                                            <span className="font-bold block text-sm">{displayName}{isMe ? ' (You)' : ''}</span>
-                                            <span className={`text-[10px] uppercase tracking-widest font-bold ${player.team === 'B' ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                Team {player.team} • HCP {(playerProfiles[player.userId]?.handicap ?? player.initialHandicap).toFixed(1)}
-                                            </span>
+                                    </div>
+
+                                    {/* Trash selectors — available for all players */}
+                                    {match.sideBets && (match.sideBets.greenies || match.sideBets.sandies || match.sideBets.snake) && (
+                                        <div className="mt-4 pt-4 border-t border-borderColor/50 flex gap-2">
+                                            {match.sideBets.greenies && (
+                                                <button
+                                                    onClick={() => isScorekeeper && toggleTrash(player.userId, 'greenie')}
+                                                    disabled={!isScorekeeper}
+                                                    className={`flex-1 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors ${trash.includes('greenie') ? 'bg-neonGreen/20 text-neonGreen border border-neonGreen/50' : 'bg-surfaceHover text-secondaryText border border-transparent'} ${!isScorekeeper ? 'opacity-70 cursor-default' : ''}`}
+                                                >
+                                                    <Target className="w-3.5 h-3.5" /> Greenie
+                                                </button>
+                                            )}
+                                            {match.sideBets.sandies && (
+                                                <button
+                                                    onClick={() => isScorekeeper && toggleTrash(player.userId, 'sandie')}
+                                                    disabled={!isScorekeeper}
+                                                    className={`flex-1 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors ${trash.includes('sandie') ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50' : 'bg-surfaceHover text-secondaryText border border-transparent'} ${!isScorekeeper ? 'opacity-70 cursor-default' : ''}`}
+                                                >
+                                                    <Droplets className="w-3.5 h-3.5" /> Sandie
+                                                </button>
+                                            )}
+                                            {match.sideBets.snake && (
+                                                <button
+                                                    onClick={() => isScorekeeper && toggleTrash(player.userId, 'snake')}
+                                                    disabled={!isScorekeeper}
+                                                    className={`flex-1 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors ${trash.includes('snake') ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50' : 'bg-surfaceHover text-secondaryText border border-transparent'} ${!isScorekeeper ? 'opacity-70 cursor-default' : ''}`}
+                                                >
+                                                    <Worm className="w-3.5 h-3.5" /> Snake
+                                                </button>
+                                            )}
                                         </div>
-                                    </div>
+                                    )}
 
-                                    <div className="flex items-center gap-3 sm:gap-4">
-                                        {isScorekeeper && (
+                                    {/* Press button — only show on the DOWN team's card */}
+                                    {isScorekeeper && downTeam !== null && player.team === downTeam && (
+                                        <div className="mt-4 pt-4 border-t border-borderColor/50 flex justify-between items-center px-1">
+                                            <span className="text-xs text-secondaryText uppercase tracking-wider font-semibold">Team {player.team}</span>
                                             <button
-                                                onClick={() => adjustScore(player.userId, -1)}
-                                                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-secondaryText active:bg-bloodRed active:text-white transition-colors"
+                                                onClick={() => handleInitiatePress(player.team)}
+                                                className="text-xs text-bloodRed uppercase tracking-wider font-bold flex items-center gap-1 hover:text-white transition-colors"
                                             >
-                                                <Minus className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                <Flame className="w-3.5 h-3.5" /> Initiate Press
                                             </button>
-                                        )}
-                                        <div className="w-10 sm:w-12 text-center relative">
-                                            <span className={`text-3xl sm:text-4xl font-bold ${isUnder ? 'text-neonGreen' : isOver ? 'text-white' : 'text-white'}`}>
-                                                {score}
-                                            </span>
-                                            {/* Handicap dot: 1v1 only — 2v2 uses team differential instead */}
-                                            {match.format !== '2v2' && (() => {
-                                                const baseHcp = playerProfiles[player.userId]?.handicap ?? player.initialHandicap;
-                                                const adjustedHcp = Math.max(0, baseHcp - Math.max(0, lowestHcp));
-                                                const extraStrokes = Math.floor(adjustedHcp / 18) + ((adjustedHcp % 18) >= holeData.strokeIndex ? 1 : 0);
-
-                                                if (extraStrokes > 0) {
-                                                    return (
-                                                        <div className="absolute -top-1 -right-1 flex gap-0.5">
-                                                            {Array.from({ length: extraStrokes }).map((_, i) => (
-                                                                <div key={i} className="w-2 h-2 rounded-full bg-bloodRed shadow-[0_0_8px_rgba(255,0,63,0.8)]" />
-                                                            ))}
-                                                        </div>
-                                                    );
-                                                }
-                                                return null;
-                                            })()}
                                         </div>
-                                        {isScorekeeper && (
-                                            <button
-                                                onClick={() => adjustScore(player.userId, 1)}
-                                                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-secondaryText active:bg-bloodRed active:text-white transition-colors"
-                                            >
-                                                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Trash selectors — available for all players */}
-                                {match.sideBets && (match.sideBets.greenies || match.sideBets.sandies || match.sideBets.snake) && (
-                                    <div className="mt-4 pt-4 border-t border-borderColor/50 flex gap-2">
-                                        {match.sideBets.greenies && (
-                                            <button
-                                                onClick={() => isScorekeeper && toggleTrash(player.userId, 'greenie')}
-                                                disabled={!isScorekeeper}
-                                                className={`flex-1 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors ${trash.includes('greenie') ? 'bg-neonGreen/20 text-neonGreen border border-neonGreen/50' : 'bg-surfaceHover text-secondaryText border border-transparent'} ${!isScorekeeper ? 'opacity-70 cursor-default' : ''}`}
-                                            >
-                                                <Target className="w-3.5 h-3.5" /> Greenie
-                                            </button>
-                                        )}
-                                        {match.sideBets.sandies && (
-                                            <button
-                                                onClick={() => isScorekeeper && toggleTrash(player.userId, 'sandie')}
-                                                disabled={!isScorekeeper}
-                                                className={`flex-1 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors ${trash.includes('sandie') ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50' : 'bg-surfaceHover text-secondaryText border border-transparent'} ${!isScorekeeper ? 'opacity-70 cursor-default' : ''}`}
-                                            >
-                                                <Droplets className="w-3.5 h-3.5" /> Sandie
-                                            </button>
-                                        )}
-                                        {match.sideBets.snake && (
-                                            <button
-                                                onClick={() => isScorekeeper && toggleTrash(player.userId, 'snake')}
-                                                disabled={!isScorekeeper}
-                                                className={`flex-1 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors ${trash.includes('snake') ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50' : 'bg-surfaceHover text-secondaryText border border-transparent'} ${!isScorekeeper ? 'opacity-70 cursor-default' : ''}`}
-                                            >
-                                                <Worm className="w-3.5 h-3.5" /> Snake
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Press button — only show on the DOWN team's card */}
-                                {isScorekeeper && downTeam !== null && player.team === downTeam && (
-                                    <div className="mt-4 pt-4 border-t border-borderColor/50 flex justify-between items-center px-1">
-                                        <span className="text-xs text-secondaryText uppercase tracking-wider font-semibold">Team {player.team}</span>
-                                        <button
-                                            onClick={() => handleInitiatePress(player.team)}
-                                            className="text-xs text-bloodRed uppercase tracking-wider font-bold flex items-center gap-1 hover:text-white transition-colors"
-                                        >
-                                            <Flame className="w-3.5 h-3.5" /> Initiate Press
-                                        </button>
-                                    </div>
-                                )}
-                            </Card>
+                                    )}
+                                </Card>
+                            </motion.div>
                         );
                     })}
                 </div>

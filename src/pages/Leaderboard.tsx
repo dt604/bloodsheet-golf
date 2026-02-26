@@ -13,7 +13,7 @@ function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): 
     return gross - fullStrokes - extra;
 }
 
-// Returns holes up from Team A's perspective (positive = A leads)
+// Returns breakdown of front 9, back 9, and overall match play standings
 function calcMatchPlay(
     teamAIds: string[],
     teamBIds: string[],
@@ -23,14 +23,19 @@ function calcMatchPlay(
     birdiesDouble?: boolean,
     sideBets?: { greenies?: boolean },
     teamHandicapDiff?: { diff: number; spottedTeam: 'A' | 'B' | null }
-): { holesUp: number; holesPlayed: number } {
+) {
     const holeNumbers = [...new Set(scores.map((s) => s.holeNumber))].sort((a, b) => a - b);
 
-    let teamAWins = 0;
-    let teamBWins = 0;
-    let holesPlayed = 0;
+    const stats = {
+        front9: { aWins: 0, bWins: 0, holesPlayed: 0 },
+        back9: { aWins: 0, bWins: 0, holesPlayed: 0 },
+        overall: { aWins: 0, bWins: 0, holesPlayed: 0 }
+    };
 
     for (const hole of holeNumbers) {
+        const isFront = hole <= 9;
+        const segment = isFront ? stats.front9 : stats.back9;
+
         const par = course?.holes?.find((h: any) => h.number === hole)?.par ?? 4;
         const aScores = scores.filter((s) => teamAIds.includes(s.playerId) && s.holeNumber === hole);
         const bScores = scores.filter((s) => teamBIds.includes(s.playerId) && s.holeNumber === hole);
@@ -39,6 +44,9 @@ function calcMatchPlay(
 
         const aNets = aScores.map((s) => s.adjustedNet ?? s.net);
         const bNets = bScores.map((s) => s.adjustedNet ?? s.net);
+
+        let holeAWins = 0;
+        let holeBWins = 0;
 
         if (format === '2v2') {
             // Apply team handicap stroke to spotted team's low scorer
@@ -58,35 +66,46 @@ function calcMatchPlay(
             }
 
             const aLow = Math.min(...aNetsAdj), bLow = Math.min(...bNetsAdj);
-            if (aLow < bLow) teamAWins += 1;
-            else if (bLow < aLow) teamBWins += 1;
+            if (aLow < bLow) holeAWins += 1;
+            else if (bLow < aLow) holeBWins += 1;
 
             const aSum = aNetsAdj.reduce((s, n) => s + n, 0);
             const bSum = bNetsAdj.reduce((s, n) => s + n, 0);
-            if (aSum < bSum) teamAWins += 1;
-            else if (bSum < aSum) teamBWins += 1;
+            if (aSum < bSum) holeAWins += 1;
+            else if (bSum < aSum) holeBWins += 1;
 
             // Birdie bonus: +1 per player with a real gross birdie
             if (birdiesDouble) {
-                teamAWins += aScores.filter(s => s.gross !== undefined && s.gross < par).length;
-                teamBWins += bScores.filter(s => s.gross !== undefined && s.gross < par).length;
+                holeAWins += aScores.filter(s => s.gross !== undefined && s.gross < par).length;
+                holeBWins += bScores.filter(s => s.gross !== undefined && s.gross < par).length;
             }
 
             // Greenie bonus: +1 per team with a greenie on par 3 holes
             if (sideBets?.greenies && par === 3) {
-                if (aScores.some(s => s.trashDots?.includes('greenie'))) teamAWins += 1;
-                if (bScores.some(s => s.trashDots?.includes('greenie'))) teamBWins += 1;
+                if (aScores.some(s => s.trashDots?.includes('greenie'))) holeAWins += 1;
+                if (bScores.some(s => s.trashDots?.includes('greenie'))) holeBWins += 1;
             }
         } else {
             const aHasBirdie = aScores.some(s => s.net < par);
             const bHasBirdie = bScores.some(s => s.net < par);
-            if (aNets[0] < bNets[0]) teamAWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
-            else if (bNets[0] < aNets[0]) teamBWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
+            if (aNets[0] < bNets[0]) holeAWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
+            else if (bNets[0] < aNets[0]) holeBWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
         }
-        holesPlayed++;
+
+        segment.aWins += holeAWins;
+        segment.bWins += holeBWins;
+        segment.holesPlayed++;
+
+        stats.overall.aWins += holeAWins;
+        stats.overall.bWins += holeBWins;
+        stats.overall.holesPlayed++;
     }
 
-    return { holesUp: teamAWins - teamBWins, holesPlayed };
+    return {
+        overall: { holesUp: stats.overall.aWins - stats.overall.bWins, holesPlayed: stats.overall.holesPlayed },
+        front9: { holesUp: stats.front9.aWins - stats.front9.bWins, holesPlayed: stats.front9.holesPlayed },
+        back9: { holesUp: stats.back9.aWins - stats.back9.bWins, holesPlayed: stats.back9.holesPlayed }
+    };
 }
 
 function matchLabel(holesUp: number): string {
@@ -208,7 +227,8 @@ export default function LeaderboardPage() {
         teamHandicapDiff = { diff, spottedTeam };
     }
 
-    const { holesUp, holesPlayed } = calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format, course, match?.sideBets?.birdiesDouble, match?.sideBets, teamHandicapDiff);
+    const matchPlaySplits = calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format, course, match?.sideBets?.birdiesDouble, match?.sideBets, teamHandicapDiff);
+    const { holesUp, holesPlayed } = matchPlaySplits.overall;
 
     console.log('[Leaderboard]', {
         matchId,
@@ -264,8 +284,8 @@ export default function LeaderboardPage() {
     const holeNum = uniqueHolesScored === 0
         ? startingHole
         : uniqueHolesScored >= 18
-        ? lastHole
-        : ((startingHole - 1 + uniqueHolesScored) % 18) + 1;
+            ? lastHole
+            : ((startingHole - 1 + uniqueHolesScored) % 18) + 1;
 
     // --- Scorecard Headers & Helpers ---
     const sortedHoles = [...(course?.holes ?? [])].sort((a, b) => a.number - b.number);
@@ -274,12 +294,12 @@ export default function LeaderboardPage() {
     }
     const frontNine = sortedHoles.slice(0, 9);
     const backNine = sortedHoles.slice(9, 18);
-    const headers = [
-        ...frontNine.map(h => ({ type: 'hole', val: h.number })),
-        { type: 'divider', val: 'OUT' },
-        ...backNine.map(h => ({ type: 'hole', val: h.number })),
-        { type: 'divider', val: 'IN' },
-        { type: 'header', val: 'GROSS' }
+    const headers: { type: 'hole' | 'divider' | 'header'; val: number | string; splitData?: { holesUp: number; holesPlayed: number } }[] = [
+        ...frontNine.map(h => ({ type: 'hole' as const, val: h.number })),
+        { type: 'divider' as const, val: 'OUT', splitData: matchPlaySplits.front9 },
+        ...backNine.map(h => ({ type: 'hole' as const, val: h.number })),
+        { type: 'divider' as const, val: 'IN', splitData: matchPlaySplits.back9 },
+        { type: 'header' as const, val: 'GROSS' }
     ];
 
     function getPlayerScore(pId: string, hNum: number) {
@@ -391,24 +411,61 @@ export default function LeaderboardPage() {
                             </span>
                         </div>
                     </Card>
+
+                    {/* Nassau Splits Tracker */}
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                        {[
+                            { label: 'FRONT', data: matchPlaySplits.front9, isComplete: matchPlaySplits.front9.holesPlayed === 9 },
+                            { label: 'BACK', data: matchPlaySplits.back9, isComplete: matchPlaySplits.back9.holesPlayed === 9 },
+                            { label: 'OVERALL', data: matchPlaySplits.overall, isComplete: matchPlaySplits.overall.holesPlayed === 18 }
+                        ].map((split, i) => {
+                            const leaderLabel = matchLabel(split.data.holesUp).replace(' UP', '').replace(' DN', '');
+                            const isAS = split.data.holesUp === 0;
+                            const tALeads = split.data.holesUp > 0;
+
+                            const leaderName = tALeads
+                                ? playerRows.filter(r => r.team === 'A').map(r => r.fullName.split(' ')[0]).join(' & ') || 'Team A'
+                                : playerRows.filter(r => r.team === 'B').map(r => r.fullName.split(' ')[0]).join(' & ') || 'Team B';
+
+                            return (
+                                <div key={i} className="flex flex-col items-center justify-center p-2 rounded-lg border bg-surface/40 border-borderColor/30 transition-all">
+                                    <span className="text-[9px] font-bold uppercase tracking-widest text-secondaryText/80 mb-0.5">{split.label}</span>
+                                    {split.data.holesPlayed === 0 ? (
+                                        <span className="text-xs font-bold text-secondaryText/40">—</span>
+                                    ) : isAS ? (
+                                        <span className="text-sm font-black text-secondaryText">AS</span>
+                                    ) : (
+                                        <div className="flex flex-col items-center leading-none mt-0.5">
+                                            <span className="text-[10px] font-bold text-white truncate max-w-full block mb-0.5">
+                                                {leaderName}
+                                            </span>
+                                            <span className={`text-xs font-black ${split.isComplete && tALeads ? 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]' : split.isComplete && !tALeads ? 'text-bloodRed drop-shadow-[0_0_5px_rgba(255,0,63,0.5)]' : tALeads ? 'text-neonGreen/80' : 'text-bloodRed/80'}`}>
+                                                {leaderLabel} UP
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </section>
 
                 {/* Scorecard Overview */}
                 <section>
                     <div className="text-secondaryText text-xs font-bold uppercase tracking-widest mb-2 pl-1">Scorecard Overview</div>
-                    <div className="overflow-x-auto scrollbar-hide pb-8">
+                    <div className="overflow-x-auto scrollbar-hide pb-8 -mx-4">
                         <div className="px-4 inline-flex flex-col min-w-max gap-6">
                             {/* Table 1: Hole & Par Information */}
-                            <div className="flex flex-col border border-borderColor shadow-lg overflow-hidden rounded-xl bg-surface/20">
+                            <div className="flex flex-col bg-surface/20 mb-2">
                                 {/* Hole Headers */}
-                                <div className="flex flex-row bg-surface border-b border-borderColor">
-                                    <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] max-w-[80px] h-12 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
+                                <div className="flex flex-row bg-surface">
+                                    <div className="sticky left-0 z-20 bg-surface min-w-[80px] max-w-[80px] h-12 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText shadow-[4px_0_10px_rgba(0,0,0,0.3)]">
                                         HOLE
                                     </div>
                                     {headers.map((h, i) => (
                                         <div
                                             key={i}
-                                            className={`h-12 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-black text-[10px] tracking-tighter ${h.type === 'divider' ? 'min-w-[44px] bg-black/40 text-white' :
+                                            className={`h-12 flex items-center justify-center flex-shrink-0 font-black text-[10px] tracking-tighter ${h.type === 'divider' ? 'min-w-[44px] bg-black/40 text-white' :
                                                 h.type === 'header' ? 'min-w-[50px] bg-bloodRed text-white' :
                                                     'min-w-[52px] text-white/90'
                                                 }`}
@@ -419,23 +476,23 @@ export default function LeaderboardPage() {
                                 </div>
 
                                 {/* Par Headers */}
-                                <div className="flex flex-row bg-surface">
-                                    <div className="sticky left-0 z-20 bg-surface border-r border-borderColor min-w-[80px] h-10 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText/60 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
+                                <div className="flex flex-row bg-surface/40">
+                                    <div className="sticky left-0 z-20 bg-surface min-w-[80px] h-10 flex items-center px-3 font-black text-[10px] uppercase tracking-widest text-secondaryText/80 shadow-[4px_0_10px_rgba(0,0,0,0.3)]">
                                         PAR
                                     </div>
                                     {headers.map((h, i) => {
                                         if (h.type === 'divider') {
                                             const range = h.val === 'OUT' ? frontNine : backNine;
                                             const sum = range.reduce((s, hole) => s + hole.par, 0);
-                                            return <div key={i} className="h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[44px] bg-black/40 text-secondaryText/60">{sum}</div>;
+                                            return <div key={i} className="h-10 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[44px] bg-black/40 text-secondaryText/60">{sum}</div>;
                                         }
                                         if (h.type === 'header') {
                                             const total = sortedHoles.reduce((s, hole) => s + hole.par, 0);
-                                            return <div key={i} className="h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[50px] bg-bloodRed/10 text-bloodRed/60">{total}</div>;
+                                            return <div key={i} className="h-10 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[50px] bg-bloodRed/10 text-bloodRed/60">{total}</div>;
                                         }
                                         const holePar = sortedHoles.find(x => x.number === h.val)?.par ?? 4;
                                         return (
-                                            <div key={i} className="h-10 border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[52px] text-secondaryText/60">
+                                            <div key={i} className="h-10 flex items-center justify-center flex-shrink-0 font-bold text-[10px] min-w-[52px] text-secondaryText/60">
                                                 {holePar}
                                             </div>
                                         );
@@ -444,11 +501,11 @@ export default function LeaderboardPage() {
                             </div>
 
                             {/* Table 2: Player Information */}
-                            <div className="flex flex-col border border-borderColor shadow-2xl overflow-hidden rounded-xl bg-surface/10">
+                            <div className="flex flex-col gap-2">
                                 {playerRows.map((row) => (
-                                    <div key={row.userId} className="flex flex-row border-b border-borderColor last:border-b-0 group h-16">
-                                        <div className="sticky left-0 z-20 bg-background group-hover:bg-surfaceHover border-r border-borderColor min-w-[80px] max-w-[80px] h-full flex flex-col items-center justify-center gap-0.5 py-1.5 shadow-[2px_0_5px_rgba(0,0,0,0.3)] transition-colors">
-                                            <div className="w-7 h-7 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
+                                    <div key={row.userId} className="flex flex-row group h-16 bg-surface/30 shadow-md">
+                                        <div className="sticky left-0 z-20 bg-background group-hover:bg-surfaceHover min-w-[80px] max-w-[80px] h-full flex flex-col items-center justify-center gap-0.5 py-1.5 shadow-[4px_0_10px_rgba(0,0,0,0.5)] transition-colors">
+                                            <div className="w-7 h-7 rounded-full bg-surface border border-borderColor flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
                                                 {row.avatarUrl
                                                     ? <img src={row.avatarUrl} alt="" className="w-full h-full object-cover" />
                                                     : row.fullName.slice(0, 1).toUpperCase()
@@ -459,11 +516,29 @@ export default function LeaderboardPage() {
                                             </span>
                                         </div>
                                         {headers.map((h, i) => {
-                                            const baseClass = "h-full border-r border-borderColor last:border-r-0 flex items-center justify-center flex-shrink-0";
+                                            const baseClass = "h-full flex items-center justify-center flex-shrink-0";
                                             if (h.type === 'divider') {
                                                 const range = h.val === 'OUT' ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [10, 11, 12, 13, 14, 15, 16, 17, 18];
                                                 const sum = getPlayerSum(row.userId, range);
-                                                return <div key={i} className={`${baseClass} min-w-[44px] bg-black/20 font-black text-xs text-white`}>{sum || '—'}</div>;
+
+                                                // Dynamic Coloring for Splits winning column
+                                                let splitBgClass = 'bg-black/20';
+                                                let splitTextClass = 'text-white';
+
+                                                if (h.splitData && h.splitData.holesPlayed === 9) {
+                                                    const tALeads = h.splitData.holesUp > 0;
+                                                    const tBLeads = h.splitData.holesUp < 0;
+
+                                                    if (tALeads && row.team === 'A') {
+                                                        splitBgClass = 'bg-neonGreen/20';
+                                                        splitTextClass = 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]';
+                                                    } else if (tBLeads && row.team === 'B') {
+                                                        splitBgClass = 'bg-bloodRed/20';
+                                                        splitTextClass = 'text-bloodRed drop-shadow-[0_0_5px_rgba(255,0,63,0.5)]';
+                                                    }
+                                                }
+
+                                                return <div key={i} className={`${baseClass} min-w-[44px] ${splitBgClass} font-black text-xs ${splitTextClass} transition-colors`}>{sum || '—'}</div>;
                                             } else if (h.type === 'header') {
                                                 const total = getPlayerSum(row.userId, Array.from({ length: 18 }, (_, i) => i + 1));
                                                 return <div key={i} className={`${baseClass} min-w-[50px] bg-bloodRed/10 font-black text-sm text-bloodRed`}>{total || '—'}</div>;

@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import confetti from 'canvas-confetti';
 
 interface LineItem {
     label: string;
@@ -218,6 +219,44 @@ export default function LedgerPage() {
     const total = settlement?.total ?? 0;
     const isWinner = total > 0;
 
+    useEffect(() => {
+        if (isWinner) {
+            // Haptic success burst
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 300]);
+
+            // High-octane confetti cannon
+            const duration = 2500;
+            const end = Date.now() + duration;
+
+            const frame = () => {
+                confetti({
+                    particleCount: 8,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#00FF66', '#FFFFFF', '#1C1C1E'],
+                    zIndex: 100,
+                });
+                confetti({
+                    particleCount: 8,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#00FF66', '#FFFFFF', '#1C1C1E'],
+                    zIndex: 100,
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            };
+            frame();
+        } else if (total < 0) {
+            // Sad haptic for loss
+            if (navigator.vibrate) navigator.vibrate([50, 100, 50, 100]);
+        }
+    }, [isWinner, total]);
+
     const settlementLabel = total > 0
         ? `${settlement?.opponentName ?? 'Opponent'} Owes You`
         : total < 0
@@ -241,24 +280,24 @@ export default function LedgerPage() {
             </header>
 
             {/* Scrollable Content */}
-            <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6 pb-6">
+            <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6 pb-6 relative">
                 {/* Hero Outcome */}
-                <section className="py-8 text-center flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-surface border border-borderColor flex items-center justify-center mb-6">
-                        <Receipt className={`w-8 h-8 ${isWinner ? 'text-neonGreen' : total < 0 ? 'text-bloodRed' : 'text-secondaryText'}`} />
+                <section className={`py-8 text-center flex flex-col items-center justify-center rounded-2xl relative overflow-hidden animate-in zoom-in-95 duration-500 ${isWinner ? 'bg-gradient-to-b from-neonGreen/10 to-transparent border border-neonGreen/20 shadow-[0_0_50px_rgba(0,255,102,0.1)]' : total < 0 ? 'bg-gradient-to-b from-bloodRed/10 to-transparent border border-bloodRed/10' : ''}`}>
+                    <div className="w-16 h-16 rounded-full bg-surface border border-borderColor flex items-center justify-center mb-6 relative z-10">
+                        <Receipt className={`w-8 h-8 ${isWinner ? 'text-neonGreen drop-shadow-[0_0_8px_rgba(0,255,102,0.8)]' : total < 0 ? 'text-bloodRed' : 'text-secondaryText'}`} />
                     </div>
-                    <h2 className="text-sm font-bold text-secondaryText tracking-widest uppercase mb-2">{settlementLabel}</h2>
-                    <div className={`text-7xl font-sans tracking-tighter font-black ${isWinner ? 'text-neonGreen drop-shadow-[0_0_20px_rgba(0,255,102,0.4)]' : total < 0 ? 'text-bloodRed drop-shadow-[0_0_20px_rgba(255,0,63,0.4)]' : 'text-secondaryText'}`}>
+                    <h2 className="text-sm font-bold text-secondaryText tracking-widest uppercase mb-2 relative z-10">{settlementLabel}</h2>
+                    <div className={`text-7xl font-sans tracking-tighter font-black relative z-10 ${isWinner ? 'text-neonGreen drop-shadow-[0_0_20px_rgba(0,255,102,0.4)] scale-110 transition-transform duration-700' : total < 0 ? 'text-bloodRed drop-shadow-[0_0_20px_rgba(255,0,63,0.4)]' : 'text-secondaryText'}`}>
                         {total > 0 ? '+' : ''}${Math.abs(total)}
                     </div>
-                    <p className="mt-4 text-sm text-secondaryText font-medium">
+                    <p className="mt-4 text-sm text-white font-bold opacity-80 relative z-10">
                         {match?.format} • ${match?.wagerAmount} {match?.wagerType} vs {settlement?.opponentName ?? '…'}
                     </p>
                 </section>
 
                 {/* Detailed Breakdown */}
                 {settlement && (
-                    <section>
+                    <section className="animate-in slide-in-from-bottom-8 fade-in h-fill-mode-both duration-700 delay-200">
                         <div className="flex items-center justify-between mb-3 px-1">
                             <span className="text-sm font-bold text-secondaryText uppercase tracking-wider">Line Item Breakdown</span>
                             <span className="text-xs font-mono text-secondaryText bg-surface px-2 py-1 rounded">
