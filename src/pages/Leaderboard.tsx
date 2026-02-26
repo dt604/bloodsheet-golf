@@ -207,12 +207,12 @@ export default function LeaderboardPage() {
     const format = match?.format ?? '1v1';
 
     // Calculate lowest handicap to adjust relative net scores for match display
-    const allHcps = playerRows.map(p => p.handicap);
+    const allHcps = playerRows.map(p => Math.round(p.handicap));
     const lowestHcp = Math.min(...allHcps); // lowest HCP in the match — everyone plays off this player
 
     const scoresWithAdjusted = scores.map(s => {
         const p = playerRows.find(x => x.userId === s.playerId);
-        const baseHcp = p ? p.handicap : 0;
+        const baseHcp = p ? Math.round(p.handicap) : 0;
         // 2v2: no individual handicap (team differential only); 1v1: differential (play off lowest)
         const adjustedHcp = format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
         const holeStrokeIdx = course?.holes.find(h => h.number === s.holeNumber)?.strokeIndex ?? 18;
@@ -225,8 +225,8 @@ export default function LeaderboardPage() {
     // Team handicap differential for 2v2 spotted strokes
     let teamHandicapDiff: { diff: number; spottedTeam: 'A' | 'B' | null } | undefined;
     if (format === '2v2') {
-        const teamAHcp = playerRows.filter(p => p.team === 'A').reduce((sum, p) => sum + p.handicap, 0);
-        const teamBHcp = playerRows.filter(p => p.team === 'B').reduce((sum, p) => sum + p.handicap, 0);
+        const teamAHcp = playerRows.filter(p => p.team === 'A').reduce((sum, p) => sum + Math.round(p.handicap), 0);
+        const teamBHcp = playerRows.filter(p => p.team === 'B').reduce((sum, p) => sum + Math.round(p.handicap), 0);
         const diff = Math.abs(teamAHcp - teamBHcp);
         const spottedTeam = teamAHcp > teamBHcp ? 'A' : teamBHcp > teamAHcp ? 'B' : null;
         teamHandicapDiff = { diff, spottedTeam };

@@ -273,7 +273,7 @@ export default function LiveScorecardPage() {
     const lastHole = ((startingHole - 2 + 18) % 18) + 1;
 
     // Calculate base handicaps to figure out who plays off whom
-    const allHcps = players.map(p => playerProfiles[p.userId]?.handicap ?? p.initialHandicap);
+    const allHcps = players.map(p => Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap));
     const lowestHcp = Math.min(...allHcps); // lowest HCP in the match — everyone plays off this player
 
     async function saveCurrentHoleScores() {
@@ -282,7 +282,7 @@ export default function LiveScorecardPage() {
         await Promise.all(
             players.map((p) => {
                 const gross = localScores[p.userId] ?? holeData.par;
-                const baseHcp = playerProfiles[p.userId]?.handicap ?? p.initialHandicap;
+                const baseHcp = Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap);
 
                 // 2v2: no individual handicap (team differential only); 1v1: differential (play off lowest)
                 const adjustedHcp = match.format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
@@ -363,7 +363,7 @@ export default function LiveScorecardPage() {
     // For live leaderboard updating, we need to pass adjusted nets down to calcHolesUp
     const scoresWithAdjusted = scores.map(s => {
         const p = players.find(x => x.userId === s.playerId);
-        const baseHcp = p ? (playerProfiles[p.userId]?.handicap ?? p.initialHandicap) : 0;
+        const baseHcp = p ? Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap) : 0;
         // 2v2: no individual handicap (team differential only); 1v1: differential (play off lowest)
         const adjustedHcp = match.format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
         const holeStrokeIdx = course?.holes.find(h => h.number === s.holeNumber)?.strokeIndex ?? 18;
@@ -379,8 +379,8 @@ export default function LiveScorecardPage() {
     // Team handicap differential for 2v2 spotted strokes
     let teamHandicapDiff: { diff: number; spottedTeam: 'A' | 'B' | null } | undefined;
     if (match.format === '2v2') {
-        const teamAHcp = players.filter(p => p.team === 'A').reduce((sum, p) => sum + (playerProfiles[p.userId]?.handicap ?? p.initialHandicap), 0);
-        const teamBHcp = players.filter(p => p.team === 'B').reduce((sum, p) => sum + (playerProfiles[p.userId]?.handicap ?? p.initialHandicap), 0);
+        const teamAHcp = players.filter(p => p.team === 'A').reduce((sum, p) => sum + Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap), 0);
+        const teamBHcp = players.filter(p => p.team === 'B').reduce((sum, p) => sum + Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap), 0);
         const diff = Math.abs(teamAHcp - teamBHcp);
         const spottedTeam = teamAHcp > teamBHcp ? 'A' : teamBHcp > teamAHcp ? 'B' : null;
         teamHandicapDiff = { diff, spottedTeam };
@@ -397,7 +397,7 @@ export default function LiveScorecardPage() {
         }
     } else {
         const maxAdjustedHcp = Math.max(0, ...players.map(p => {
-            const baseHcp = playerProfiles[p.userId]?.handicap ?? p.initialHandicap;
+            const baseHcp = Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap);
             return Math.max(0, baseHcp - Math.max(0, lowestHcp));
         }));
         isStrokeHole = Math.floor(maxAdjustedHcp / 18) > 0 || (maxAdjustedHcp % 18) >= holeData.strokeIndex;
@@ -567,7 +567,7 @@ export default function LiveScorecardPage() {
 
                                                 {/* Handicap dot: 1v1 only — 2v2 uses team differential instead */}
                                                 {match.format !== '2v2' && (() => {
-                                                    const baseHcp = playerProfiles[player.userId]?.handicap ?? player.initialHandicap;
+                                                    const baseHcp = Math.round(playerProfiles[player.userId]?.handicap ?? player.initialHandicap);
                                                     const adjustedHcp = Math.max(0, baseHcp - Math.max(0, lowestHcp));
                                                     const extraStrokes = Math.floor(adjustedHcp / 18) + ((adjustedHcp % 18) >= holeData.strokeIndex ? 1 : 0);
 

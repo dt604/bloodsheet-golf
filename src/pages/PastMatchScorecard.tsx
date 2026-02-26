@@ -350,8 +350,8 @@ export default function PastMatchScorecardPage() {
         }
 
         // Team handicap differential for 2v2 spotted strokes
-        const myTeamHcp = myTeamPlayers.reduce((sum, p) => sum + p.handicap, 0);
-        const oppTeamHcp = oppTeamPlayers.reduce((sum, p) => sum + p.handicap, 0);
+        const myTeamHcp = myTeamPlayers.reduce((sum, p) => sum + Math.round(p.handicap), 0);
+        const oppTeamHcp = oppTeamPlayers.reduce((sum, p) => sum + Math.round(p.handicap), 0);
         const teamDiff = Math.abs(myTeamHcp - oppTeamHcp);
         const spottedTeam: 'my' | 'opp' | null = myTeamHcp > oppTeamHcp ? 'my' : oppTeamHcp > myTeamHcp ? 'opp' : null;
 

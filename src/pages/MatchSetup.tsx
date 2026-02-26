@@ -23,7 +23,7 @@ export default function MatchSetupPage() {
     const [creatorHcp, setCreatorHcp] = useState<number>(0);
     useEffect(() => {
         if (profile?.handicap !== undefined) {
-            setCreatorHcp(Math.round(profile.handicap));
+            setCreatorHcp(profile.handicap);
         }
     }, [profile?.handicap]);
 
@@ -219,7 +219,7 @@ export default function MatchSetupPage() {
                                     <div className="flex items-center bg-surfaceHover/50 rounded-xl p-1 border border-borderColor/30 backdrop-blur-sm">
                                         <button
                                             className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-bloodRed transition-all rounded-lg active:bg-bloodRed/20 active:scale-95"
-                                            onClick={() => setCreatorHcp(Math.max(0, creatorHcp - 1))}
+                                            onClick={() => setCreatorHcp(Number(Math.max(0, creatorHcp - 1).toFixed(1)))}
                                         >
                                             <Minus className="w-4 h-4" />
                                         </button>
@@ -229,7 +229,7 @@ export default function MatchSetupPage() {
                                         </div>
                                         <button
                                             className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-neonGreen transition-all rounded-lg active:bg-neonGreen/20 active:scale-95"
-                                            onClick={() => setCreatorHcp(creatorHcp + 1)}
+                                            onClick={() => setCreatorHcp(Number((creatorHcp + 1).toFixed(1)))}
                                         >
                                             <Plus className="w-4 h-4" />
                                         </button>
@@ -260,7 +260,7 @@ export default function MatchSetupPage() {
                                                 <div className="flex items-center bg-surfaceHover/50 rounded-xl p-1 border border-borderColor/30 backdrop-blur-sm">
                                                     <button
                                                         className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-bloodRed transition-all rounded-lg active:bg-bloodRed/20 active:scale-95"
-                                                        onClick={() => updateStagedPlayerHandicap(partner.userId, Math.max(0, partner.handicap - 1))}
+                                                        onClick={() => updateStagedPlayerHandicap(partner.userId, Number(Math.max(0, partner.handicap - 1).toFixed(1)))}
                                                     >
                                                         <Minus className="w-4 h-4" />
                                                     </button>
@@ -270,7 +270,7 @@ export default function MatchSetupPage() {
                                                     </div>
                                                     <button
                                                         className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-neonGreen transition-all rounded-lg active:bg-neonGreen/20 active:scale-95"
-                                                        onClick={() => updateStagedPlayerHandicap(partner.userId, partner.handicap + 1)}
+                                                        onClick={() => updateStagedPlayerHandicap(partner.userId, Number((partner.handicap + 1).toFixed(1)))}
                                                     >
                                                         <Plus className="w-4 h-4" />
                                                     </button>
@@ -318,7 +318,7 @@ export default function MatchSetupPage() {
                                                         <div className="flex items-center bg-surfaceHover/50 rounded-xl p-1 border border-borderColor/30 backdrop-blur-sm">
                                                             <button
                                                                 className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-bloodRed transition-all rounded-lg active:bg-bloodRed/20 active:scale-95"
-                                                                onClick={() => updateStagedPlayerHandicap(opp.userId, Math.max(0, opp.handicap - 1))}
+                                                                onClick={() => updateStagedPlayerHandicap(opp.userId, Number(Math.max(0, opp.handicap - 1).toFixed(1)))}
                                                             >
                                                                 <Minus className="w-4 h-4" />
                                                             </button>
@@ -328,7 +328,7 @@ export default function MatchSetupPage() {
                                                             </div>
                                                             <button
                                                                 className="w-8 h-8 flex items-center justify-center text-secondaryText hover:text-neonGreen transition-all rounded-lg active:bg-neonGreen/20 active:scale-95"
-                                                                onClick={() => updateStagedPlayerHandicap(opp.userId, opp.handicap + 1)}
+                                                                onClick={() => updateStagedPlayerHandicap(opp.userId, Number((opp.handicap + 1).toFixed(1)))}
                                                             >
                                                                 <Plus className="w-4 h-4" />
                                                             </button>
