@@ -564,7 +564,6 @@ export default function PastMatchScorecardPage() {
                                 const inNet = inIndices.reduce((sum, h) => sum + (p.scores[h]?.net || 0), 0);
                                 const totNet = outNet + inNet;
 
-                                const playerHcpDiffRelative = Math.max(0, Math.round(p.handicap) - lowestMatchHcp);
 
                                 return (
                                     <div key={p.id} className="flex flex-row group h-16 bg-surface/30 shadow-md">
