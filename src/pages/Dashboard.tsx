@@ -80,17 +80,20 @@ export default function DashboardPage() {
 
             const allMatchIds = (userMatchPlayers ?? []).map((mp) => mp.match_id as string);
 
-            // 1.5 Auto-Resume Check: Find the MOST RECENT active match the user is part of
-            const { data: activeMatches, error: activeMatchError } = await supabase
-                .from('matches')
-                .select('id, created_at, side_bets')
-                .in('id', allMatchIds)
-                .eq('status', 'in_progress')
-                .order('created_at', { ascending: false })
+            // 1. Auto-Resume Check: Find the MOST RECENT active match the user is part of
+            // We join match_players with matches to find active rounds in a single shot
+            const { data: activeJoin, error: activeError } = await supabase
+                .from('match_players')
+                .select('match_id, matches!inner(id, status, created_at, side_bets)')
+                .eq('user_id', userId)
+                .eq('matches.status', 'in_progress')
+                .order('matches(created_at)', { ascending: false })
                 .limit(1);
 
-            if (activeMatchError) console.error("Auto-Resume Query Error:", activeMatchError);
-            const activeMatch = activeMatches?.[0];
+            if (activeError) console.error("Auto-Resume Query Error:", activeError);
+
+            const activeMatchWrap = activeJoin?.[0] as any;
+            const activeMatch = activeMatchWrap?.matches;
 
             if (activeMatch && activeMatch.id !== sessionStorage.getItem('dismissedMatchId')) {
                 console.log("Auto-Resume: Found active match:", activeMatch.id);
