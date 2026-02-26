@@ -740,67 +740,93 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   },
 
   // ── Real-time subscription ──────────────────────────────────
-  subscribeToMatch(matchId) {
-    const existing = get()._channel;
+  subscribeToMatch(explicitMatchId) {
+    const state = get();
+    const existing = state._channel;
     if (existing) existing.unsubscribe();
 
-    const channel = supabase
-      .channel(`match-${matchId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'hole_scores', filter: `match_id=eq.${matchId}` },
-        (payload) => {
-          if (payload.eventType === 'DELETE') return;
-          const score = dbToScore(payload.new as Record<string, unknown>);
-          set((state) => {
-            const newLastScoreUpdate = {
-              playerId: score.playerId,
-              holeNumber: score.holeNumber,
-              timestamp: Date.now()
-            };
+    // Use either the passed ID or the current set of active match IDs (for group mode)
+    const matchIds = state.activeMatchIds.length > 0 ? state.activeMatchIds : [explicitMatchId];
+    if (matchIds.length === 0) return;
 
-            const idx = state.scores.findIndex(
-              (s) => s.holeNumber === score.holeNumber && s.playerId === score.playerId
-            );
+    const channel = supabase.channel(`match-group-${genId()}`);
 
-            if (idx >= 0) {
-              const updated = [...state.scores];
-              updated[idx] = score;
-              return { scores: updated, lastScoreUpdate: newLastScoreUpdate };
-            }
-            return { scores: [...state.scores, score], lastScoreUpdate: newLastScoreUpdate };
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'presses', filter: `match_id=eq.${matchId}` },
-        (payload) => {
-          const press = dbToPress(payload.new as Record<string, unknown>);
-          set((state) => {
-            if (state.presses.find((p) => p.id === press.id)) return state;
-            return { presses: [...state.presses, press] };
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },
-        (payload) => {
-          set({ match: dbToMatch(payload.new as Record<string, unknown>) });
-        }
-      )
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] Subscribed to match', matchId);
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('[Realtime] Subscription issue, retrying…', status, err);
-          // Back off and reconnect
-          setTimeout(() => {
-            if (get().matchId === matchId) get().subscribeToMatch(matchId);
-          }, 3000);
-        }
-      });
+    matchIds.forEach((mId) => {
+      channel
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'hole_scores', filter: `match_id=eq.${mId}` },
+          (payload) => {
+            if (payload.eventType === 'DELETE') return;
+            const score = dbToScore(payload.new as Record<string, unknown>);
+            set((state) => {
+              const newLastScoreUpdate = {
+                playerId: score.playerId,
+                holeNumber: score.holeNumber,
+                timestamp: Date.now(),
+                matchId: score.matchId
+              };
+
+              const idx = state.scores.findIndex(
+                (s) => s.holeNumber === score.holeNumber && s.playerId === score.playerId
+              );
+
+              if (idx >= 0) {
+                const updated = [...state.scores];
+                updated[idx] = score;
+                return { scores: updated, lastScoreUpdate: newLastScoreUpdate };
+              }
+              return { scores: [...state.scores, score], lastScoreUpdate: newLastScoreUpdate };
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'presses', filter: `match_id=eq.${mId}` },
+          (payload) => {
+            const press = dbToPress(payload.new as Record<string, unknown>);
+            set((state) => {
+              if (state.presses.find((p) => p.id === press.id)) return state;
+              return { presses: [...state.presses, press] };
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${mId}` },
+          (payload) => {
+            const updatedMatch = dbToMatch(payload.new as Record<string, unknown>);
+            set((state) => {
+              // Update primary match if it matches
+              const updates: Partial<MatchStoreState> = {};
+              if (state.matchId === updatedMatch.id) {
+                updates.match = updatedMatch;
+              }
+
+              // Also update in group state
+              if (state.groupState) {
+                const newMatches = state.groupState.matches.map(m =>
+                  m.matchId === updatedMatch.id ? { ...m, match: updatedMatch } : m
+                );
+                updates.groupState = { ...state.groupState, matches: newMatches };
+              }
+              return updates;
+            });
+          }
+        );
+    });
+
+    channel.subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[Realtime] Subscribed to match(es)', matchIds);
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[Realtime] Subscription issue, retrying…', status, err);
+        // Back off and reconnect
+        setTimeout(() => {
+          if (get().matchId === explicitMatchId) get().subscribeToMatch(explicitMatchId);
+        }, 3000);
+      }
+    });
 
     set({ _channel: channel });
   },

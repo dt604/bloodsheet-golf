@@ -221,11 +221,17 @@ export default function LeaderboardPage() {
         // Skip if update was from self
         if (lastScoreUpdate.playerId === user.id) return;
 
+        // Skip if update is older than 10 seconds (avoid stale pings on mount/nav)
+        if (Date.now() - lastScoreUpdate.timestamp > 10000) return;
+
         // Trigger Haptic if supported
         if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
 
-        // Find the player's name who updated the score
-        const pName = playerProfiles[lastScoreUpdate.playerId]?.fullName.split(' ')[0] ?? 'Someone';
+        // Find the player's name who updated the score (works for group players and guests)
+        const player = currentPlayers.find(p => p.userId === lastScoreUpdate.playerId);
+        const pName = player?.guestName
+            ? player.guestName.split(' ')[0]
+            : (playerProfiles[lastScoreUpdate.playerId]?.fullName.split(' ')[0] ?? 'Someone');
 
         setPingMessage({
             message: `${pName} updated Hole ${lastScoreUpdate.holeNumber}`,
@@ -235,7 +241,7 @@ export default function LeaderboardPage() {
         // Clear ping after 3 seconds
         const t = setTimeout(() => setPingMessage(null), 3000);
         return () => clearTimeout(t);
-    }, [lastScoreUpdate, user?.id, playerProfiles]);
+    }, [lastScoreUpdate, user?.id, playerProfiles, currentPlayers]);
 
     // Full load if match not in store yet; otherwise sync scores from DB on mount
     useEffect(() => {
