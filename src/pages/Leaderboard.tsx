@@ -86,10 +86,15 @@ function calcMatchPlay(
                 if (bScores.some(s => s.trashDots?.includes('greenie'))) holeBWins += 1;
             }
         } else {
-            const aHasBirdie = aScores.some(s => s.net < par);
-            const bHasBirdie = bScores.some(s => s.net < par);
+            const aHasBirdie = aScores.some(s => s.gross !== undefined && s.gross < par);
+            const bHasBirdie = bScores.some(s => s.gross !== undefined && s.gross < par);
             if (aNets[0] < bNets[0]) holeAWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
             else if (bNets[0] < aNets[0]) holeBWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
+
+            if (sideBets?.greenies && par === 3) {
+                if (aScores.some(s => s.trashDots?.includes('greenie'))) holeAWins += 1;
+                if (bScores.some(s => s.trashDots?.includes('greenie'))) holeBWins += 1;
+            }
         }
 
         segment.aWins += holeAWins;
@@ -203,7 +208,7 @@ export default function LeaderboardPage() {
 
     // Calculate lowest handicap to adjust relative net scores for match display
     const allHcps = playerRows.map(p => p.handicap);
-    const lowestHcp = Math.min(0, ...allHcps); // Find lowest, floor at 0
+    const lowestHcp = Math.min(...allHcps); // lowest HCP in the match — everyone plays off this player
 
     const scoresWithAdjusted = scores.map(s => {
         const p = playerRows.find(x => x.userId === s.playerId);

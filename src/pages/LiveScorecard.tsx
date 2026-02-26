@@ -76,10 +76,15 @@ function calcHolesUp(
                 if (bScores.some(s => s.trashDots?.includes('greenie'))) bWins += 1;
             }
         } else {
-            const aHasBirdie = aScores.some(s => s.net < par);
-            const bHasBirdie = bScores.some(s => s.net < par);
+            const aHasBirdie = aScores.some(s => s.gross !== undefined && s.gross < par);
+            const bHasBirdie = bScores.some(s => s.gross !== undefined && s.gross < par);
             if (aNets[0] < bNets[0]) aWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
             else if (bNets[0] < aNets[0]) bWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
+
+            if (sideBets?.greenies && par === 3) {
+                if (aScores.some(s => s.trashDots?.includes('greenie'))) aWins += 1;
+                if (bScores.some(s => s.trashDots?.includes('greenie'))) bWins += 1;
+            }
         }
     }
     return aWins - bWins;
@@ -385,6 +390,19 @@ export default function LiveScorecardPage() {
     // Team A is down when holesUp < 0; Team B is down when holesUp > 0
     const downTeam: 'A' | 'B' | null = holesUp < 0 ? 'A' : holesUp > 0 ? 'B' : null;
 
+    let isStrokeHole = false;
+    if (match.format === '2v2') {
+        if (teamHandicapDiff) {
+            isStrokeHole = Math.floor(teamHandicapDiff.diff / 18) > 0 || (teamHandicapDiff.diff % 18) >= holeData.strokeIndex;
+        }
+    } else {
+        const maxAdjustedHcp = Math.max(0, ...players.map(p => {
+            const baseHcp = playerProfiles[p.userId]?.handicap ?? p.initialHandicap;
+            return Math.max(0, baseHcp - Math.max(0, lowestHcp));
+        }));
+        isStrokeHole = Math.floor(maxAdjustedHcp / 18) > 0 || (maxAdjustedHcp % 18) >= holeData.strokeIndex;
+    }
+
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden relative">
             {/* Realtime Ping Toast */}
@@ -440,12 +458,12 @@ export default function LiveScorecardPage() {
                         <span className="block text-lg sm:text-xl font-bold font-sans">{holeData.par}</span>
                     </div>
                     {/* Stroke Index Column - Glows if it's an active stroke hole */}
-                    <div className={`flex-1 p-2 sm:p-3 text-center relative transition-colors ${match.format === '2v2' && teamHandicapDiff && holeData.strokeIndex <= teamHandicapDiff.diff ? 'bg-neonGreen/10' : ''}`}>
-                        {match.format === '2v2' && teamHandicapDiff && holeData.strokeIndex <= teamHandicapDiff.diff && (
+                    <div className={`flex-1 p-2 sm:p-3 text-center relative transition-colors ${isStrokeHole ? 'bg-neonGreen/10' : ''}`}>
+                        {isStrokeHole && (
                             <div className="absolute top-2 left-1/2 -translate-x-1/2 w-4/5 h-[1px] bg-neonGreen/50 shadow-[0_0_8px_rgba(0,255,102,1)]" />
                         )}
-                        <span className={`block text-[10px] sm:text-xs uppercase tracking-wider font-semibold whitespace-nowrap ${match.format === '2v2' && teamHandicapDiff && holeData.strokeIndex <= teamHandicapDiff.diff ? 'text-neonGreen drop-shadow-[0_0_2px_rgba(0,255,102,0.8)]' : 'text-secondaryText'}`}>
-                            {match.format === '2v2' && teamHandicapDiff && holeData.strokeIndex <= teamHandicapDiff.diff ? 'Stroke Hole' : 'Stroke Idx'}
+                        <span className={`block text-[10px] sm:text-xs uppercase tracking-wider font-semibold whitespace-nowrap ${isStrokeHole ? 'text-neonGreen drop-shadow-[0_0_2px_rgba(0,255,102,0.8)]' : 'text-secondaryText'}`}>
+                            {isStrokeHole ? 'Stroke Hole' : 'Stroke Idx'}
                         </span>
                         {editingStrokeIdx ? (
                             <div className="flex items-center justify-center gap-1 mt-0.5">
@@ -464,7 +482,7 @@ export default function LiveScorecardPage() {
                             </div>
                         ) : (
                             <div className="flex items-center justify-center gap-1">
-                                <span className={`block text-lg sm:text-xl font-bold font-sans ${match.format === '2v2' && teamHandicapDiff && holeData.strokeIndex <= teamHandicapDiff.diff ? 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]' : ''}`}>{holeData.strokeIndex}</span>
+                                <span className={`block text-lg sm:text-xl font-bold font-sans ${isStrokeHole ? 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]' : ''}`}>{holeData.strokeIndex}</span>
                                 <button onClick={() => { setStrokeIdxInput(holeData.strokeIndex); setEditingStrokeIdx(true); }} className="text-secondaryText hover:text-white">
                                     <Pencil className="w-3 h-3" />
                                 </button>

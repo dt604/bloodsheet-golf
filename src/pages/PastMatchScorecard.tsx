@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Flag, Receipt, Trash2 } from 'lucide-react';
+import { ArrowLeft, Flag, Receipt, Trash2, Edit2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatchStore } from '../store/useMatchStore';
@@ -68,6 +68,20 @@ export default function PastMatchScorecardPage() {
         if (!matchId) return;
         await deleteMatch(matchId);
         navigate('/dashboard');
+    }
+
+    async function handleEditMatch() {
+        if (!matchId) return;
+        setLoading(true);
+        // Switch match back to active status
+        const { error } = await supabase.from('matches').update({ status: 'in_progress' }).eq('id', matchId);
+        if (!error) {
+            await useMatchStore.getState().loadMatch(matchId);
+            navigate('/leaderboard');
+        } else {
+            setErrorMsg('Failed to reopen match for editing.');
+            setLoading(false);
+        }
     }
 
     useEffect(() => {
@@ -393,11 +407,19 @@ export default function PastMatchScorecardPage() {
 
                 return { my, opp };
             }
-            const myHasBirdie = myNets.some(n => n < par);
-            const oppHasBirdie = oppNets.some(n => n < par);
-            if (myNets[0] < oppNets[0]) return { my: (birdiesDouble && myHasBirdie) ? 2 : 1, opp: 0 };
-            if (oppNets[0] < myNets[0]) return { my: 0, opp: (birdiesDouble && oppHasBirdie) ? 2 : 1 };
-            return { my: 0, opp: 0 };
+            let my = 0, opp = 0;
+            const myHasBirdie = myScores.some(s => s.gross < par);
+            const oppHasBirdie = oppScores.some(s => s.gross < par);
+
+            if (myNets[0] < oppNets[0]) my += (birdiesDouble && myHasBirdie) ? 2 : 1;
+            else if (oppNets[0] < myNets[0]) opp += (birdiesDouble && oppHasBirdie) ? 2 : 1;
+
+            if (sideBets.greenies && par === 3) {
+                if (myScores.some(s => s.dots.includes('greenie'))) my += 1;
+                if (oppScores.some(s => s.dots.includes('greenie'))) opp += 1;
+            }
+
+            return { my, opp };
         }
 
         function nassauResult(holeSet: number[]): number {
@@ -662,15 +684,23 @@ export default function PastMatchScorecardPage() {
                     </div>
                 )}
 
-                {/* Delete Match */}
-                <div className="px-4 pt-2 pb-6">
+                {/* Match Actions */}
+                <div className="px-4 pt-2 pb-6 flex gap-3">
                     <Button
                         size="lg"
-                        className="w-full bg-bloodRed hover:bg-bloodRed/80 border-bloodRed"
+                        className="flex-1 bg-surface hover:bg-surfaceHover border border-borderColor text-white"
+                        onClick={handleEditMatch}
+                    >
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Edit Round
+                    </Button>
+                    <Button
+                        size="lg"
+                        className="flex-1 bg-bloodRed/10 hover:bg-bloodRed/20 hover:text-white border-bloodRed/50 text-bloodRed transition-colors"
                         onClick={() => setShowDeleteConfirm(true)}
                     >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Match
+                        Delete
                     </Button>
                 </div>
             </div>

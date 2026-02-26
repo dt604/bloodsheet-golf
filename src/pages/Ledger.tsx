@@ -97,8 +97,8 @@ export default function LedgerPage() {
                 const par = course?.holes?.find((h) => h.number === hole)?.par ?? 4;
                 const birdiesDouble = match?.sideBets?.birdiesDouble ?? false;
 
-                const myHasBirdie = myScores.some((s) => s.net < par);
-                const oppHasBirdie = oppScores.some((s) => s.net < par);
+                const myHasBirdie = myScores.some((s) => s.gross < par);
+                const oppHasBirdie = oppScores.some((s) => s.gross < par);
 
                 const myNets = myScores.map(s => s.net);
                 const oppNets = oppScores.map(s => s.net);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, MapPin, Settings2, Plus, Minus, X, Search, Loader, Copy, Check } from 'lucide-react';
+import { ChevronLeft, MapPin, Settings2, Plus, Minus, X, Search, Loader } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Toggle } from '../components/ui/Toggle';
@@ -47,8 +47,6 @@ export default function MatchSetupPage() {
 
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
-    const [joinCode, setJoinCode] = useState<string | null>(null);
-    const [codeCopied, setCodeCopied] = useState(false);
 
     // Auto-search with 400ms debounce as user types
     useEffect(() => {
@@ -132,46 +130,6 @@ export default function MatchSetupPage() {
         );
     }
 
-    async function handleCopyCode() {
-        if (!joinCode) return;
-        try {
-            await navigator.clipboard.writeText(joinCode);
-        } catch {
-            // Fallback for Safari / non-HTTPS contexts
-            const el = document.createElement('textarea');
-            el.value = joinCode;
-            el.setAttribute('readonly', '');
-            el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
-            document.body.appendChild(el);
-            el.focus();
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-        }
-        setCodeCopied(true);
-        setTimeout(() => setCodeCopied(false), 2000);
-    }
-
-    async function handleShareCode() {
-        if (!joinCode) return;
-        // iOS requires `url` to be present — text-only sharing throws a TypeError on many versions
-        const shareData = {
-            title: 'BloodSheet Golf',
-            text: `Join my BloodSheet Golf match! Code: ${joinCode}`,
-            url: window.location.href,
-        };
-        if (typeof navigator.share === 'function') {
-            try {
-                await navigator.share(shareData);
-                return;
-            } catch (err) {
-                if (err instanceof Error && err.name === 'AbortError') return; // user dismissed sheet
-                // Any other error — fall through to copy
-            }
-        }
-        await handleCopyCode();
-    }
-
     async function handleStartMatch() {
         if (!user) return;
         if (!selectedCourse) { setError('Please select a course first.'); return; }
@@ -193,9 +151,7 @@ export default function MatchSetupPage() {
                 user.id,
                 creatorHcp
             );
-            // Show join code modal before navigating to scorecard
-            const code = useMatchStore.getState().match?.joinCode ?? null;
-            setJoinCode(code);
+            navigate(`/play/${startingHole}`);
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Failed to start match');
         } finally {
@@ -399,36 +355,47 @@ export default function MatchSetupPage() {
                                 );
                             })()}
 
-                            {/* 2v2 handicap differential callout */}
-                            {format === '2v2' && (() => {
+                            {/* Handicap differential callout */}
+                            {(() => {
+                                const is2v2 = format === '2v2';
                                 const partnerA = stagedPlayers.find((p) => p.team === 'A');
                                 const teamB = stagedPlayers.filter((p) => p.team === 'B');
-                                if (teamB.length === 0) return null;
+                                if (teamB.length === 0) return null; // No opponent yet
 
-                                const teamAHcp = Math.round(creatorHcp + (partnerA?.handicap ?? 0));
-                                const teamBHcp = Math.round(teamB.reduce((sum, p) => sum + p.handicap, 0));
+                                const teamAHcp = is2v2
+                                    ? Math.round(creatorHcp + (partnerA?.handicap ?? 0))
+                                    : Math.round(creatorHcp);
+                                const teamBHcp = is2v2
+                                    ? Math.round(teamB.reduce((sum, p) => sum + p.handicap, 0))
+                                    : Math.round(teamB[0]?.handicap ?? 0);
+
                                 const diff = Math.abs(teamAHcp - teamBHcp);
+
+                                const nameA = is2v2 ? "Team A" : (profile?.fullName?.split(' ')[0] || "You");
+                                const nameB = is2v2 ? "Team B" : (teamB[0]?.fullName?.split(' ')[0] || "Opponent");
 
                                 if (diff === 0) {
                                     return (
                                         <div className="p-3 border-t border-borderColor/50 text-center">
-                                            <span className="text-xs text-secondaryText font-semibold">Teams are even — no strokes given</span>
+                                            <span className="text-xs text-secondaryText font-semibold">
+                                                {is2v2 ? "Teams" : "Players"} are even — no strokes given
+                                            </span>
                                         </div>
                                     );
                                 }
 
-                                const spottedTeam = teamAHcp > teamBHcp ? 'A' : 'B';
-                                const spottingTeam = spottedTeam === 'A' ? 'B' : 'A';
+                                const spottedName = teamAHcp > teamBHcp ? nameA : nameB;
+                                const spottingName = teamAHcp > teamBHcp ? nameB : nameA;
 
                                 return (
                                     <div className="p-4 bg-gradient-to-b from-transparent to-surfaceHover/30">
                                         <div className="flex justify-between items-center mb-2">
-                                            <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest text-center flex-1">Team A ({teamAHcp})</span>
-                                            <span className="text-[10px] text-bloodRed font-black uppercase tracking-widest text-center flex-1">Team B ({teamBHcp})</span>
+                                            <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest text-center flex-1">{nameA} ({teamAHcp})</span>
+                                            <span className="text-[10px] text-bloodRed font-black uppercase tracking-widest text-center flex-1">{nameB} ({teamBHcp})</span>
                                         </div>
                                         <div className="bg-background/80 rounded-xl p-3 border border-borderColor flex items-center justify-center">
                                             <p className="text-xs font-black uppercase tracking-widest text-neonGreen text-center drop-shadow-[0_0_8px_rgba(0,255,102,0.5)]">
-                                                Team {spottingTeam} spots Team {spottedTeam} <span className="text-sm px-1">{diff}</span> stroke{diff !== 1 ? 's' : ''}
+                                                {spottingName} spots {spottedName} <span className="text-sm px-1">{diff}</span> stroke{diff !== 1 ? 's' : ''}
                                             </p>
                                         </div>
                                     </div>
@@ -638,56 +605,6 @@ export default function MatchSetupPage() {
                 </Button>
             </div>
 
-            {/* Join Code Modal — shown after match is created */}
-            {joinCode && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6">
-                    <div className="w-full max-w-sm bg-surface border border-borderColor rounded-3xl p-6 space-y-6 shadow-2xl">
-                        <div className="text-center space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-secondaryText">Match Created</p>
-                            <h2 className="text-2xl font-black uppercase tracking-tight text-white">Share This Code</h2>
-                            <p className="text-sm text-secondaryText">
-                                Other players enter this in the app to join your live match.
-                            </p>
-                        </div>
-
-                        {/* Big join code display */}
-                        <div className="bg-background rounded-2xl border border-borderColor p-6 text-center">
-                            <p className="text-xs font-bold uppercase tracking-widest text-secondaryText mb-2">Join Code</p>
-                            <p className="text-5xl font-mono font-black tracking-[0.25em] text-white">
-                                {joinCode}
-                            </p>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <Button
-                                variant="outline"
-                                size="lg"
-                                className="flex-1 gap-2 font-bold"
-                                onClick={handleCopyCode}
-                            >
-                                {codeCopied ? <Check className="w-4 h-4 text-neonGreen" /> : <Copy className="w-4 h-4" />}
-                                {codeCopied ? 'Copied!' : 'Copy'}
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="lg"
-                                className="flex-1 font-bold"
-                                onClick={handleShareCode}
-                            >
-                                Share
-                            </Button>
-                        </div>
-
-                        <Button
-                            size="lg"
-                            className="w-full font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,63,0.3)]"
-                            onClick={() => navigate(`/play/${startingHole}`)}
-                        >
-                            Start Playing →
-                        </Button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

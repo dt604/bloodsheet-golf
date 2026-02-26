@@ -260,8 +260,8 @@ export default function DashboardPage() {
                         const par = courseData?.holes?.find((h) => h.number === hole)?.par ?? 4;
                         const birdiesDouble = sideBets?.birdiesDouble ?? false;
 
-                        const myHasBirdie = myScores.some((s) => s.net < par);
-                        const oppHasBirdie = oppScores.some((s) => s.net < par);
+                        const myHasBirdie = myScores.some((s) => s.gross < par);
+                        const oppHasBirdie = oppScores.some((s) => s.gross < par);
 
                         if (format === '2v2') {
                             let my = 0, opp = 0;
