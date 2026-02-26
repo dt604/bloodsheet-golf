@@ -35,6 +35,8 @@ export default function MatchSetupPage() {
     const [trashValue, setTrashValue] = useState(5);
     const [trashOpen, setTrashOpen] = useState(false);
 
+    const [startingHole, setStartingHole] = useState(1);
+
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
     const [joinCode, setJoinCode] = useState<string | null>(null);
@@ -176,7 +178,7 @@ export default function MatchSetupPage() {
                     wagerAmount: wager,
                     wagerType: 'NASSAU',
                     status: 'in_progress',
-                    sideBets: { greenies, sandies, snake, autoPress, birdiesDouble, trashValue },
+                    sideBets: { greenies, sandies, snake, autoPress, birdiesDouble, trashValue, startingHole },
                     createdBy: user.id,
                 },
                 selectedCourse,
@@ -324,6 +326,40 @@ export default function MatchSetupPage() {
                                     </>
                                 );
                             })()}
+
+                            {/* 2v2 handicap differential callout */}
+                            {format === '2v2' && (() => {
+                                const partnerA = stagedPlayers.find((p) => p.team === 'A');
+                                const teamB = stagedPlayers.filter((p) => p.team === 'B');
+                                if (teamB.length === 0) return null;
+
+                                const teamAHcp = Math.round((profile?.handicap ?? 0) + (partnerA?.handicap ?? 0));
+                                const teamBHcp = Math.round(teamB.reduce((sum, p) => sum + p.handicap, 0));
+                                const diff = Math.abs(teamAHcp - teamBHcp);
+
+                                if (diff === 0) {
+                                    return (
+                                        <div className="p-3 border-t border-borderColor/50 text-center">
+                                            <span className="text-xs text-secondaryText font-semibold">Teams are even — no strokes given</span>
+                                        </div>
+                                    );
+                                }
+
+                                const spottedTeam = teamAHcp > teamBHcp ? 'A' : 'B';
+                                const spottingTeam = spottedTeam === 'A' ? 'B' : 'A';
+
+                                return (
+                                    <div className="p-3 border-t border-borderColor/50">
+                                        <div className="flex justify-between text-xs text-secondaryText mb-1.5">
+                                            <span>Team A — <span className="text-white font-bold">{teamAHcp}</span> HCP</span>
+                                            <span>Team B — <span className="text-white font-bold">{teamBHcp}</span> HCP</span>
+                                        </div>
+                                        <p className="text-xs font-bold text-neonGreen text-center">
+                                            Team {spottingTeam} spots Team {spottedTeam} {diff} stroke{diff !== 1 ? 's' : ''}
+                                        </p>
+                                    </div>
+                                );
+                            })()}
                         </CardContent>
                     </Card>
                 </section>
@@ -384,6 +420,36 @@ export default function MatchSetupPage() {
                             )}
                         </div>
                     )}
+                </section>
+
+                {/* Starting Hole */}
+                <section>
+                    <div className="text-sm font-semibold text-secondaryText uppercase tracking-wider mb-2">Starting Hole</div>
+                    <Card className="p-4">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <span className="font-bold text-sm block">Start Hole</span>
+                                <span className="text-xs text-secondaryText">
+                                    {startingHole === 1 ? 'Front nine start' : startingHole === 10 ? 'Back nine start' : `Shotgun — Hole ${startingHole}`}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setStartingHole((h) => Math.max(1, h - 1))}
+                                    className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-bloodRed transition-colors"
+                                >
+                                    -
+                                </button>
+                                <span className="text-2xl font-bold w-10 text-center">{startingHole}</span>
+                                <button
+                                    onClick={() => setStartingHole((h) => Math.min(18, h + 1))}
+                                    className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-neonGreen transition-colors"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+                    </Card>
                 </section>
 
                 {/* Stakes */}
@@ -541,7 +607,7 @@ export default function MatchSetupPage() {
                         <Button
                             size="lg"
                             className="w-full font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,63,0.3)]"
-                            onClick={() => navigate('/play/1')}
+                            onClick={() => navigate(`/play/${startingHole}`)}
                         >
                             Start Playing →
                         </Button>

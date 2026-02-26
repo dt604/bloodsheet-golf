@@ -28,7 +28,7 @@ function extractHoles(apiCourse: ApiCourse): Course['holes'] {
       return {
         number: entry.Hole,
         par: entry.Par,
-        strokeIndex: entry.Handicap,
+        strokeIndex: entry.Handicap || entry.Hole, // fall back to hole number if API has no handicap data
         yardage: firstTee?.yards ?? 400,
       };
     });

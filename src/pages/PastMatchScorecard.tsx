@@ -319,13 +319,13 @@ export default function PastMatchScorecardPage() {
         const oppSecond = oppTeamPlayers[1]?.fullName?.split(' ')[0];
         oppName = oppSecond ? `${oppFirst} & ${oppSecond}` : (oppFirst ?? 'Opponent');
 
-        function teamNetScoresOnHole(teamPlayers: MatchPlayer[], hole: number): { net: number }[] {
+        function teamNetScoresOnHole(teamPlayers: MatchPlayer[], hole: number): { gross: number; net: number; dots: string[] }[] {
             return teamPlayers
                 .map(p => {
                     const s = p.scores[hole];
-                    return s ? { net: s.net } : undefined;
+                    return s ? { gross: s.gross, net: s.net, dots: s.dots } : undefined;
                 })
-                .filter((s): s is { net: number } => s !== undefined);
+                .filter((s): s is { gross: number; net: number; dots: string[] } => s !== undefined);
         }
 
         const holesPlayed: number[] = [];
@@ -334,6 +334,12 @@ export default function PastMatchScorecardPage() {
                 holesPlayed.push(h);
             }
         }
+
+        // Team handicap differential for 2v2 spotted strokes
+        const myTeamHcp = myTeamPlayers.reduce((sum, p) => sum + p.handicap, 0);
+        const oppTeamHcp = oppTeamPlayers.reduce((sum, p) => sum + p.handicap, 0);
+        const teamDiff = Math.abs(myTeamHcp - oppTeamHcp);
+        const spottedTeam: 'my' | 'opp' | null = myTeamHcp > oppTeamHcp ? 'my' : oppTeamHcp > myTeamHcp ? 'opp' : null;
 
         function holePoints(hole: number): { my: number; opp: number } {
             const myScores = teamNetScoresOnHole(myTeamPlayers, hole);
@@ -344,20 +350,51 @@ export default function PastMatchScorecardPage() {
             const birdiesDouble = sideBets.birdiesDouble ?? false;
             const myNets = myScores.map(s => s.net);
             const oppNets = oppScores.map(s => s.net);
-            const myHasBirdie = myNets.some(n => n < par);
-            const oppHasBirdie = oppNets.some(n => n < par);
 
             if (format === '2v2') {
                 let my = 0, opp = 0;
-                const myLow = Math.min(...myNets), oppLow = Math.min(...oppNets);
-                if (myLow < oppLow) my += (birdiesDouble && myHasBirdie) ? 2 : 1;
-                else if (oppLow < myLow) opp += (birdiesDouble && oppHasBirdie) ? 2 : 1;
-                const mySum = myNets.reduce((a, b) => a + b, 0);
-                const oppSum = oppNets.reduce((a, b) => a + b, 0);
-                if (mySum < oppSum) my += (birdiesDouble && myHasBirdie) ? 2 : 1;
-                else if (oppSum < mySum) opp += (birdiesDouble && oppHasBirdie) ? 2 : 1;
+
+                // Apply team handicap stroke to spotted team's low scorer
+                const myNetsAdj = [...myNets];
+                const oppNetsAdj = [...oppNets];
+                if (spottedTeam) {
+                    const holeStrokeIdx = sortedHoles.find(h => h.number === hole)?.strokeIndex ?? 18;
+                    if (holeStrokeIdx <= teamDiff) {
+                        if (spottedTeam === 'my') {
+                            const minIdx = myNetsAdj[0] <= (myNetsAdj[1] ?? Infinity) ? 0 : 1;
+                            myNetsAdj[minIdx] -= 1;
+                        } else {
+                            const minIdx = oppNetsAdj[0] <= (oppNetsAdj[1] ?? Infinity) ? 0 : 1;
+                            oppNetsAdj[minIdx] -= 1;
+                        }
+                    }
+                }
+
+                const myLow = Math.min(...myNetsAdj), oppLow = Math.min(...oppNetsAdj);
+                if (myLow < oppLow) my += 1;
+                else if (oppLow < myLow) opp += 1;
+
+                const mySum = myNetsAdj.reduce((a, b) => a + b, 0);
+                const oppSum = oppNetsAdj.reduce((a, b) => a + b, 0);
+                if (mySum < oppSum) my += 1;
+                else if (oppSum < mySum) opp += 1;
+
+                // Birdie bonus: +1 per player with a real gross birdie
+                if (birdiesDouble) {
+                    my += myScores.filter(s => s.gross < par).length;
+                    opp += oppScores.filter(s => s.gross < par).length;
+                }
+
+                // Greenie bonus: +1 per team with a greenie on par 3 holes
+                if (sideBets.greenies && par === 3) {
+                    if (myScores.some(s => s.dots.includes('greenie'))) my += 1;
+                    if (oppScores.some(s => s.dots.includes('greenie'))) opp += 1;
+                }
+
                 return { my, opp };
             }
+            const myHasBirdie = myNets.some(n => n < par);
+            const oppHasBirdie = oppNets.some(n => n < par);
             if (myNets[0] < oppNets[0]) return { my: (birdiesDouble && myHasBirdie) ? 2 : 1, opp: 0 };
             if (oppNets[0] < myNets[0]) return { my: 0, opp: (birdiesDouble && oppHasBirdie) ? 2 : 1 };
             return { my: 0, opp: 0 };

@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useMatchStore } from '../store/useMatchStore';
 
 interface MatchHistoryItem {
     id: string;
@@ -79,7 +80,34 @@ export default function DashboardPage() {
 
             const allMatchIds = (userMatchPlayers ?? []).map((mp) => mp.match_id as string);
 
-            if (allMatchIds.length === 0) return;
+            // 1.5 Auto-Resume Check: Find the MOST RECENT active match the user is part of
+            const { data: activeMatches, error: activeMatchError } = await supabase
+                .from('matches')
+                .select('id, created_at, side_bets')
+                .in('id', allMatchIds)
+                .eq('status', 'in_progress')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (activeMatchError) console.error("Auto-Resume Query Error:", activeMatchError);
+            const activeMatch = activeMatches?.[0];
+
+            if (activeMatch && activeMatch.id !== sessionStorage.getItem('dismissedMatchId')) {
+                console.log("Auto-Resume: Found active match:", activeMatch.id);
+                try {
+                    await useMatchStore.getState().loadMatch(activeMatch.id);
+                    const state = useMatchStore.getState();
+                    const startHole = (activeMatch.side_bets as any)?.startingHole ?? 1;
+                    const scoredHoles = state.scores.map(s => s.holeNumber);
+                    const lastHole = scoredHoles.length > 0 ? Math.max(...scoredHoles) : startHole;
+
+                    console.log(`Auto-Resume: Redirecting to Hole ${lastHole}`);
+                    navigate(`/play/${lastHole}`);
+                    return;
+                } catch (e) {
+                    console.error("Auto-Resume Load Error:", e);
+                }
+            }
 
             // 2. Recent match history for display (last 10)
             const { data: recentMatches } = await supabase

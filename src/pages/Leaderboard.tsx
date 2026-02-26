@@ -17,10 +17,12 @@ function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): 
 function calcMatchPlay(
     teamAIds: string[],
     teamBIds: string[],
-    scores: { holeNumber: number; playerId: string; gross?: number; net: number; adjustedNet?: number }[],
+    scores: { holeNumber: number; playerId: string; gross?: number; net: number; adjustedNet?: number; trashDots?: string[] }[],
     format: '1v1' | '2v2',
     course: any = null,
-    birdiesDouble?: boolean
+    birdiesDouble?: boolean,
+    sideBets?: { greenies?: boolean },
+    teamHandicapDiff?: { diff: number; spottedTeam: 'A' | 'B' | null }
 ): { holesUp: number; holesPlayed: number } {
     const holeNumbers = [...new Set(scores.map((s) => s.holeNumber))].sort((a, b) => a - b);
 
@@ -38,19 +40,46 @@ function calcMatchPlay(
         const aNets = aScores.map((s) => s.adjustedNet ?? s.net);
         const bNets = bScores.map((s) => s.adjustedNet ?? s.net);
 
-        const aHasBirdie = aScores.some(s => s.net < par);
-        const bHasBirdie = bScores.some(s => s.net < par);
-
         if (format === '2v2') {
-            const aLow = Math.min(...aNets), bLow = Math.min(...bNets);
-            if (aLow < bLow) teamAWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
-            else if (bLow < aLow) teamBWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
+            // Apply team handicap stroke to spotted team's low scorer
+            const aNetsAdj = [...aNets];
+            const bNetsAdj = [...bNets];
+            if (teamHandicapDiff && teamHandicapDiff.spottedTeam) {
+                const holeStrokeIdx = course?.holes?.find((h: any) => h.number === hole)?.strokeIndex ?? 18;
+                if (holeStrokeIdx <= teamHandicapDiff.diff) {
+                    if (teamHandicapDiff.spottedTeam === 'A') {
+                        const minIdx = aNetsAdj[0] <= (aNetsAdj[1] ?? Infinity) ? 0 : 1;
+                        aNetsAdj[minIdx] -= 1;
+                    } else {
+                        const minIdx = bNetsAdj[0] <= (bNetsAdj[1] ?? Infinity) ? 0 : 1;
+                        bNetsAdj[minIdx] -= 1;
+                    }
+                }
+            }
 
-            const aSum = aNets.reduce((s, n) => s + n, 0);
-            const bSum = bNets.reduce((s, n) => s + n, 0);
-            if (aSum < bSum) teamAWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
-            else if (bSum < aSum) teamBWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
+            const aLow = Math.min(...aNetsAdj), bLow = Math.min(...bNetsAdj);
+            if (aLow < bLow) teamAWins += 1;
+            else if (bLow < aLow) teamBWins += 1;
+
+            const aSum = aNetsAdj.reduce((s, n) => s + n, 0);
+            const bSum = bNetsAdj.reduce((s, n) => s + n, 0);
+            if (aSum < bSum) teamAWins += 1;
+            else if (bSum < aSum) teamBWins += 1;
+
+            // Birdie bonus: +1 per player with a real gross birdie
+            if (birdiesDouble) {
+                teamAWins += aScores.filter(s => s.gross !== undefined && s.gross < par).length;
+                teamBWins += bScores.filter(s => s.gross !== undefined && s.gross < par).length;
+            }
+
+            // Greenie bonus: +1 per team with a greenie on par 3 holes
+            if (sideBets?.greenies && par === 3) {
+                if (aScores.some(s => s.trashDots?.includes('greenie'))) teamAWins += 1;
+                if (bScores.some(s => s.trashDots?.includes('greenie'))) teamBWins += 1;
+            }
         } else {
+            const aHasBirdie = aScores.some(s => s.net < par);
+            const bHasBirdie = bScores.some(s => s.net < par);
             if (aNets[0] < bNets[0]) teamAWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
             else if (bNets[0] < aNets[0]) teamBWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
         }
@@ -160,7 +189,8 @@ export default function LeaderboardPage() {
     const scoresWithAdjusted = scores.map(s => {
         const p = playerRows.find(x => x.userId === s.playerId);
         const baseHcp = p ? p.handicap : 0;
-        const adjustedHcp = Math.max(0, baseHcp - Math.max(0, lowestHcp)); // Adjusted vs lowest
+        // 2v2: no individual handicap (team differential only); 1v1: differential (play off lowest)
+        const adjustedHcp = format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
         const holeStrokeIdx = course?.holes.find(h => h.number === s.holeNumber)?.strokeIndex ?? 18;
         return {
             ...s,
@@ -168,7 +198,17 @@ export default function LeaderboardPage() {
         };
     });
 
-    const { holesUp, holesPlayed } = calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format, course, match?.sideBets?.birdiesDouble);
+    // Team handicap differential for 2v2 spotted strokes
+    let teamHandicapDiff: { diff: number; spottedTeam: 'A' | 'B' | null } | undefined;
+    if (format === '2v2') {
+        const teamAHcp = playerRows.filter(p => p.team === 'A').reduce((sum, p) => sum + p.handicap, 0);
+        const teamBHcp = playerRows.filter(p => p.team === 'B').reduce((sum, p) => sum + p.handicap, 0);
+        const diff = Math.abs(teamAHcp - teamBHcp);
+        const spottedTeam = teamAHcp > teamBHcp ? 'A' : teamBHcp > teamAHcp ? 'B' : null;
+        teamHandicapDiff = { diff, spottedTeam };
+    }
+
+    const { holesUp, holesPlayed } = calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format, course, match?.sideBets?.birdiesDouble, match?.sideBets, teamHandicapDiff);
 
     console.log('[Leaderboard]', {
         matchId,
@@ -217,7 +257,15 @@ export default function LeaderboardPage() {
     }
     activityEvents.reverse();
 
-    const holeNum = scores.length > 0 ? Math.max(...scores.map((s) => s.holeNumber)) : 1;
+    const startingHole = match?.sideBets?.startingHole ?? 1;
+    const lastHole = ((startingHole - 2 + 18) % 18) + 1;
+    const uniqueHolesScored = new Set(scores.map((s) => s.holeNumber)).size;
+    // Next hole to play = startingHole offset by how many holes are already scored (wraps at 18)
+    const holeNum = uniqueHolesScored === 0
+        ? startingHole
+        : uniqueHolesScored >= 18
+        ? lastHole
+        : ((startingHole - 1 + uniqueHolesScored) % 18) + 1;
 
     // --- Scorecard Headers & Helpers ---
     const sortedHoles = [...(course?.holes ?? [])].sort((a, b) => a.number - b.number);

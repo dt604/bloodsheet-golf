@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Pencil, Check } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
@@ -15,7 +15,16 @@ function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): 
 }
 
 // Returns holesUp from Team A's perspective (positive = A leads)
-function calcHolesUp(teamAIds: string[], teamBIds: string[], scores: { holeNumber: number; playerId: string; gross?: number; net: number; adjustedNet?: number }[], format: '1v1' | '2v2', course: any = null, birdiesDouble?: boolean): number {
+function calcHolesUp(
+    teamAIds: string[],
+    teamBIds: string[],
+    scores: { holeNumber: number; playerId: string; gross?: number; net: number; adjustedNet?: number; trashDots?: string[] }[],
+    format: '1v1' | '2v2',
+    course: any = null,
+    birdiesDouble?: boolean,
+    sideBets?: { greenies?: boolean },
+    teamHandicapDiff?: { diff: number; spottedTeam: 'A' | 'B' | null }
+): number {
     const holes = [...new Set(scores.map((s) => s.holeNumber))];
     let aWins = 0, bWins = 0;
     for (const hole of holes) {
@@ -28,19 +37,46 @@ function calcHolesUp(teamAIds: string[], teamBIds: string[], scores: { holeNumbe
         const aNets = aScores.map((s) => s.adjustedNet ?? s.net);
         const bNets = bScores.map((s) => s.adjustedNet ?? s.net);
 
-        const aHasBirdie = aScores.some(s => s.net < par);
-        const bHasBirdie = bScores.some(s => s.net < par);
-
         if (format === '2v2') {
-            const aLow = Math.min(...aNets), bLow = Math.min(...bNets);
-            if (aLow < bLow) aWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
-            else if (bLow < aLow) bWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
+            // Apply team handicap stroke to spotted team's low scorer
+            const aNetsAdj = [...aNets];
+            const bNetsAdj = [...bNets];
+            if (teamHandicapDiff && teamHandicapDiff.spottedTeam) {
+                const holeStrokeIdx = course?.holes?.find((h: any) => h.number === hole)?.strokeIndex ?? 18;
+                if (holeStrokeIdx <= teamHandicapDiff.diff) {
+                    if (teamHandicapDiff.spottedTeam === 'A') {
+                        const minIdx = aNetsAdj[0] <= (aNetsAdj[1] ?? Infinity) ? 0 : 1;
+                        aNetsAdj[minIdx] -= 1;
+                    } else {
+                        const minIdx = bNetsAdj[0] <= (bNetsAdj[1] ?? Infinity) ? 0 : 1;
+                        bNetsAdj[minIdx] -= 1;
+                    }
+                }
+            }
 
-            const aSum = aNets.reduce((s, n) => s + n, 0);
-            const bSum = bNets.reduce((s, n) => s + n, 0);
-            if (aSum < bSum) aWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
-            else if (bSum < aSum) bWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
+            const aLow = Math.min(...aNetsAdj), bLow = Math.min(...bNetsAdj);
+            if (aLow < bLow) aWins += 1;
+            else if (bLow < aLow) bWins += 1;
+
+            const aSum = aNetsAdj.reduce((s, n) => s + n, 0);
+            const bSum = bNetsAdj.reduce((s, n) => s + n, 0);
+            if (aSum < bSum) aWins += 1;
+            else if (bSum < aSum) bWins += 1;
+
+            // Birdie bonus: +1 per player with a real gross birdie
+            if (birdiesDouble) {
+                aWins += aScores.filter(s => s.gross !== undefined && s.gross < par).length;
+                bWins += bScores.filter(s => s.gross !== undefined && s.gross < par).length;
+            }
+
+            // Greenie bonus: +1 per team with a greenie on par 3 holes
+            if (sideBets?.greenies && par === 3) {
+                if (aScores.some(s => s.trashDots?.includes('greenie'))) aWins += 1;
+                if (bScores.some(s => s.trashDots?.includes('greenie'))) bWins += 1;
+            }
         } else {
+            const aHasBirdie = aScores.some(s => s.net < par);
+            const bHasBirdie = bScores.some(s => s.net < par);
             if (aNets[0] < bNets[0]) aWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
             else if (bNets[0] < aNets[0]) bWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
         }
@@ -59,6 +95,8 @@ export default function LiveScorecardPage() {
     const [saving, setSaving] = useState(false);
     const [codeCopied, setCodeCopied] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+    const [editingStrokeIdx, setEditingStrokeIdx] = useState(false);
+    const [strokeIdxInput, setStrokeIdxInput] = useState(1);
 
     async function handleShare() {
         const code = match?.joinCode ?? '';
@@ -102,17 +140,23 @@ export default function LiveScorecardPage() {
 
     // Full load if match not in store yet; otherwise refresh scores only
     useEffect(() => {
-        if (!matchId) return;
-        if (!match) loadMatch(matchId);
-        else refreshScores(matchId);
-    }, [matchId]);
+        const storedMatchId = matchId || localStorage.getItem('activeMatchId');
+        if (!storedMatchId) return;
+
+        if (!match || match.id !== storedMatchId) {
+            loadMatch(storedMatchId);
+        } else {
+            refreshScores(storedMatchId);
+        }
+    }, [matchId, match, loadMatch, refreshScores]);
 
     // Polling fallback to guarantee score updates even if realtime events drop
     useEffect(() => {
-        if (!matchId) return;
-        const interval = setInterval(() => refreshScores(matchId), 3000);
+        const storedMatchId = matchId || localStorage.getItem('activeMatchId');
+        if (!storedMatchId) return;
+        const interval = setInterval(() => refreshScores(storedMatchId), 3000);
         return () => clearInterval(interval);
-    }, [matchId]);
+    }, [matchId, refreshScores]);
 
     // Load profiles for all players in the match
     useEffect(() => {
@@ -148,11 +192,12 @@ export default function LiveScorecardPage() {
     }, [players]);
 
     // Initialise local score state from existing DB scores for this hole
-    const holeData = course?.holes.find((h) => h.number === currentHole) ?? {
+    const _foundHole = course?.holes.find((h) => h.number === currentHole);
+    const holeData = {
         number: currentHole,
-        par: 4,
-        strokeIndex: currentHole,
-        yardage: 400,
+        par: _foundHole?.par ?? 4,
+        strokeIndex: _foundHole?.strokeIndex || currentHole, // fall back to hole number if 0/missing
+        yardage: _foundHole?.yardage ?? 400,
     };
 
     useEffect(() => {
@@ -194,6 +239,11 @@ export default function LiveScorecardPage() {
         }));
     }
 
+    // Starting hole support (shotgun / back nine)
+    const startingHole = match?.sideBets?.startingHole ?? 1;
+    // Last hole played = the hole just before the starting hole (wrapping around 18)
+    const lastHole = ((startingHole - 2 + 18) % 18) + 1;
+
     // Calculate base handicaps to figure out who plays off whom
     const allHcps = players.map(p => playerProfiles[p.userId]?.handicap ?? p.initialHandicap);
     const lowestHcp = Math.min(...allHcps); // lowest HCP in the match — everyone plays off this player
@@ -206,8 +256,8 @@ export default function LiveScorecardPage() {
                 const gross = localScores[p.userId] ?? holeData.par;
                 const baseHcp = playerProfiles[p.userId]?.handicap ?? p.initialHandicap;
 
-                // Differential net: low-HCP player plays off scratch, others get the difference
-                const adjustedHcp = Math.max(0, baseHcp - Math.max(0, lowestHcp));
+                // 2v2: no individual handicap (team differential only); 1v1: differential (play off lowest)
+                const adjustedHcp = match.format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
                 const net = calcNet(gross, adjustedHcp, holeData.strokeIndex);
 
                 return saveScore({
@@ -237,8 +287,8 @@ export default function LiveScorecardPage() {
             setIsDirty(false);
         }
 
-        if (currentHole < 18) {
-            navigate(`/play/${currentHole + 1}`);
+        if (currentHole !== lastHole) {
+            navigate(`/play/${currentHole === 18 ? 1 : currentHole + 1}`);
         } else {
             await useMatchStore.getState().completeMatch(matchId!);
             navigate('/ledger');
@@ -247,6 +297,19 @@ export default function LiveScorecardPage() {
 
     function handleViewLeaderboard() {
         navigate('/leaderboard');
+    }
+
+    async function saveStrokeIndex() {
+        if (!course) return;
+        const newIdx = Math.max(1, Math.min(18, strokeIdxInput));
+        const updatedHoles = course.holes.map(h =>
+            h.number === currentHole ? { ...h, strokeIndex: newIdx } : h
+        );
+        await supabase.from('courses').update({ holes: updatedHoles }).eq('id', course.id);
+        useMatchStore.setState(state => ({
+            course: state.course ? { ...state.course, holes: updatedHoles } : null,
+        }));
+        setEditingStrokeIdx(false);
     }
 
     async function handleInitiatePress(team: 'A' | 'B') {
@@ -273,7 +336,8 @@ export default function LiveScorecardPage() {
     const scoresWithAdjusted = scores.map(s => {
         const p = players.find(x => x.userId === s.playerId);
         const baseHcp = p ? (playerProfiles[p.userId]?.handicap ?? p.initialHandicap) : 0;
-        const adjustedHcp = Math.max(0, baseHcp - Math.max(0, lowestHcp)); // Adjusted vs lowest
+        // 2v2: no individual handicap (team differential only); 1v1: differential (play off lowest)
+        const adjustedHcp = match.format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
         const holeStrokeIdx = course?.holes.find(h => h.number === s.holeNumber)?.strokeIndex ?? 18;
         return {
             ...s,
@@ -283,7 +347,18 @@ export default function LiveScorecardPage() {
 
     const teamAIds = players.filter((p) => p.team === 'A').map((p) => p.userId);
     const teamBIds = players.filter((p) => p.team === 'B').map((p) => p.userId);
-    const holesUp = calcHolesUp(teamAIds, teamBIds, scoresWithAdjusted, match.format ?? '1v1', course, match.sideBets?.birdiesDouble);
+
+    // Team handicap differential for 2v2 spotted strokes
+    let teamHandicapDiff: { diff: number; spottedTeam: 'A' | 'B' | null } | undefined;
+    if (match.format === '2v2') {
+        const teamAHcp = players.filter(p => p.team === 'A').reduce((sum, p) => sum + (playerProfiles[p.userId]?.handicap ?? p.initialHandicap), 0);
+        const teamBHcp = players.filter(p => p.team === 'B').reduce((sum, p) => sum + (playerProfiles[p.userId]?.handicap ?? p.initialHandicap), 0);
+        const diff = Math.abs(teamAHcp - teamBHcp);
+        const spottedTeam = teamAHcp > teamBHcp ? 'A' : teamBHcp > teamAHcp ? 'B' : null;
+        teamHandicapDiff = { diff, spottedTeam };
+    }
+
+    const holesUp = calcHolesUp(teamAIds, teamBIds, scoresWithAdjusted, match.format ?? '1v1', course, match.sideBets?.birdiesDouble, match.sideBets, teamHandicapDiff);
     // Team A is down when holesUp < 0; Team B is down when holesUp > 0
     const downTeam: 'A' | 'B' | null = holesUp < 0 ? 'A' : holesUp > 0 ? 'B' : null;
 
@@ -292,7 +367,7 @@ export default function LiveScorecardPage() {
             {/* Header - Stationary */}
             <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background shrink-0 z-10">
                 <button
-                    onClick={() => currentHole > 1 ? navigate(`/play/${currentHole - 1}`) : navigate('/leaderboard')}
+                    onClick={() => currentHole !== startingHole ? navigate(`/play/${currentHole === 1 ? 18 : currentHole - 1}`) : navigate('/leaderboard')}
                     className="p-2 -ml-2 text-secondaryText hover:text-white"
                 >
                     <ChevronLeft className="w-6 h-6" />
@@ -333,13 +408,42 @@ export default function LiveScorecardPage() {
                     </div>
                     <div className="flex-1 p-2 sm:p-3 text-center">
                         <span className="block text-[10px] sm:text-xs text-secondaryText uppercase tracking-wider font-semibold whitespace-nowrap">Stroke Idx</span>
-                        <span className="block text-lg sm:text-xl font-bold font-sans">{holeData.strokeIndex}</span>
+                        {editingStrokeIdx ? (
+                            <div className="flex items-center justify-center gap-1 mt-0.5">
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={18}
+                                    value={strokeIdxInput}
+                                    onChange={e => setStrokeIdxInput(parseInt(e.target.value) || 1)}
+                                    className="w-10 text-center text-lg font-bold bg-surfaceHover border border-borderColor rounded text-white"
+                                    autoFocus
+                                />
+                                <button onClick={saveStrokeIndex} className="text-neonGreen">
+                                    <Check className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center gap-1">
+                                <span className="block text-lg sm:text-xl font-bold font-sans">{holeData.strokeIndex}</span>
+                                <button onClick={() => { setStrokeIdxInput(holeData.strokeIndex); setEditingStrokeIdx(true); }} className="text-secondaryText hover:text-white">
+                                    <Pencil className="w-3 h-3" />
+                                </button>
+                            </div>
+                        )}
                     </div>
                     <div className="flex-1 p-2 sm:p-3 text-center">
                         <span className="block text-[10px] sm:text-xs text-secondaryText uppercase tracking-wider font-semibold whitespace-nowrap">Yards</span>
                         <span className="block text-lg sm:text-xl font-bold font-sans">{holeData.yardage}</span>
                     </div>
                 </div>
+
+                {/* Stroke hole indicator — 2v2 only */}
+                {match.format === '2v2' && teamHandicapDiff && holeData.strokeIndex <= teamHandicapDiff.diff && (
+                    <div className="flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-neonGreen/10 border border-neonGreen/30 text-neonGreen">
+                        Stroke Hole
+                    </div>
+                )}
 
                 {/* Scoring Engine */}
                 <div className="space-y-4">
@@ -390,8 +494,8 @@ export default function LiveScorecardPage() {
                                             <span className={`text-3xl sm:text-4xl font-bold ${isUnder ? 'text-neonGreen' : isOver ? 'text-white' : 'text-white'}`}>
                                                 {score}
                                             </span>
-                                            {/* Handicap dot: show if player gets an ADJUSTED stroke on this hole */}
-                                            {(() => {
+                                            {/* Handicap dot: 1v1 only — 2v2 uses team differential instead */}
+                                            {match.format !== '2v2' && (() => {
                                                 const baseHcp = playerProfiles[player.userId]?.handicap ?? player.initialHandicap;
                                                 const adjustedHcp = Math.max(0, baseHcp - Math.max(0, lowestHcp));
                                                 const extraStrokes = Math.floor(adjustedHcp / 18) + ((adjustedHcp % 18) >= holeData.strokeIndex ? 1 : 0);
@@ -480,7 +584,7 @@ export default function LiveScorecardPage() {
                             <Button variant="outline" size="lg" className="flex-1" onClick={() => setShowQuitConfirm(false)}>
                                 Keep Playing
                             </Button>
-                            <Button size="lg" className="flex-1 bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={() => { clearMatch(); navigate('/dashboard'); }}>
+                            <Button size="lg" className="flex-1 bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={() => { if (matchId) sessionStorage.setItem('dismissedMatchId', matchId); clearMatch(); navigate('/dashboard'); }}>
                                 Quit
                             </Button>
                         </div>
@@ -502,8 +606,8 @@ export default function LiveScorecardPage() {
                     >
                         {saving ? <Loader className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : null}
                         {needsSave
-                            ? (currentHole === 18 ? 'Save & Finish' : `Save Hole ${currentHole}`)
-                            : (currentHole === 18 ? 'View Ledger' : 'Next Hole')
+                            ? (currentHole === lastHole ? 'Save & Finish' : `Save Hole ${currentHole}`)
+                            : (currentHole === lastHole ? 'View Ledger' : 'Next Hole')
                         }
                         {!saving && <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />}
                     </Button>

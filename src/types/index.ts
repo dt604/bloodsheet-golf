@@ -59,6 +59,7 @@ export interface Match {
     autoPress: boolean;
     birdiesDouble?: boolean;
     trashValue: number;
+    startingHole?: number;
   };
   createdBy: string;
 }

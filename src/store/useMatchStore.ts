@@ -262,6 +262,8 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       ? { id: courseRow.id as string, name: courseRow.name as string, holes: courseRow.holes as Course['holes'] }
       : null;
 
+    localStorage.setItem('activeMatchId', match.id);
+
     set({
       matchId,
       match,
