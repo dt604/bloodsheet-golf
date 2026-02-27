@@ -85,16 +85,19 @@ interface MatchStoreState {
 
   // Persisted setup state (survives navigate-away to AddPlayer and back)
   pendingFormat: '1v1' | '2v2';
+  currentStep: number;
   lastScoreUpdate: { playerId: string; holeNumber: number; timestamp: number } | null;
 
   // Actions
   setPendingFormat: (fmt: '1v1' | '2v2') => void;
+  setCurrentStep: (step: number) => void;
 
   // Staged before match is created — set by AddPlayer, flushed in createMatch (2v2)
   stagedPlayers: StagedPlayer[];
   stagePlayer: (player: StagedPlayer) => void;
   removeStagedPlayer: (userId: string) => void;
   updateStagedPlayerHandicap: (userId: string, handicap: number) => void;
+  updateStagedPlayerTeam: (userId: string, team: 'A' | 'B') => void;
 
   // ── Multi-match 1v1 group state ──────────────────────────────
   // Pool of all players in today's group (set during setup, cleared after createMatchGroup)
@@ -169,15 +172,19 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }],
   groupState: null,
   activeMatchIds: [],
+  currentStep: 1,
 
   setPendingFormat: (fmt) => set({
     pendingFormat: fmt,
+    currentStep: 2, // Auto-advance to Players step after format selection
     // Clear opposing-mode staging when switching formats
     ...(fmt === '1v1'
       ? { stagedPlayers: [] }
       : { poolPlayers: [], matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }] }
     ),
   }),
+
+  setCurrentStep: (step) => set({ currentStep: step }),
 
   stagePlayer(player) {
     set((state) => {
@@ -195,6 +202,14 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     set((state) => ({
       stagedPlayers: state.stagedPlayers.map((p) =>
         p.userId === userId ? { ...p, handicap } : p
+      ),
+    }));
+  },
+
+  updateStagedPlayerTeam(userId, team) {
+    set((state) => ({
+      stagedPlayers: state.stagedPlayers.map((p) =>
+        p.userId === userId ? { ...p, team } : p
       ),
     }));
   },
@@ -896,6 +911,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }],
       groupState: null,
       activeMatchIds: [],
+      currentStep: 1,
     });
   },
 }));
