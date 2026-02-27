@@ -756,6 +756,10 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       }
     }
 
+    if (fallbackUpdate) {
+      console.log('[RT DEBUG] 🟡 Polling fallback ping! Player:', fallbackUpdate.playerId, 'Hole:', fallbackUpdate.holeNumber);
+    }
+
     set({
       scores: newScores,
       presses: (pressesRes.data ?? []).map(dbToPress),
@@ -771,6 +775,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
 
     // Use either the passed ID or the current set of active match IDs (for group mode)
     const matchIds = state.activeMatchIds.length > 0 ? state.activeMatchIds : [explicitMatchId];
+    console.log('[RT DEBUG] subscribeToMatch called. matchIds:', matchIds);
     if (matchIds.length === 0) return;
 
     const channel = supabase.channel(`match-group-${genId()}`);
@@ -783,6 +788,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
           (payload) => {
             if (payload.eventType === 'DELETE') return;
             const score = dbToScore(payload.new as Record<string, unknown>);
+            console.log('[RT DEBUG] 🟢 Realtime score event received! Player:', score.playerId, 'Hole:', score.holeNumber, 'Match:', score.matchId);
             set((state) => {
               const newLastScoreUpdate = {
                 playerId: score.playerId,
@@ -841,8 +847,9 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     });
 
     channel.subscribe((status, err) => {
+      console.log('[RT DEBUG] Channel status:', status, err ? ('Error: ' + err) : '');
       if (status === 'SUBSCRIBED') {
-        console.log('[Realtime] Subscribed to match(es)', matchIds);
+        console.log('[RT DEBUG] ✅ Subscribed to match(es)', matchIds);
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         console.warn('[Realtime] Subscription issue, retrying…', status, err);
         // Back off and reconnect — use current matchId (not explicitMatchId) to handle
