@@ -215,27 +215,12 @@ export default function LeaderboardPage() {
     const [playerProfiles, setPlayerProfiles] = useState<Record<string, { fullName: string; handicap: number; avatarUrl?: string }>>({});
 
     // Watch for Real-time Score Updates (Ping)
+    // Triggers from both Supabase Realtime AND the 5-second polling fallback.
     useEffect(() => {
-        console.log('[PING DEBUG] useEffect fired. lastScoreUpdate:', lastScoreUpdate, 'user:', user?.id);
-        if (!lastScoreUpdate || !user) {
-            console.log('[PING DEBUG] ❌ Early return: lastScoreUpdate or user missing');
-            return;
-        }
+        if (!lastScoreUpdate || !user) return;
 
         // Skip if update was from self
-        if (lastScoreUpdate.playerId === user.id) {
-            console.log('[PING DEBUG] ❌ Skipped: self-update. playerId:', lastScoreUpdate.playerId);
-            return;
-        }
-
-        // Skip if update is older than 10 seconds (avoid stale pings on mount/nav)
-        const age = Date.now() - lastScoreUpdate.timestamp;
-        if (age > 10000) {
-            console.log('[PING DEBUG] ❌ Skipped: stale update. Age:', age, 'ms');
-            return;
-        }
-
-        console.log('[PING DEBUG] ✅ PING WILL SHOW! Player:', lastScoreUpdate.playerId, 'Hole:', lastScoreUpdate.holeNumber, 'Age:', age, 'ms');
+        if (lastScoreUpdate.playerId === user.id) return;
 
         // Trigger Haptic if supported
         if (navigator.vibrate) navigator.vibrate([30, 50, 30]);

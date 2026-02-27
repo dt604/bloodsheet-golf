@@ -736,34 +736,24 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     const newScores = (scoresRes.data ?? []).map(dbToScore);
     const state = get();
 
-    // Fallback ping: if realtime hasn't fired recently (>5s), detect new/changed
-    // scores and set lastScoreUpdate so the ping useEffect can still fire.
-    const realtimeIsStale =
-      !state.lastScoreUpdate || Date.now() - state.lastScoreUpdate.timestamp > 5000;
-
-    let fallbackUpdate: typeof state.lastScoreUpdate | null = null;
-    if (realtimeIsStale) {
-      for (const s of newScores) {
-        const prev = state.scores.find(
-          (p) => p.holeNumber === s.holeNumber && p.playerId === s.playerId
-        );
-        if (!prev || prev.gross !== s.gross) {
-          // Prefer the most recently changed hole
-          if (!fallbackUpdate || s.holeNumber >= fallbackUpdate.holeNumber) {
-            fallbackUpdate = { playerId: s.playerId, holeNumber: s.holeNumber, timestamp: Date.now() };
-          }
+    // Detect new or changed scores from OTHER players and trigger a ping.
+    // This is the primary ping mechanism — works reliably over HTTP polling.
+    let latestChange: typeof state.lastScoreUpdate | null = null;
+    for (const s of newScores) {
+      const prev = state.scores.find(
+        (p) => p.holeNumber === s.holeNumber && p.playerId === s.playerId
+      );
+      if (!prev || prev.gross !== s.gross) {
+        if (!latestChange || s.holeNumber >= latestChange.holeNumber) {
+          latestChange = { playerId: s.playerId, holeNumber: s.holeNumber, timestamp: Date.now() };
         }
       }
-    }
-
-    if (fallbackUpdate) {
-      console.log('[RT DEBUG] 🟡 Polling fallback ping! Player:', fallbackUpdate.playerId, 'Hole:', fallbackUpdate.holeNumber);
     }
 
     set({
       scores: newScores,
       presses: (pressesRes.data ?? []).map(dbToPress),
-      ...(fallbackUpdate ? { lastScoreUpdate: fallbackUpdate } : {}),
+      ...(latestChange ? { lastScoreUpdate: latestChange } : {}),
     });
   },
 
@@ -775,7 +765,6 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
 
     // Use either the passed ID or the current set of active match IDs (for group mode)
     const matchIds = state.activeMatchIds.length > 0 ? state.activeMatchIds : [explicitMatchId];
-    console.log('[RT DEBUG] subscribeToMatch called. matchIds:', matchIds);
     if (matchIds.length === 0) return;
 
     const channel = supabase.channel(`match-group-${genId()}`);
@@ -788,7 +777,6 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
           (payload) => {
             if (payload.eventType === 'DELETE') return;
             const score = dbToScore(payload.new as Record<string, unknown>);
-            console.log('[RT DEBUG] 🟢 Realtime score event received! Player:', score.playerId, 'Hole:', score.holeNumber, 'Match:', score.matchId);
             set((state) => {
               const newLastScoreUpdate = {
                 playerId: score.playerId,
@@ -847,12 +835,10 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     });
 
     channel.subscribe((status, err) => {
-      console.log('[RT DEBUG] Channel status:', status, err ? ('Error: ' + err) : '');
       if (status === 'SUBSCRIBED') {
-        console.log('[RT DEBUG] ✅ Subscribed to match(es)', matchIds);
+        console.log('[Realtime] Subscribed to match(es)', matchIds);
       } else if (status === 'CLOSED') {
         // CLOSED fires when we intentionally unsubscribe — do NOT retry
-        console.log('[RT DEBUG] Channel closed (expected during re-subscribe)');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.warn('[Realtime] Subscription error, retrying in 3s…', status, err);
         setTimeout(() => {
