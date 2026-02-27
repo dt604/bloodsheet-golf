@@ -69,7 +69,7 @@ async function fetchAndMapCourses(url: string): Promise<Course[]> {
   // If the API returns a single object instead of an array (common in some endpoints)
   const coursesRaw = Array.isArray(data) ? data : [data];
 
-  return coursesRaw.map((c) => ({
+  return coursesRaw.filter((c) => c.name).map((c) => ({
     id: c._id,
     name: c.name + (c.city ? ` • ${c.city}, ${c.state}` : ''),
     holes: extractHoles(c),
