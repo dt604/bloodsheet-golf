@@ -850,10 +850,11 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       console.log('[RT DEBUG] Channel status:', status, err ? ('Error: ' + err) : '');
       if (status === 'SUBSCRIBED') {
         console.log('[RT DEBUG] ✅ Subscribed to match(es)', matchIds);
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-        console.warn('[Realtime] Subscription issue, retrying…', status, err);
-        // Back off and reconnect — use current matchId (not explicitMatchId) to handle
-        // group-mode and any navigation that may have changed the active match
+      } else if (status === 'CLOSED') {
+        // CLOSED fires when we intentionally unsubscribe — do NOT retry
+        console.log('[RT DEBUG] Channel closed (expected during re-subscribe)');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[Realtime] Subscription error, retrying in 3s…', status, err);
         setTimeout(() => {
           const currentMatchId = get().matchId;
           if (currentMatchId) get().subscribeToMatch(currentMatchId);
