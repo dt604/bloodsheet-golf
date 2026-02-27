@@ -733,9 +733,33 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       supabase.from('hole_scores').select('*').eq('match_id', matchId),
       supabase.from('presses').select('*').eq('match_id', matchId),
     ]);
+    const newScores = (scoresRes.data ?? []).map(dbToScore);
+    const state = get();
+
+    // Fallback ping: if realtime hasn't fired recently (>5s), detect new/changed
+    // scores and set lastScoreUpdate so the ping useEffect can still fire.
+    const realtimeIsStale =
+      !state.lastScoreUpdate || Date.now() - state.lastScoreUpdate.timestamp > 5000;
+
+    let fallbackUpdate: typeof state.lastScoreUpdate | null = null;
+    if (realtimeIsStale) {
+      for (const s of newScores) {
+        const prev = state.scores.find(
+          (p) => p.holeNumber === s.holeNumber && p.playerId === s.playerId
+        );
+        if (!prev || prev.gross !== s.gross) {
+          // Prefer the most recently changed hole
+          if (!fallbackUpdate || s.holeNumber >= fallbackUpdate.holeNumber) {
+            fallbackUpdate = { playerId: s.playerId, holeNumber: s.holeNumber, timestamp: Date.now() };
+          }
+        }
+      }
+    }
+
     set({
-      scores: (scoresRes.data ?? []).map(dbToScore),
+      scores: newScores,
       presses: (pressesRes.data ?? []).map(dbToPress),
+      ...(fallbackUpdate ? { lastScoreUpdate: fallbackUpdate } : {}),
     });
   },
 
@@ -819,11 +843,13 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     channel.subscribe((status, err) => {
       if (status === 'SUBSCRIBED') {
         console.log('[Realtime] Subscribed to match(es)', matchIds);
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         console.warn('[Realtime] Subscription issue, retrying…', status, err);
-        // Back off and reconnect
+        // Back off and reconnect — use current matchId (not explicitMatchId) to handle
+        // group-mode and any navigation that may have changed the active match
         setTimeout(() => {
-          if (get().matchId === explicitMatchId) get().subscribeToMatch(explicitMatchId);
+          const currentMatchId = get().matchId;
+          if (currentMatchId) get().subscribeToMatch(currentMatchId);
         }, 3000);
       }
     });
