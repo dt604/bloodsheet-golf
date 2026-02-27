@@ -416,10 +416,29 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         presses: (results[i][1].data ?? []).map(dbToPress),
       }));
       const primaryIdx = newMatches.findIndex((m) => m.matchId === state.matchId);
+
+      // Detect score changes across ALL matches in the group for ping
+      let latestChange: typeof state.lastScoreUpdate | null = null;
+      for (const newEntry of newMatches) {
+        const oldEntry = state.groupState!.matches.find(m => m.matchId === newEntry.matchId);
+        if (!oldEntry) continue;
+        for (const s of newEntry.scores) {
+          const prev = oldEntry.scores.find(
+            (p) => p.holeNumber === s.holeNumber && p.playerId === s.playerId
+          );
+          if (!prev || prev.gross !== s.gross) {
+            if (!latestChange || s.holeNumber >= latestChange.holeNumber) {
+              latestChange = { playerId: s.playerId, holeNumber: s.holeNumber, timestamp: Date.now() };
+            }
+          }
+        }
+      }
+
       return {
         groupState: { ...state.groupState, matches: newMatches },
         scores: primaryIdx >= 0 ? newMatches[primaryIdx].scores : state.scores,
         presses: primaryIdx >= 0 ? newMatches[primaryIdx].presses : state.presses,
+        ...(latestChange ? { lastScoreUpdate: latestChange } : {}),
       };
     });
   },
