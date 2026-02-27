@@ -191,16 +191,26 @@ export default function LedgerPage() {
 
                 if (dot === 'snake') {
                     // Snake is strictly negative. The team holding the snake PAYS the other team.
+                    const oppTeamSize = players.filter(p => p.team === oppTeam).length;
+                    const netDots = oppDots - myDots;
+                    let sub = 'No snake penalty';
+                    if (myDots > oppDots) sub = 'You held the snake 🐍';
+                    else if (oppDots > myDots) sub = 'Opponent held the snake 🐍';
+
                     items.push({
                         label,
-                        sublabel: myDots > oppDots ? 'You held the snake 🐍' : 'Opponent held the snake 🐍',
-                        amount: (oppDots - myDots) * trashVal, // They pay me if they have it, I pay them if I have it
+                        sublabel: sub,
+                        amount: netDots * trashVal * (oppTeamSize || 1), // Multiply by number of opponents in 2v2/group
                     });
                 } else {
+                    const oppTeamSize = players.filter(p => p.team === oppTeam).length;
+                    const myTeamSize = players.filter(p => p.team === myTeam).length;
+                    const netDots = myDots - oppDots;
+
                     items.push({
                         label,
                         sublabel: `${myDots} won, ${oppDots} lost`,
-                        amount: (myDots - oppDots) * trashVal,
+                        amount: netDots * trashVal * (netDots > 0 ? oppTeamSize : myTeamSize) || netDots * trashVal,
                     });
                 }
             }
@@ -370,7 +380,16 @@ export default function LedgerPage() {
                     ).length;
                     if (myDots === 0 && oppDots === 0) return;
                     if (dot === 'snake') {
-                        items.push({ label, sublabel: myDots > oppDots ? 'You held the snake 🐍' : 'Opponent held the snake 🐍', amount: (oppDots - myDots) * trashVal });
+                        const netDots = oppDots - myDots;
+                        let sub = 'No snake penalty';
+                        if (myDots > oppDots) sub = 'You held the snake 🐍';
+                        else if (oppDots > myDots) sub = 'Opponent held the snake 🐍';
+
+                        items.push({
+                            label,
+                            sublabel: sub,
+                            amount: netDots * trashVal
+                        });
                     } else {
                         items.push({ label, sublabel: `${myDots} won, ${oppDots} lost`, amount: (myDots - oppDots) * trashVal });
                     }

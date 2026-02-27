@@ -424,18 +424,29 @@ export default function PastMatchScorecardPage() {
                 acc + Object.values(p.scores).filter(s => s.dots.includes(dot)).length, 0);
             const oppDots = players.filter(p => p.team === oppTeam).reduce((acc, p) =>
                 acc + Object.values(p.scores).filter(s => s.dots.includes(dot)).length, 0);
+
             if (myDots === 0 && oppDots === 0) return;
+
+            const oppTeamSize = players.filter(p => p.team === oppTeam).length;
+            const myTeamSize = players.filter(p => p.team === myTeam).length;
+
             if (dot === 'snake') {
+                const netDots = oppDots - myDots;
+                let sub = 'No snake penalty';
+                if (myDots > oppDots) sub = 'You held the snake 🐍';
+                else if (oppDots > myDots) sub = 'Opponent held the snake 🐍';
+
                 items.push({
                     label,
-                    sublabel: myDots > oppDots ? 'You held the snake 🐍' : 'Opponent held the snake 🐍',
-                    amount: (oppDots - myDots) * trashVal,
+                    sublabel: sub,
+                    amount: netDots * trashVal * (oppTeamSize || 1),
                 });
             } else {
+                const netDots = myDots - oppDots;
                 items.push({
                     label,
                     sublabel: `${myDots} won · ${oppDots} lost`,
-                    amount: (myDots - oppDots) * trashVal,
+                    amount: netDots * trashVal * (netDots > 0 ? oppTeamSize : myTeamSize) || netDots * trashVal,
                 });
             }
         }
