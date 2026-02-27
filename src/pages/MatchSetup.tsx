@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, MapPin, Settings2, Plus, Minus, X, Search, Loader, Swords } from 'lucide-react';
+import { BottomSheet } from '../components/ui/BottomSheet';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Toggle } from '../components/ui/Toggle';
@@ -52,6 +53,10 @@ export default function MatchSetupPage() {
     const [trashValue, setTrashValue] = useState(5);
     const [trashOpen, setTrashOpen] = useState(false);
     const [startingHole, setStartingHole] = useState(1);
+    const [par3Contest, setPar3Contest] = useState(false);
+    const [par3Pot, setPar3Pot] = useState(5);
+    const [par5Contest, setPar5Contest] = useState(false);
+    const [par5Pot, setPar5Pot] = useState(5);
 
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
@@ -127,7 +132,7 @@ export default function MatchSetupPage() {
         if (!user) return;
         if (!selectedCourse) { setError('Please select a course first.'); return; }
 
-        const sideBets = { greenies, sandies, snake, autoPress, birdiesDouble, trashValue, startingHole };
+        const sideBets = { greenies, sandies, snake, autoPress, birdiesDouble, trashValue, startingHole, par3Contest, par3Pot, par5Contest, par5Pot };
 
         setCreating(true);
         setError('');
@@ -685,49 +690,84 @@ export default function MatchSetupPage() {
                             </div>
                         )}
 
+                        {/* Trash Bets — opens bottom sheet */}
                         <button
-                            onClick={() => setTrashOpen((o) => !o)}
+                            onClick={() => setTrashOpen(true)}
                             className="w-full flex justify-between items-center h-12 px-4 rounded-xl border border-borderColor bg-transparent text-white hover:bg-surfaceHover transition-colors"
                         >
                             <div className="flex items-center gap-2">
                                 <Settings2 className="w-4 h-4 text-bloodRed" />
-                                <span className="font-semibold text-sm">Configure Trash Bets</span>
+                                <span className="font-semibold text-sm">Configure Trash & Side Bets</span>
                             </div>
-                            <ChevronLeft className={`w-4 h-4 text-secondaryText transition-transform ${trashOpen ? '-rotate-90' : 'rotate-180'}`} />
+                            <ChevronLeft className="w-4 h-4 text-secondaryText rotate-180" />
                         </button>
 
-                        {trashOpen && (
-                            <div className="mt-3 space-y-0 rounded-xl border border-borderColor overflow-hidden">
-                                <div className="flex items-center justify-between p-4 border-b border-borderColor/50">
-                                    <div><span className="font-semibold text-sm block">Greenies</span><span className="text-xs text-secondaryText">Closest to pin, must make par or better</span></div>
+                        {/* Trash Bets Bottom Sheet */}
+                        <BottomSheet open={trashOpen} onClose={() => setTrashOpen(false)} title="Trash & Side Bets">
+                            <div className="divide-y divide-borderColor/50">
+                                <div className="flex items-center justify-between p-4">
+                                    <div><span className="font-semibold text-sm block text-white">Greenies</span><span className="text-xs text-secondaryText">Closest to pin, must make par or better</span></div>
                                     <Toggle checked={greenies} onCheckedChange={setGreenies} />
                                 </div>
-                                <div className="flex items-center justify-between p-4 border-b border-borderColor/50">
-                                    <div><span className="font-semibold text-sm block">Sandies</span><span className="text-xs text-secondaryText">Par or better after being in a bunker</span></div>
+                                <div className="flex items-center justify-between p-4">
+                                    <div><span className="font-semibold text-sm block text-white">Sandies</span><span className="text-xs text-secondaryText">Par or better after being in a bunker</span></div>
                                     <Toggle checked={sandies} onCheckedChange={setSandies} />
                                 </div>
-                                <div className="flex items-center justify-between p-4 border-b border-borderColor/50">
-                                    <div><span className="font-semibold text-sm block">Snake</span><span className="text-xs text-secondaryText">3-putt penalty — last to 3-putt holds it</span></div>
+                                <div className="flex items-center justify-between p-4">
+                                    <div><span className="font-semibold text-sm block text-white">Snake</span><span className="text-xs text-secondaryText">3-putt penalty — last to 3-putt holds it</span></div>
                                     <Toggle checked={snake} onCheckedChange={setSnake} />
                                 </div>
-                                <div className="flex items-center justify-between p-4 border-b border-borderColor/50">
-                                    <div><span className="font-semibold text-sm block">Auto Press</span><span className="text-xs text-secondaryText">Automatically press when 2 down</span></div>
+                                <div className="flex items-center justify-between p-4">
+                                    <div><span className="font-semibold text-sm block text-white">Auto Press</span><span className="text-xs text-secondaryText">Automatically press when 2 down</span></div>
                                     <Toggle checked={autoPress} onCheckedChange={setAutoPress} />
                                 </div>
-                                <div className="flex items-center justify-between p-4 border-b border-borderColor/50">
-                                    <div><span className="font-semibold text-sm block">Birdies Double</span><span className="text-xs text-secondaryText">Winning a hole with a Net Birdie or better awards 2 points</span></div>
+                                <div className="flex items-center justify-between p-4">
+                                    <div><span className="font-semibold text-sm block text-white">Birdies Double</span><span className="text-xs text-secondaryText">Net Birdie or better awards 2 points</span></div>
                                     <Toggle checked={birdiesDouble} onCheckedChange={setBirdiesDouble} />
                                 </div>
                                 <div className="flex items-center justify-between p-4">
-                                    <div><span className="font-semibold text-sm block">Trash Value</span><span className="text-xs text-secondaryText">Per-dot payout</span></div>
+                                    <div><span className="font-semibold text-sm block text-white">Trash Value</span><span className="text-xs text-secondaryText">Per-dot payout</span></div>
                                     <div className="flex items-center gap-3">
-                                        <button onClick={() => setTrashValue((v) => Math.max(1, v - 1))} className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-bloodRed transition-colors">-</button>
+                                        <button onClick={() => setTrashValue((v) => Math.max(5, v - 5))} className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-bloodRed transition-colors">-</button>
                                         <span className="text-lg font-bold w-10 text-center">${trashValue}</span>
-                                        <button onClick={() => setTrashValue((v) => v + 1)} className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-neonGreen transition-colors">+</button>
+                                        <button onClick={() => setTrashValue((v) => v + 5)} className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-neonGreen transition-colors">+</button>
                                     </div>
                                 </div>
+
+                                {/* Mini Tournaments section */}
+                                <div className="px-4 pt-4 pb-2">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Mini Tournaments</span>
+                                </div>
+                                <div className="flex items-center justify-between p-4">
+                                    <div><span className="font-semibold text-sm block text-white">Par 3 Contest</span><span className="text-xs text-secondaryText">Lowest gross on par 3s wins • 0 HCP</span></div>
+                                    <Toggle checked={par3Contest} onCheckedChange={setPar3Contest} />
+                                </div>
+                                {par3Contest && (
+                                    <div className="flex items-center justify-between p-4 bg-surfaceHover/30">
+                                        <div><span className="font-semibold text-sm block text-white">Par 3 Pot</span><span className="text-xs text-secondaryText">Ante per player</span></div>
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => setPar3Pot((v) => Math.max(5, v - 5))} className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-bloodRed transition-colors">-</button>
+                                            <span className="text-lg font-bold w-10 text-center">${par3Pot}</span>
+                                            <button onClick={() => setPar3Pot((v) => v + 5)} className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-neonGreen transition-colors">+</button>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="flex items-center justify-between p-4">
+                                    <div><span className="font-semibold text-sm block text-white">Par 5 Contest</span><span className="text-xs text-secondaryText">Lowest gross on par 5s wins • 0 HCP</span></div>
+                                    <Toggle checked={par5Contest} onCheckedChange={setPar5Contest} />
+                                </div>
+                                {par5Contest && (
+                                    <div className="flex items-center justify-between p-4 bg-surfaceHover/30">
+                                        <div><span className="font-semibold text-sm block text-white">Par 5 Pot</span><span className="text-xs text-secondaryText">Ante per player</span></div>
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => setPar5Pot((v) => Math.max(5, v - 5))} className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-bloodRed transition-colors">-</button>
+                                            <span className="text-lg font-bold w-10 text-center">${par5Pot}</span>
+                                            <button onClick={() => setPar5Pot((v) => v + 5)} className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-lg hover:text-neonGreen transition-colors">+</button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </BottomSheet>
                     </Card>
                 </section>
 

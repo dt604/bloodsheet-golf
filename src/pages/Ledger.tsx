@@ -209,6 +209,52 @@ export default function LedgerPage() {
             if (match!.sideBets.sandies) trashLineItem('sandie', 'Sandies');
             if (match!.sideBets.snake) trashLineItem('snake', 'Snake');
 
+            // Mini tourney contests — individual gross scoring, 0 handicap
+            function calcMiniTourney(parFilter: 3 | 5, potPerPlayer: number): LineItem | null {
+                const applicableHoleNums = (course?.holes ?? [])
+                    .filter((h) => h.par === parFilter)
+                    .map((h) => h.number);
+                if (applicableHoleNums.length === 0) return null;
+                const numPlayers = players.length;
+                if (numPlayers < 2) return null;
+
+                const totals: Record<string, number> = {};
+                for (const p of players) {
+                    const holesScored = applicableHoleNums.filter((hn) =>
+                        scores.some((s) => s.holeNumber === hn && s.playerId === p.userId)
+                    );
+                    if (holesScored.length === 0) continue;
+                    totals[p.userId] = holesScored.reduce((sum, hn) => {
+                        const s = scores.find((sc) => sc.holeNumber === hn && sc.playerId === p.userId);
+                        return sum + (s?.gross ?? 0);
+                    }, 0);
+                }
+                const scoredEntries = Object.entries(totals);
+                if (scoredEntries.length < 2) return null;
+
+                const totalPar = applicableHoleNums.length * parFilter;
+                const fmtRelPar = (gross: number) => { const r = gross - totalPar; return r === 0 ? 'E' : r > 0 ? `+${r}` : `${r}`; };
+
+                const minGross = Math.min(...scoredEntries.map(([, g]) => g));
+                const winners = scoredEntries.filter(([, g]) => g === minGross);
+                const myTotal = totals[user!.id];
+
+                if (winners.length > 1) {
+                    return { label: `Par ${parFilter} Contest`, sublabel: `Tied at ${fmtRelPar(minGross)} — no payout`, amount: 0 };
+                }
+                const [winnerId] = winners[0];
+                const winnerName = winnerId === user!.id
+                    ? 'You'
+                    : (nameMap[winnerId] ?? players.find((p) => p.userId === winnerId)?.guestName ?? 'Player');
+                if (winnerId === user!.id) {
+                    return { label: `Par ${parFilter} Contest`, sublabel: `You win at ${fmtRelPar(myTotal)}`, amount: potPerPlayer * (numPlayers - 1) };
+                }
+                return { label: `Par ${parFilter} Contest`, sublabel: `${winnerName.split(' ')[0]} wins at ${fmtRelPar(minGross)}${myTotal !== undefined ? ` (you: ${fmtRelPar(myTotal)})` : ''}`, amount: -potPerPlayer };
+            }
+
+            if (match!.sideBets.par3Contest) { const item = calcMiniTourney(3, match!.sideBets.par3Pot ?? 5); if (item) items.push(item); }
+            if (match!.sideBets.par5Contest) { const item = calcMiniTourney(5, match!.sideBets.par5Pot ?? 5); if (item) items.push(item); }
+
             const total = items.reduce((sum, i) => sum + i.amount, 0);
             if (!cancelled) setSettlement({ opponentName: oppName, total, items });
         }
@@ -335,6 +381,69 @@ export default function LedgerPage() {
 
                 const total = items.reduce((sum, i) => sum + i.amount, 0);
                 settlements.push({ opponentName: oppName, total, items, userInMatch });
+            }
+
+            // Mini tourney (group mode) — compare ALL unique players across all sub-matches
+            const sharedSideBets = groupState!.matches[0]?.match.sideBets;
+            if (sharedSideBets?.par3Contest || sharedSideBets?.par5Contest) {
+                // Collect unique participants with gross scores keyed by hole number
+                const participantMap = new Map<string, { name: string; grossByHole: Record<number, number> }>();
+                for (const entry of groupState!.matches) {
+                    for (const p of entry.players) {
+                        if (!participantMap.has(p.userId)) {
+                            participantMap.set(p.userId, {
+                                name: p.guestName ?? nameMap[p.userId] ?? 'Player',
+                                grossByHole: Object.fromEntries(
+                                    entry.scores.filter((s) => s.playerId === p.userId).map((s) => [s.holeNumber, s.gross])
+                                ),
+                            });
+                        }
+                    }
+                }
+                const participants = Array.from(participantMap.entries());
+                const numParticipants = participants.length;
+
+                function calcGroupMiniTourney(parFilter: 3 | 5, potPerPlayer: number): LineItem | null {
+                    const applicableHoleNums = (course?.holes ?? [])
+                        .filter((h) => h.par === parFilter)
+                        .map((h) => h.number);
+                    if (applicableHoleNums.length === 0) return null;
+
+                    const totals: Record<string, number> = {};
+                    for (const [uid, pData] of participants) {
+                        const scored = applicableHoleNums.filter((h) => pData.grossByHole[h] !== undefined);
+                        if (scored.length === 0) continue;
+                        totals[uid] = scored.reduce((sum, h) => sum + pData.grossByHole[h], 0);
+                    }
+                    const scoredEntries = Object.entries(totals);
+                    if (scoredEntries.length < 2) return null;
+
+                    const totalPar = applicableHoleNums.length * parFilter;
+                    const fmtRelPar = (gross: number) => { const r = gross - totalPar; return r === 0 ? 'E' : r > 0 ? `+${r}` : `${r}`; };
+
+                    const minGross = Math.min(...scoredEntries.map(([, g]) => g));
+                    const winners = scoredEntries.filter(([, g]) => g === minGross);
+                    const myTotal = totals[user!.id];
+
+                    if (winners.length > 1) {
+                        return { label: `Par ${parFilter} Contest`, sublabel: `Tied at ${fmtRelPar(minGross)} — no payout`, amount: 0 };
+                    }
+                    const [winnerId] = winners[0];
+                    const winnerFirstName = (participantMap.get(winnerId)?.name ?? 'Player').split(' ')[0];
+                    if (winnerId === user!.id) {
+                        return { label: `Par ${parFilter} Contest`, sublabel: `You win at ${fmtRelPar(myTotal)}`, amount: potPerPlayer * (numParticipants - 1) };
+                    }
+                    return { label: `Par ${parFilter} Contest`, sublabel: `${winnerFirstName} wins at ${fmtRelPar(minGross)}${myTotal !== undefined ? ` (you: ${fmtRelPar(myTotal)})` : ''}`, amount: -potPerPlayer };
+                }
+
+                const miniItems: LineItem[] = [];
+                if (sharedSideBets?.par3Contest) { const item = calcGroupMiniTourney(3, sharedSideBets.par3Pot ?? 5); if (item) miniItems.push(item); }
+                if (sharedSideBets?.par5Contest) { const item = calcGroupMiniTourney(5, sharedSideBets.par5Pot ?? 5); if (item) miniItems.push(item); }
+
+                if (miniItems.length > 0) {
+                    const miniTotal = miniItems.reduce((sum, i) => sum + i.amount, 0);
+                    settlements.push({ opponentName: 'Mini Tourney', total: miniTotal, items: miniItems, userInMatch: true });
+                }
             }
 
             if (!cancelled) setGroupSettlements(settlements);

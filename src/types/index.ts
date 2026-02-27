@@ -91,6 +91,10 @@ export interface Match {
     birdiesDouble?: boolean;
     trashValue: number;
     startingHole?: number;
+    par3Contest?: boolean;
+    par3Pot?: number;
+    par5Contest?: boolean;
+    par5Pot?: number;
   };
   createdBy: string;
 }
