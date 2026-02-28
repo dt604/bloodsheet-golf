@@ -6,19 +6,20 @@ export default function AuthCallbackPage() {
     const navigate = useNavigate();
     const navigated = useRef(false);
 
-    function go(path: string) {
+    function go(session: { user: { created_at: string } } | null) {
         if (navigated.current) return;
         navigated.current = true;
-        navigate(path, { replace: true });
+        if (!session) { navigate('/', { replace: true }); return; }
+        // New user = account created within the last 2 minutes
+        const ageMs = Date.now() - new Date(session.user.created_at).getTime();
+        const isNew = ageMs < 2 * 60 * 1000;
+        navigate(isNew ? '/onboarding' : '/dashboard', { replace: true });
     }
 
     useEffect(() => {
-        // onAuthStateChange in Supabase v2 fires INITIAL_SESSION immediately on
-        // subscribe with the current session state, then SIGNED_IN once the
-        // OAuth hash token is processed. Handling both covers all timing cases.
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-                if (session) go('/dashboard');
+                if (session) go(session);
                 // INITIAL_SESSION with no session = still processing; wait for SIGNED_IN
             }
         });

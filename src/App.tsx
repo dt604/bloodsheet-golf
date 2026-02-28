@@ -15,6 +15,7 @@ import FriendsPage from './pages/Friends';
 import PlayerProfilePage from './pages/PlayerProfile';
 import ResetPasswordPage from './pages/ResetPassword';
 import AuthCallbackPage from './pages/AuthCallback';
+import OnboardingPage from './pages/Onboarding';
 
 // Full auth required — guests are redirected to welcome
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -38,6 +39,7 @@ function AppRoutes() {
       <Route path="/" element={<WelcomePage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/setup" element={<ProtectedRoute><MatchSetupPage /></ProtectedRoute>} />
       <Route path="/play/:hole" element={<ViewerRoute><LiveScorecardPage /></ViewerRoute>} />
