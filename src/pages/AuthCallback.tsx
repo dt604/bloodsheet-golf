@@ -13,15 +13,14 @@ export default function AuthCallbackPage() {
     }
 
     useEffect(() => {
-        // Primary: listen for SIGNED_IN event from hash token processing
+        // onAuthStateChange in Supabase v2 fires INITIAL_SESSION immediately on
+        // subscribe with the current session state, then SIGNED_IN once the
+        // OAuth hash token is processed. Handling both covers all timing cases.
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session) go('/dashboard');
-            else if (event === 'SIGNED_OUT') go('/');
-        });
-
-        // Fallback: session may have already been established before listener registered
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) go('/dashboard');
+            if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+                if (session) go('/dashboard');
+                // INITIAL_SESSION with no session = still processing; wait for SIGNED_IN
+            }
         });
 
         return () => subscription.unsubscribe();
