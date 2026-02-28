@@ -241,7 +241,7 @@ export default function AddPlayerPage() {
     }
 
     const acceptedFriends: ProfileRow[] = friendships
-        .filter(f => f.status === 'accepted' && f.friendProfile)
+        .filter(f => f.status === 'accepted' && f.friendProfile && f.friendProfile.id !== user?.id)
         .map(f => ({
             id: f.friendProfile!.id,
             fullName: f.friendProfile!.fullName,
@@ -308,7 +308,7 @@ export default function AddPlayerPage() {
                                 <section>
                                     <h3 className="text-secondaryText text-xs font-bold uppercase tracking-widest pl-2 mb-3">Search Results</h3>
                                     <Card className="divide-y divide-borderColor/50">
-                                        {results.map((p) => <PlayerRow key={p.id} p={p} />)}
+                                        {results.filter(p => p.id !== user?.id).map((p) => <PlayerRow key={p.id} p={p} />)}
                                     </Card>
                                 </section>
                             )}
@@ -326,7 +326,7 @@ export default function AddPlayerPage() {
                                 <section>
                                     <h3 className="text-secondaryText text-xs font-bold uppercase tracking-widest pl-2 mb-3">Recent Playing Partners</h3>
                                     <Card className="divide-y divide-borderColor/50">
-                                        {recentPartners.filter(p => !acceptedFriends.some(f => f.id === p.id)).map((p) => <PlayerRow key={`recent-${p.id}`} p={p} />)}
+                                        {recentPartners.filter(p => p.id !== user?.id && !acceptedFriends.some(f => f.id === p.id)).map((p) => <PlayerRow key={`recent-${p.id}`} p={p} />)}
                                     </Card>
                                 </section>
                             )}
@@ -335,7 +335,7 @@ export default function AddPlayerPage() {
                                 <section>
                                     <h3 className="text-secondaryText text-xs font-bold uppercase tracking-widest pl-2 mb-3">Community Players</h3>
                                     <Card className="divide-y divide-borderColor/50">
-                                        {allPlayers.map((p) => <PlayerRow key={p.id} p={p} />)}
+                                        {allPlayers.filter(p => p.id !== user?.id).map((p) => <PlayerRow key={p.id} p={p} />)}
                                     </Card>
                                 </section>
                             )}
