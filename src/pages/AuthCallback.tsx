@@ -6,14 +6,15 @@ export default function AuthCallbackPage() {
     const navigate = useNavigate();
     const navigated = useRef(false);
 
-    function go(session: { user: { created_at: string } } | null) {
+    function go(session: { user: { created_at: string; last_sign_in_at?: string } } | null) {
         if (navigated.current) return;
         navigated.current = true;
         if (!session) { navigate('/', { replace: true }); return; }
-        // New user = account created within the last 2 minutes
-        const ageMs = Date.now() - new Date(session.user.created_at).getTime();
-        const isNew = ageMs < 2 * 60 * 1000;
-        navigate(isNew ? '/onboarding' : '/dashboard', { replace: true });
+        // First sign-in: last_sign_in_at and created_at are within 30 seconds of each other
+        const createdAt = new Date(session.user.created_at).getTime();
+        const lastSignIn = new Date(session.user.last_sign_in_at ?? session.user.created_at).getTime();
+        const isFirstSignIn = Math.abs(lastSignIn - createdAt) < 30 * 1000;
+        navigate(isFirstSignIn ? '/onboarding' : '/dashboard', { replace: true });
     }
 
     useEffect(() => {
