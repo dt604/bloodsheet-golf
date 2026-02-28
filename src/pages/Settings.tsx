@@ -16,6 +16,10 @@ export default function SettingsPage() {
     const [midRoundPress, setMidRoundPress] = useState(true);
     const [finalSettlement, setFinalSettlement] = useState(true);
 
+    const [editingName, setEditingName] = useState(false);
+    const [nameInput, setNameInput] = useState(profile?.fullName ?? '');
+    const [savingName, setSavingName] = useState(false);
+
     const [editingHandicap, setEditingHandicap] = useState(false);
     const [handicapInput, setHandicapInput] = useState(String(profile?.handicap ?? '0.0'));
     const [saving, setSaving] = useState(false);
@@ -42,6 +46,15 @@ export default function SettingsPage() {
         } finally {
             setUploadingImage(false);
         }
+    }
+
+    async function handleSaveName() {
+        const val = nameInput.trim();
+        if (!val) return;
+        setSavingName(true);
+        await updateProfile({ fullName: val });
+        setSavingName(false);
+        setEditingName(false);
     }
 
     async function handleSaveHandicap() {
@@ -117,9 +130,29 @@ export default function SettingsPage() {
                                 </label>
                             </div>
                         </div>
-                        <div className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors">
+                        <div className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer" onClick={() => setEditingName(!editingName)}>
                             <span className="font-semibold text-white">Name</span>
-                            <span className="text-secondaryText">{profile?.fullName ?? '—'}</span>
+                            <div className="flex items-center gap-2">
+                                {editingName ? (
+                                    <input
+                                        type="text"
+                                        className="w-40 text-right font-bold text-white bg-background border border-bloodRed px-3 py-1 rounded focus:outline-none"
+                                        value={nameInput}
+                                        onChange={(e) => setNameInput(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                                    />
+                                ) : (
+                                    <span className="text-secondaryText">{profile?.fullName ?? '—'}</span>
+                                )}
+                                {editingName ? (
+                                    <Button size="sm" className="h-8 px-3 text-xs" onClick={(e) => { e.stopPropagation(); handleSaveName(); }} disabled={savingName}>
+                                        {savingName ? '…' : 'Save'}
+                                    </Button>
+                                ) : (
+                                    <ChevronRight className="w-4 h-4 text-secondaryText" />
+                                )}
+                            </div>
                         </div>
                         <div className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors">
                             <span className="font-semibold text-white">Linked Email</span>
