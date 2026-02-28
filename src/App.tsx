@@ -13,6 +13,7 @@ import JoinMatchPage from './pages/JoinMatch';
 import PastMatchScorecardPage from './pages/PastMatchScorecard';
 import FriendsPage from './pages/Friends';
 import PlayerProfilePage from './pages/PlayerProfile';
+import ResetPasswordPage from './pages/ResetPassword';
 
 // Full auth required — guests are redirected to welcome
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<WelcomePage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/setup" element={<ProtectedRoute><MatchSetupPage /></ProtectedRoute>} />
       <Route path="/play/:hole" element={<ViewerRoute><LiveScorecardPage /></ViewerRoute>} />

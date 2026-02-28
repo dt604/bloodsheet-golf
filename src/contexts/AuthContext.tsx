@@ -21,6 +21,8 @@ interface AuthContextValue {
   signInAsGuest: () => Promise<string | null>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Pick<Profile, 'fullName' | 'handicap' | 'avatarUrl'>>) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<string | null>;
+  updatePassword: (password: string) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -101,6 +103,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }
 
+  async function sendPasswordReset(email: string): Promise<string | null> {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return error?.message ?? null;
+  }
+
+  async function updatePassword(password: string): Promise<string | null> {
+    const { error } = await supabase.auth.updateUser({ password });
+    return error?.message ?? null;
+  }
+
   async function updateProfile(data: Partial<Pick<Profile, 'fullName' | 'handicap' | 'avatarUrl'>>) {
     if (!user) return;
     const updates: Record<string, unknown> = {};
@@ -114,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isGuest = !!(user?.is_anonymous);
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, isGuest, signUp, signIn, signInAsGuest, signOut, updateProfile }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, isGuest, signUp, signIn, signInAsGuest, signOut, updateProfile, sendPasswordReset, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

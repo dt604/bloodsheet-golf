@@ -5,11 +5,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Loader, Search } from 'lucide-react';
 
-type AuthMode = 'welcome' | 'login' | 'signup' | 'grint';
+type AuthMode = 'welcome' | 'login' | 'signup' | 'grint' | 'forgot';
 
 export default function WelcomePage() {
     const navigate = useNavigate();
-    const { signIn, signUp, signInAsGuest } = useAuth();
+    const { signIn, signUp, signInAsGuest, sendPasswordReset } = useAuth();
 
     const [authMode, setAuthMode] = useState<AuthMode>('welcome');
     const [email, setEmail] = useState('');
@@ -89,6 +89,18 @@ export default function WelcomePage() {
         setLoading(false);
         if (err) { setError(err); return; }
         navigate('/join');
+    }
+
+    const [resetSent, setResetSent] = useState(false);
+
+    async function handleForgotPassword() {
+        setError('');
+        if (!email.trim()) { setError('Enter your email address.'); return; }
+        setLoading(true);
+        const err = await sendPasswordReset(email.trim());
+        setLoading(false);
+        if (err) { setError(err); return; }
+        setResetSent(true);
     }
 
     return (
@@ -248,11 +260,57 @@ export default function WelcomePage() {
                             {loading ? 'Please wait…' : authMode === 'signup' ? 'Next' : 'Log In'}
                         </Button>
 
+                        {authMode === 'login' && (
+                            <button
+                                className="w-full text-secondaryText text-xs font-semibold py-1 hover:text-white transition-colors text-center"
+                                onClick={() => { setAuthMode('forgot'); setError(''); setResetSent(false); }}
+                            >
+                                Forgot password?
+                            </button>
+                        )}
+
                         <button
                             className="w-full text-secondaryText text-sm font-semibold py-1 hover:text-white transition-colors"
                             onClick={() => { setAuthMode('welcome'); setError(''); }}
                         >
                             ← Back
+                        </button>
+                    </div>
+                )}
+
+                {authMode === 'forgot' && (
+                    <div className="space-y-3">
+                        {resetSent ? (
+                            <p className="text-neonGreen text-sm font-semibold text-center px-2">
+                                Check your email for a reset link.
+                            </p>
+                        ) : (
+                            <>
+                                <input
+                                    type="email"
+                                    className={inputClass}
+                                    placeholder="Email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                />
+                                {error && (
+                                    <p className="text-bloodRed text-xs font-semibold px-1">{error}</p>
+                                )}
+                                <Button
+                                    size="lg"
+                                    className="uppercase font-bold tracking-wider text-lg shadow-[0_0_20px_rgba(255,0,63,0.3)]"
+                                    onClick={handleForgotPassword}
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Sending…' : 'Send Reset Link'}
+                                </Button>
+                            </>
+                        )}
+                        <button
+                            className="w-full text-secondaryText text-sm font-semibold py-1 hover:text-white transition-colors"
+                            onClick={() => { setAuthMode('login'); setError(''); setResetSent(false); }}
+                        >
+                            ← Back to Login
                         </button>
                     </div>
                 )}
