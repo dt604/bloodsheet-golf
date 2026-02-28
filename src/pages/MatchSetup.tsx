@@ -323,8 +323,10 @@ export default function MatchSetupPage() {
                                     <>
                                         <Card className="p-4 border-neonGreen/30 bg-neonGreen/5 mb-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-neonGreen/20 flex items-center justify-center text-neonGreen font-bold">
-                                                    {initials}
+                                                <div className="w-10 h-10 rounded-full bg-neonGreen/20 flex items-center justify-center text-neonGreen font-bold overflow-hidden shrink-0">
+                                                    {profile?.avatarUrl ? (
+                                                        <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                                    ) : initials}
                                                 </div>
                                                 <div className="flex-1">
                                                     <span className="font-bold text-sm tracking-tight block">{profile?.fullName || 'Me'}</span>
@@ -346,8 +348,12 @@ export default function MatchSetupPage() {
                                             <Card key={p.userId} className="p-4 border-borderColor/50 bg-surface/50">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-secondaryText font-bold">
-                                                            {p.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+                                                        <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-secondaryText font-bold overflow-hidden shrink-0">
+                                                            {p.avatarUrl && !p.avatarUrl.includes('profile_default.jpg') ? (
+                                                                <img src={p.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                p.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+                                                            )}
                                                         </div>
                                                         <div>
                                                             <span className="font-bold text-sm tracking-tight block">{p.fullName}</span>
@@ -392,8 +398,10 @@ export default function MatchSetupPage() {
                                             <div className="space-y-3">
                                                 <Card className="p-4 border-neonGreen/30 bg-neonGreen/5">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-neonGreen/20 flex items-center justify-center text-neonGreen font-bold">
-                                                            {initials}
+                                                        <div className="w-10 h-10 rounded-full bg-neonGreen/20 flex items-center justify-center text-neonGreen font-bold overflow-hidden shrink-0">
+                                                            {profile?.avatarUrl ? (
+                                                                <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                                            ) : initials}
                                                         </div>
                                                         <div className="flex-1">
                                                             <span className="font-bold text-sm tracking-tight block">{profile?.fullName || 'Me'}</span>
@@ -649,7 +657,9 @@ export default function MatchSetupPage() {
                                             <div className="p-4 space-y-3">
                                                 <div className="text-[10px] font-black text-neonGreen uppercase tracking-[0.2em] mb-1">Team A (Green)</div>
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-full bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center text-neonGreen font-bold text-xs">{initials}</div>
+                                                    <div className="w-8 h-8 rounded-full bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center text-neonGreen font-bold text-xs overflow-hidden shrink-0">
+                                                        {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : initials}
+                                                    </div>
                                                     <span className="text-xs font-bold truncate">{profile?.fullName.split(' ')[0] || 'Me'}</span>
                                                 </div>
                                                 {stagedPlayers.filter((p) => p.team === 'A').map((p) => (
