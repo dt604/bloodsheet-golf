@@ -23,6 +23,7 @@ interface AuthContextValue {
   updateProfile: (data: Partial<Pick<Profile, 'fullName' | 'handicap' | 'avatarUrl'>>) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<string | null>;
   updatePassword: (password: string) => Promise<string | null>;
+  signInWithGoogle: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -115,6 +116,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error?.message ?? null;
   }
 
+  async function signInWithGoogle(): Promise<string | null> {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/dashboard` },
+    });
+    return error?.message ?? null;
+  }
+
   async function updateProfile(data: Partial<Pick<Profile, 'fullName' | 'handicap' | 'avatarUrl'>>) {
     if (!user) return;
     const updates: Record<string, unknown> = {};
@@ -128,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isGuest = !!(user?.is_anonymous);
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, isGuest, signUp, signIn, signInAsGuest, signOut, updateProfile, sendPasswordReset, updatePassword }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, isGuest, signUp, signIn, signInAsGuest, signOut, updateProfile, sendPasswordReset, updatePassword, signInWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );
