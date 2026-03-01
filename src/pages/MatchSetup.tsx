@@ -618,7 +618,7 @@ export default function MatchSetupPage() {
                                                             {/* Player 1 Selection */}
                                                             <div className="flex-1 flex flex-col items-center gap-2">
                                                                 <select
-                                                                    className={`w-full h-12 rounded-xl bg-background border transition-colors text-center text-sm font-bold appearance-none ${slot.player1Id ? 'border-neonGreen/50 text-white' : 'border-borderColor text-secondaryText'}`}
+                                                                    className={`w-full h-12 px-4 rounded-xl bg-background border transition-colors text-center text-sm font-bold appearance-none ${slot.player1Id ? 'border-neonGreen/50 text-white' : 'border-borderColor text-secondaryText'}`}
                                                                     value={slot.player1Id || user?.id || ''}
                                                                     onChange={(e) => setSlotPlayer1(slot.id, e.target.value)}
                                                                 >
@@ -638,7 +638,7 @@ export default function MatchSetupPage() {
                                                             {/* Opponent Selection */}
                                                             <div className="flex-1 flex flex-col items-center gap-2">
                                                                 <select
-                                                                    className={`w-full h-12 rounded-xl bg-background border transition-colors text-center text-sm font-bold appearance-none ${slot.opponentId ? 'border-bloodRed/50 text-white' : 'border-borderColor text-secondaryText'}`}
+                                                                    className={`w-full h-12 px-4 rounded-xl bg-background border transition-colors text-center text-sm font-bold appearance-none ${slot.opponentId ? 'border-bloodRed/50 text-white' : 'border-borderColor text-secondaryText'}`}
                                                                     value={slot.opponentId || ''}
                                                                     onChange={(e) => setSlotOpponent(slot.id, e.target.value)}
                                                                 >
