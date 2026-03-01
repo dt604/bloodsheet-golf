@@ -54,20 +54,12 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto momentum-scroll space-y-8 pb-32">
             {/* Header Area */}
             <header className="px-4 pt-4 flex justify-between items-center">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center">
                     <img
                         src="/logo-final.png"
                         alt="BloodSheet"
-                        className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(255,0,63,0.5)]"
+                        className="w-16 h-16 object-contain drop-shadow-[0_0_12px_rgba(255,0,63,0.6)]"
                     />
-                    <div>
-                        <h1 className="text-xl font-black text-white tracking-tighter italic uppercase leading-none">
-                            Blood<span className="text-bloodRed">Sheet</span>
-                        </h1>
-                        <p className="text-[8px] text-secondaryText font-black uppercase tracking-[0.2em] mt-0.5">
-                            Social Hub
-                        </p>
-                    </div>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner overflow-hidden">
                     {profile?.avatarUrl ? (
