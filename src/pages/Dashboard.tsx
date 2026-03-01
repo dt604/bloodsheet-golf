@@ -226,16 +226,16 @@ export default function DashboardPage() {
             const completedIds = (completedMatches as Record<string, unknown>[] ?? []).map((m) => m.id as string);
             setStats((prev) => ({ ...prev, totalMatches: completedIds.length }));
 
+            let wins = 0;
+            let lifetimePayout = 0;
+            const payoutMap: Record<string, { payout: number; holesUp: number }> = {};
+
             if (completedMatches && completedMatches.length > 0) {
 
                 const [{ data: allPlayers }, { data: allScores }] = await Promise.all([
                     supabase.from('match_players').select('match_id, user_id, team').in('match_id', completedIds),
                     supabase.from('hole_scores').select('match_id, hole_number, player_id, gross, net, trash_dots').in('match_id', completedIds),
                 ]);
-
-                let wins = 0;
-                let lifetimePayout = 0;
-                const payoutMap: Record<string, { payout: number; holesUp: number }> = {};
 
                 for (const matchRow of completedMatches as Record<string, unknown>[]) {
                     const matchId = matchRow.id as string;

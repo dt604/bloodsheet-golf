@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, QrCode, ScanLine, FlipHorizontal } from 'lucide-react';
+import { ChevronLeft, FlipHorizontal } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import jsQR from 'jsqr';
 import { useAuth } from '../contexts/AuthContext';
@@ -97,10 +97,6 @@ export default function QRPage() {
         }
         // Not a recognised QR — show it and let user decide
     }
-
-    const initials = profile?.fullName
-        ? profile.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
-        : '?';
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden">
