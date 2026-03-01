@@ -77,6 +77,9 @@ function AppRoutes() {
         <Route path="matches" element={<MatchManagement />} />
         <Route path="courses" element={<CourseManagement />} />
       </Route>
+
+      {/* Wildcard Catch-all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
