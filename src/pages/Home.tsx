@@ -62,9 +62,13 @@ export default function Home() {
                         Golf Social Hub
                     </p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner">
-                    {initials}
-                </div>
+                <Link to="/dashboard" className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner overflow-hidden hover:border-bloodRed/50 transition-colors">
+                    {profile?.avatarUrl ? (
+                        <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                        initials
+                    )}
+                </Link>
             </header>
 
             {/* Dynamic Top Banner */}
