@@ -131,32 +131,39 @@ export default function Home() {
             <section className="px-4">
                 <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest mb-4 ml-1">Player Actions</h3>
                 <div className="grid grid-cols-2 gap-4">
-                    <Link to="/dashboard" className="block h-full">
-                        <Card className="p-5 bg-surface hover:border-bloodRed/50 transition-all group flex flex-col items-start gap-4 border-white/5 h-full">
-                            <div className="w-12 h-12 rounded-2xl bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner overflow-hidden relative shrink-0">
+                    <Link to="/dashboard" className="block h-full group">
+                        <div className="relative h-full overflow-hidden rounded-[2rem] bg-[#1a1a1c] border border-white/5 p-5 transition-all duration-300 group-hover:border-bloodRed/50 group-hover:-translate-y-1 group-hover:shadow-[0_20px_40px_-15px_rgba(255,0,63,0.3)] shadow-xl flex flex-col items-start gap-4">
+                            {/* Accent Glow */}
+                            <div className="absolute -top-12 -right-12 w-24 h-24 bg-bloodRed/10 rounded-full blur-2xl group-hover:bg-bloodRed/20 transition-colors" />
+
+                            <div className="w-14 h-14 rounded-2xl bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner overflow-hidden relative shrink-0 transition-transform group-hover:scale-110 duration-500">
                                 {profile?.avatarUrl ? (
                                     <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                                 ) : (
-                                    <span className="relative z-10">{initials}</span>
+                                    <span className="relative z-10 text-lg uppercase italic">{initials}</span>
                                 )}
-                                <div className="absolute inset-x-0 bottom-0 h-1 bg-bloodRed/30" />
+                                <div className="absolute inset-x-0 bottom-0 h-1 bg-bloodRed" />
                             </div>
-                            <div className="flex-1 flex flex-col justify-center">
-                                <span className="block text-white font-black text-sm uppercase leading-tight">HCP {profile?.handicap?.toFixed(1) || '0.0'}</span>
-                                <span className="text-[10px] text-secondaryText font-bold uppercase truncate max-w-full block mt-0.5">View Profile</span>
+                            <div className="flex-1 flex flex-col justify-center relative z-10">
+                                <span className="block text-white font-black text-lg uppercase leading-none italic group-hover:text-bloodRed transition-colors">HCP {profile?.handicap?.toFixed(1) || '0.0'}</span>
+                                <span className="text-[9px] text-secondaryText font-black uppercase tracking-widest mt-1 opacity-60">View Profile</span>
                             </div>
-                        </Card>
+                        </div>
                     </Link>
-                    <Link to="/setup" className="block h-full">
-                        <Card className="p-5 bg-surface hover:border-neonGreen/50 transition-all group flex flex-col items-start gap-4 border-white/5 shadow-lg h-full">
-                            <div className="w-12 h-12 rounded-2xl bg-neonGreen/10 flex items-center justify-center text-neonGreen group-hover:scale-110 transition-transform shrink-0">
-                                <Plus className="w-7 h-7" />
+
+                    <Link to="/setup" className="block h-full group">
+                        <div className="relative h-full overflow-hidden rounded-[2rem] bg-[#1a1a1c] border border-white/5 p-5 transition-all duration-300 group-hover:border-neonGreen/50 group-hover:-translate-y-1 group-hover:shadow-[0_20px_40px_-15px_rgba(0,255,102,0.2)] shadow-xl flex flex-col items-start gap-4">
+                            {/* Accent Glow */}
+                            <div className="absolute -top-12 -right-12 w-24 h-24 bg-neonGreen/5 rounded-full blur-2xl group-hover:bg-neonGreen/10 transition-colors" />
+
+                            <div className="w-14 h-14 rounded-2xl bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center text-neonGreen shadow-inner relative shrink-0 transition-transform group-hover:scale-110 duration-500">
+                                <Plus className="w-8 h-8 drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]" />
                             </div>
-                            <div className="flex-1 flex flex-col justify-center">
-                                <span className="block text-white font-black text-sm uppercase leading-tight">Start Match</span>
-                                <span className="text-[10px] text-secondaryText font-bold uppercase truncate max-w-full block mt-0.5">Setup Rounds</span>
+                            <div className="flex-1 flex flex-col justify-center relative z-10">
+                                <span className="block text-white font-black text-lg uppercase leading-none italic group-hover:text-neonGreen transition-colors">Setup</span>
+                                <span className="text-[9px] text-secondaryText font-black uppercase tracking-widest mt-1 opacity-60">Start Match</span>
                             </div>
-                        </Card>
+                        </div>
                     </Link>
                 </div>
             </section>
