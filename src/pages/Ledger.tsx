@@ -63,7 +63,9 @@ export default function LedgerPage() {
             const teamBPlayer = players.find((p) => p.team === 'B');
             const teamAName = teamAPlayer?.guestName ?? nameMap[teamAPlayer?.userId ?? ''] ?? 'Player A';
             const teamBName = teamBPlayer?.guestName ?? nameMap[teamBPlayer?.userId ?? ''] ?? 'Player B';
-            const oppName = `${teamAName} vs ${teamBName}`;
+            const oppName = match!.format === 'skins'
+                ? players.map(p => (p.guestName ?? nameMap[p.userId] ?? 'Player').split(' ')[0]).join(' vs. ')
+                : `${teamAName} vs ${teamBName}`;
 
             const myTeam = players.find((p) => p.userId === user!.id)?.team ?? 'A';
             const oppTeam: 'A' | 'B' = myTeam === 'A' ? 'B' : 'A';
@@ -138,86 +140,159 @@ export default function LedgerPage() {
                 return 0;
             }
 
-            const front9Holes = holesPlayed.filter((h) => h <= 9);
-            const back9Holes = holesPlayed.filter((h) => h > 9);
-            const front9Amount = front9Holes.length >= 9 ? nassauResult(front9Holes) : 0;
-            const back9Amount = back9Holes.length >= 9 ? nassauResult(back9Holes) : 0;
-            const overallAmount = holesPlayed.length >= 18 ? nassauResult(holesPlayed) : 0;
+            // ── Skins settlement (only when format === 'skins') ──────────
+            function skinsSettlement(): LineItem[] {
+                const skinValue = match!.wagerAmount;
+                const numPlayers = players.length;
+                const bonusSkins = match!.sideBets?.bonusSkins ?? false;
+                const result: LineItem[] = [];
+                let carry = 0;
 
-            const items: LineItem[] = [
-                {
-                    label: 'Front 9 (Base)',
-                    sublabel: front9Amount > 0 ? 'Won' : front9Amount < 0 ? 'Lost' : 'Pushed',
-                    amount: front9Amount,
-                },
-                {
-                    label: 'Back 9 (Base)',
-                    sublabel: back9Amount > 0 ? 'Won' : back9Amount < 0 ? 'Lost' : 'Pushed',
-                    amount: back9Amount,
-                },
-                {
-                    label: 'Overall (18 Holes)',
-                    sublabel: overallAmount > 0 ? 'Won' : overallAmount < 0 ? 'Lost' : 'Pushed',
-                    amount: overallAmount,
-                },
-            ];
+                for (let h = 1; h <= 18; h++) {
+                    const hScores = scores.filter(s => s.holeNumber === h);
+                    if (hScores.length < numPlayers) continue;
 
-            // Press line items
-            // nassauResult already returns result from myTeam's perspective — no sign flip needed.
-            for (const press of presses) {
-                const pressHoles = holesPlayed.filter((h) => h >= press.startHole);
-                const pressAmount = nassauResult(pressHoles);
-                items.push({
-                    label: `Press`,
-                    sublabel: `Hole ${press.startHole} • Team ${press.pressedByTeam}`,
-                    amount: pressAmount,
-                    isPress: true,
-                });
+                    // Compute bonus skins per player for this hole
+                    const par = bonusSkins ? (course?.holes?.find((hole: any) => hole.number === h)?.par ?? 4) : 4;
+                    let userBonusAmount = 0;
+                    const bonusNotes: string[] = [];
+                    if (bonusSkins) {
+                        for (const s of hScores) {
+                            const pinBonus = s.trashDots.includes('pin') ? 1 : 0;
+                            const birdieBonus = s.gross === par - 1 ? 1 : 0;
+                            const eagleBonus = s.gross <= par - 2 ? 2 : 0;
+                            const bonusCount = pinBonus + birdieBonus + eagleBonus;
+                            if (bonusCount === 0) continue;
+                            const isUser = s.playerId === user!.id;
+                            userBonusAmount += isUser
+                                ? bonusCount * skinValue * (numPlayers - 1)
+                                : -bonusCount * skinValue;
+                            const pName = isUser ? 'You' : (players.find(p => p.userId === s.playerId)?.guestName ?? nameMap[s.playerId] ?? 'Player').split(' ')[0];
+                            const bonusLabel = [pinBonus > 0 ? 'Pin' : '', birdieBonus > 0 ? 'Birdie' : '', eagleBonus > 0 ? 'Eagle' : ''].filter(Boolean).join('+');
+                            bonusNotes.push(`${pName}: ${bonusLabel}`);
+                        }
+                    }
+
+                    const holesInPot = 1 + carry;
+                    const potPerPlayer = holesInPot * skinValue;
+                    const minNet = Math.min(...hScores.map(s => s.net));
+                    const winners = hScores.filter(s => s.net === minNet);
+
+                    if (winners.length === 1) {
+                        const winnerId = winners[0].playerId;
+                        const winnerName = players.find(p => p.userId === winnerId)?.guestName ?? nameMap[winnerId] ?? 'Player';
+                        const isUserWinner = winnerId === user!.id;
+                        const baseAmount = isUserWinner
+                            ? potPerPlayer * (numPlayers - 1)
+                            : -potPerPlayer;
+                        const rangeLabel = holesInPot > 1
+                            ? `Holes ${h - holesInPot + 1}–${h}`
+                            : `Hole ${h}`;
+                        const baseSublabel = isUserWinner
+                            ? `You win — $${potPerPlayer} from each player`
+                            : `${winnerName.split(' ')[0]} wins — you pay $${potPerPlayer}`;
+                        const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
+                        result.push({ label: rangeLabel, sublabel, amount: baseAmount + userBonusAmount });
+                        carry = 0;
+                    } else {
+                        const baseSublabel = 'Tied — skin carries';
+                        const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
+                        result.push({ label: `Hole ${h}`, sublabel, amount: userBonusAmount });
+                        carry += 1;
+                    }
+                }
+
+                if (carry > 0) {
+                    result.push({ label: 'Final Carry', sublabel: `${carry} skin${carry > 1 ? 's' : ''} uncontested — returned`, amount: 0 });
+                }
+
+                return result;
             }
 
-            // Trash / side bets
-            const trashVal = match!.sideBets.trashValue ?? 5;
+            function skinsTrashItems(): LineItem[] {
+                const trashVal = match!.sideBets.trashValue ?? 5;
+                const numPlayers = players.length;
+                const result: LineItem[] = [];
 
-            function trashLineItem(dot: string, label: string) {
-                // Determine how many dots were earned by each team
-                const myDots = scores.filter(
-                    (s) => players.find((p) => p.userId === s.playerId && p.team === myTeam) && s.trashDots.includes(dot)
-                ).length;
-                const oppDots = scores.filter(
-                    (s) => players.find((p) => p.userId === s.playerId && p.team === oppTeam) && s.trashDots.includes(dot)
-                ).length;
-
-                if (myDots === 0 && oppDots === 0) return;
-
-                if (dot === 'snake') {
-                    // Snake is strictly negative. The team holding the snake PAYS the other team.
-                    const oppTeamSize = players.filter(p => p.team === oppTeam).length;
-                    const netDots = oppDots - myDots;
-                    let sub = 'No snake penalty';
-                    if (myDots > oppDots) sub = 'You held the snake 🐍';
-                    else if (oppDots > myDots) sub = 'Opponent held the snake 🐍';
-
-                    items.push({
+                function skinsDot(dot: string, label: string) {
+                    const myDots = scores.filter(s => s.playerId === user!.id && s.trashDots.includes(dot)).length;
+                    const oppDots = scores.filter(s => s.playerId !== user!.id && s.trashDots.includes(dot)).length;
+                    if (myDots === 0 && oppDots === 0) return;
+                    // Greenie/Sandie: earn from opponents; Snake: pay to opponents
+                    const sign = dot === 'snake' ? -1 : 1;
+                    const amount = sign * (myDots * trashVal * (numPlayers - 1) - oppDots * trashVal);
+                    result.push({
                         label,
-                        sublabel: sub,
-                        amount: netDots * trashVal * (oppTeamSize || 1), // Multiply by number of opponents in 2v2/group
-                    });
-                } else {
-                    const oppTeamSize = players.filter(p => p.team === oppTeam).length;
-                    const myTeamSize = players.filter(p => p.team === myTeam).length;
-                    const netDots = myDots - oppDots;
-
-                    items.push({
-                        label,
-                        sublabel: `${myDots} won, ${oppDots} lost`,
-                        amount: netDots * trashVal * (netDots > 0 ? oppTeamSize : myTeamSize) || netDots * trashVal,
+                        sublabel: dot === 'snake'
+                            ? (myDots > 0 ? `You held snake ${myDots}x 🐍` : 'Opponents held snake')
+                            : `${myDots} won, ${oppDots} lost`,
+                        amount,
                     });
                 }
+
+                if (match!.sideBets.greenies) skinsDot('greenie', 'Greenies');
+                if (match!.sideBets.sandies) skinsDot('sandie', 'Sandies');
+                if (match!.sideBets.snake) skinsDot('snake', 'Snake');
+                return result;
             }
 
-            if (match!.sideBets.greenies) trashLineItem('greenie', 'Greenies');
-            if (match!.sideBets.sandies) trashLineItem('sandie', 'Sandies');
-            if (match!.sideBets.snake) trashLineItem('snake', 'Snake');
+            // Build items based on format
+            const items: LineItem[] = [];
+
+            if (match!.format === 'skins') {
+                items.push(...skinsSettlement(), ...skinsTrashItems());
+            } else {
+                // Nassau
+                const front9Holes = holesPlayed.filter((h) => h <= 9);
+                const back9Holes = holesPlayed.filter((h) => h > 9);
+                const front9Amount = front9Holes.length >= 9 ? nassauResult(front9Holes) : 0;
+                const back9Amount = back9Holes.length >= 9 ? nassauResult(back9Holes) : 0;
+                const overallAmount = holesPlayed.length >= 18 ? nassauResult(holesPlayed) : 0;
+
+                items.push(
+                    { label: 'Front 9 (Base)', sublabel: front9Amount > 0 ? 'Won' : front9Amount < 0 ? 'Lost' : 'Pushed', amount: front9Amount },
+                    { label: 'Back 9 (Base)', sublabel: back9Amount > 0 ? 'Won' : back9Amount < 0 ? 'Lost' : 'Pushed', amount: back9Amount },
+                    { label: 'Overall (18 Holes)', sublabel: overallAmount > 0 ? 'Won' : overallAmount < 0 ? 'Lost' : 'Pushed', amount: overallAmount },
+                );
+
+                for (const press of presses) {
+                    const pressHoles = holesPlayed.filter((h) => h >= press.startHole);
+                    const pressAmount = nassauResult(pressHoles);
+                    items.push({ label: 'Press', sublabel: `Hole ${press.startHole} • Team ${press.pressedByTeam}`, amount: pressAmount, isPress: true });
+                }
+
+                // Trash / side bets
+                const trashVal = match!.sideBets.trashValue ?? 5;
+
+                function trashLineItem(dot: string, label: string) {
+                    const myDots = scores.filter(
+                        (s) => players.find((p) => p.userId === s.playerId && p.team === myTeam) && s.trashDots.includes(dot)
+                    ).length;
+                    const oppDots = scores.filter(
+                        (s) => players.find((p) => p.userId === s.playerId && p.team === oppTeam) && s.trashDots.includes(dot)
+                    ).length;
+
+                    if (myDots === 0 && oppDots === 0) return;
+
+                    if (dot === 'snake') {
+                        const oppTeamSize = players.filter(p => p.team === oppTeam).length;
+                        const netDots = oppDots - myDots;
+                        let sub = 'No snake penalty';
+                        if (myDots > oppDots) sub = 'You held the snake 🐍';
+                        else if (oppDots > myDots) sub = 'Opponent held the snake 🐍';
+                        items.push({ label, sublabel: sub, amount: netDots * trashVal * (oppTeamSize || 1) });
+                    } else {
+                        const oppTeamSize = players.filter(p => p.team === oppTeam).length;
+                        const myTeamSize = players.filter(p => p.team === myTeam).length;
+                        const netDots = myDots - oppDots;
+                        items.push({ label, sublabel: `${myDots} won, ${oppDots} lost`, amount: netDots * trashVal * (netDots > 0 ? oppTeamSize : myTeamSize) || netDots * trashVal });
+                    }
+                }
+
+                if (match!.sideBets.greenies) trashLineItem('greenie', 'Greenies');
+                if (match!.sideBets.sandies) trashLineItem('sandie', 'Sandies');
+                if (match!.sideBets.snake) trashLineItem('snake', 'Snake');
+            }
 
             // Mini tourney contests — individual gross scoring, 0 handicap
             function calcMiniTourney(parFilter: 3 | 5, potPerPlayer: number): LineItem | null {
@@ -553,7 +628,9 @@ export default function LedgerPage() {
                     <p className="mt-4 text-sm text-white font-bold opacity-80 relative z-10">
                         {isGroupMode
                             ? `${activeMatchIds.length} Matches • ${match?.wagerType}`
-                            : `${match?.format} • $${match?.wagerAmount} ${match?.wagerType}: ${settlement?.opponentName ?? '…'}`
+                            : match?.format === 'skins'
+                                ? `Skins Game • $${match.wagerAmount}/skin • ${players.length} players`
+                                : `${match?.format} • $${match?.wagerAmount} ${match?.wagerType}: ${settlement?.opponentName ?? '…'}`
                         }
                     </p>
                 </section>

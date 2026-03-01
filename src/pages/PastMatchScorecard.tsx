@@ -33,6 +33,7 @@ interface SettlementLineItem {
     sublabel: string;
     amount: number;
     isPress?: boolean;
+    isHeader?: boolean;
 }
 
 interface MatchScorecardData {
@@ -264,12 +265,61 @@ export default function PastMatchScorecardPage() {
     const highestMatchHcp = matchHcps.length > 0 ? Math.max(...matchHcps) : 0;
     const maxHcpDiffRel = highestMatchHcp - lowestMatchHcp;
 
+    // ── Skins: compute per-hole winner for dot indicator ─────────────────────
+    const isSkins = format === 'skins';
+    // skinDotsMap[hole][playerId] = number of dots to render on that cell
+    const skinDotsMap: Record<number, Record<string, number>> = {};
+    if (isSkins) {
+        let carry = 0;
+        const holeResults: { hole: number; winnerId: string | null; holesInPot: number }[] = [];
+        for (let h = 1; h <= 18; h++) {
+            const scoredPlayers = players.filter(p => p.scores[h]?.gross);
+            if (scoredPlayers.length < players.length) continue;
+            const hScores = scoredPlayers.map(p => ({ playerId: p.id, net: p.scores[h].net }));
+            const minNet = Math.min(...hScores.map(s => s.net));
+            const winners = hScores.filter(s => s.net === minNet);
+            const holesInPot = 1 + carry;
+            if (winners.length === 1) {
+                holeResults.push({ hole: h, winnerId: winners[0].playerId, holesInPot });
+                carry = 0;
+            } else {
+                holeResults.push({ hole: h, winnerId: null, holesInPot });
+                carry += 1;
+            }
+        }
+        // 1 dot per hole in the carry run for the eventual winner
+        for (const result of holeResults) {
+            if (!result.winnerId) continue;
+            for (let h = result.hole - result.holesInPot + 1; h <= result.hole; h++) {
+                if (!skinDotsMap[h]) skinDotsMap[h] = {};
+                skinDotsMap[h][result.winnerId] = (skinDotsMap[h][result.winnerId] ?? 0) + 1;
+            }
+        }
+        // Bonus skins: birdie/eagle/pin add extra dots on that specific hole
+        if (sideBets?.bonusSkins) {
+            for (const p of players) {
+                for (const [hStr, score] of Object.entries(p.scores)) {
+                    const h = Number(hStr);
+                    const par = holes.find(hole => hole.number === h)?.par ?? 4;
+                    const pinBonus = score.dots?.includes('pin') ? 1 : 0;
+                    const birdieBonus = score.gross === par - 1 ? 1 : 0;
+                    const eagleBonus = score.gross <= par - 2 ? 2 : 0;
+                    const bonusCount = pinBonus + birdieBonus + eagleBonus;
+                    if (bonusCount === 0) continue;
+                    if (!skinDotsMap[h]) skinDotsMap[h] = {};
+                    skinDotsMap[h][p.id] = (skinDotsMap[h][p.id] ?? 0) + bonusCount;
+                }
+            }
+        }
+    }
+
     // ── Settlement Calculation ────────────────────────────────────────────────
     let settlementItems: SettlementLineItem[] | null = null;
     let settlementTotal = 0;
     let oppName = 'Opponent';
+    let skinsPlayerSummary: { id: string; name: string; avatarUrl?: string; net: number; skins: number }[] | null = null;
 
-    if (myTeam && data.wagerType === 'NASSAU') {
+    if (myTeam && data.wagerType === 'NASSAU' && !isSkins) {
         const oppTeam: 'A' | 'B' = myTeam === 'A' ? 'B' : 'A';
         const myTeamPlayers = players.filter(p => p.team === myTeam);
         const oppTeamPlayers = players.filter(p => p.team === oppTeam);
@@ -457,6 +507,100 @@ export default function PastMatchScorecardPage() {
 
         settlementItems = items;
         settlementTotal = items.reduce((sum, i) => sum + i.amount, 0);
+    } else if (isSkins) {
+        const numPlayers = players.length;
+        const skinValue = wagerAmount;
+        const earned: Record<string, number> = {};
+        const skinsWon: Record<string, number> = {};
+        const holeItems: SettlementLineItem[] = [];
+        let carry = 0;
+        const myId = user?.id ?? '';
+
+        for (let h = 1; h <= 18; h++) {
+            const hScores = players
+                .filter(p => p.scores[h]?.gross)
+                .map(p => ({ playerId: p.id, net: p.scores[h].net, gross: p.scores[h].gross, dots: p.scores[h].dots }));
+            if (hScores.length < numPlayers) continue;
+
+            // Bonus skins for this hole
+            const par = sideBets?.bonusSkins ? (holes.find(hole => hole.number === h)?.par ?? 4) : 4;
+            let userBonusAmount = 0;
+            const bonusNotes: string[] = [];
+            if (sideBets?.bonusSkins) {
+                for (const s of hScores) {
+                    const pinBonus = s.dots?.includes('pin') ? 1 : 0;
+                    const birdieBonus = s.gross === par - 1 ? 1 : 0;
+                    const eagleBonus = s.gross <= par - 2 ? 2 : 0;
+                    const bonusCount = pinBonus + birdieBonus + eagleBonus;
+                    if (bonusCount === 0) continue;
+                    const isMe = s.playerId === myId;
+                    userBonusAmount += isMe ? bonusCount * skinValue * (numPlayers - 1) : -bonusCount * skinValue;
+                    earned[s.playerId] = (earned[s.playerId] ?? 0) + (isMe ? bonusCount * skinValue * (numPlayers - 1) : -bonusCount * skinValue);
+                    skinsWon[s.playerId] = (skinsWon[s.playerId] ?? 0) + bonusCount;
+                    const pName = isMe ? 'You' : (players.find(p => p.id === s.playerId)?.fullName.split(' ')[0] ?? 'Player');
+                    const bl = [pinBonus > 0 ? 'Pin' : '', birdieBonus > 0 ? 'Birdie' : '', eagleBonus > 0 ? 'Eagle' : ''].filter(Boolean).join('+');
+                    bonusNotes.push(`${pName}: ${bl}`);
+                }
+            }
+
+            const holesInPot = 1 + carry;
+            const pot = holesInPot * skinValue;
+            const minNet = Math.min(...hScores.map(s => s.net));
+            const winners = hScores.filter(s => s.net === minNet);
+
+            if (winners.length === 1) {
+                const wId = winners[0].playerId;
+                const isUserWinner = wId === myId;
+                const baseAmount = isUserWinner ? pot * (numPlayers - 1) : -pot;
+                earned[wId] = (earned[wId] ?? 0) + pot * (numPlayers - 1);
+                hScores.filter(s => s.playerId !== wId).forEach(s => {
+                    earned[s.playerId] = (earned[s.playerId] ?? 0) - pot;
+                });
+                skinsWon[wId] = (skinsWon[wId] ?? 0) + holesInPot;
+                const winnerName = players.find(p => p.id === wId)?.fullName.split(' ')[0] ?? 'Player';
+                const rangeLabel = holesInPot > 1 ? `Holes ${h - holesInPot + 1}–${h}` : `Hole ${h}`;
+                const baseSublabel = isUserWinner ? `You win — $${pot} from each` : `${winnerName} wins — you pay $${pot}`;
+                const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
+                holeItems.push({ label: rangeLabel, sublabel, amount: baseAmount + userBonusAmount });
+                carry = 0;
+            } else {
+                const baseSublabel = 'Tied — skin carries';
+                const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
+                holeItems.push({ label: `Hole ${h}`, sublabel, amount: userBonusAmount });
+                carry += 1;
+            }
+        }
+
+        if (carry > 0) {
+            holeItems.push({ label: 'Final Carry', sublabel: `${carry} skin${carry > 1 ? 's' : ''} uncontested — returned`, amount: 0 });
+        }
+
+        const sortedPlayers = [...players].sort((a, b) => (earned[b.id] ?? 0) - (earned[a.id] ?? 0));
+        const playerItems: SettlementLineItem[] = sortedPlayers.map(p => {
+            const net = earned[p.id] ?? 0;
+            const skins = skinsWon[p.id] ?? 0;
+            const isMe = p.id === myId;
+            return {
+                label: isMe ? 'You' : p.fullName.split(' ')[0],
+                sublabel: `${skins} skin${skins !== 1 ? 's' : ''} won`,
+                amount: net,
+            };
+        });
+
+        settlementItems = [
+            ...holeItems,
+            { label: 'Player Results', sublabel: '', amount: 0, isHeader: true },
+            ...playerItems,
+        ];
+        settlementTotal = earned[myId] ?? 0;
+        oppName = players.filter(p => p.id !== myId).map(p => p.fullName.split(' ')[0]).join(', ');
+        skinsPlayerSummary = sortedPlayers.map(p => ({
+            id: p.id,
+            name: p.fullName.split(' ')[0],
+            avatarUrl: p.avatarUrl,
+            net: earned[p.id] ?? 0,
+            skins: skinsWon[p.id] ?? 0,
+        }));
     }
 
     return (
@@ -473,11 +617,37 @@ export default function PastMatchScorecardPage() {
                 </div>
                 <div className="px-4 pb-3 flex items-center justify-between text-[11px] font-bold text-secondaryText uppercase tracking-wider">
                     <span>{new Date(data.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    <span>${data.wagerAmount} {data.wagerType === 'NASSAU' ? 'Nassau' : 'Per Hole'}</span>
+                    <span>${data.wagerAmount} {format === 'skins' ? 'Skins' : data.wagerType === 'NASSAU' ? 'Nassau' : 'Per Hole'}</span>
                 </div>
             </header>
 
             <div className="flex-1 w-full flex flex-col pt-4">
+                {/* Skins Standings Hero */}
+                {isSkins && skinsPlayerSummary && (
+                    <div className="px-4 mb-4">
+                        <div className="bg-surface rounded-xl border border-borderColor overflow-hidden">
+                            {skinsPlayerSummary.map((p, idx) => {
+                                const isLeading = idx === 0 && p.net > 0;
+                                return (
+                                    <div key={p.id} className="flex items-center gap-3 px-4 py-3 border-b border-borderColor/50 last:border-b-0">
+                                        <span className="text-[10px] font-black text-secondaryText/50 w-4 text-right">{idx + 1}</span>
+                                        <div className="w-7 h-7 rounded-full bg-surface border border-borderColor flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
+                                            {p.avatarUrl ? <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" /> : p.name.slice(0, 1).toUpperCase()}
+                                        </div>
+                                        <span className="font-bold text-sm text-white flex-1">{p.name}</span>
+                                        <span className="text-[10px] font-black text-secondaryText/60 uppercase tracking-wide mr-2">
+                                            {p.skins} {p.skins === 1 ? 'skin' : 'skins'}
+                                        </span>
+                                        <span className={`font-black text-base leading-none ${isLeading ? 'text-neonGreen drop-shadow-[0_0_10px_rgba(0,255,102,0.4)]' : p.net < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                            {p.net === 0 ? 'E' : p.net > 0 ? `+$${p.net}` : `-$${Math.abs(p.net)}`}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 <div className="px-4 mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-widest text-secondaryText">
                     <div className="flex items-center gap-2">
                         <Flag className="w-4 h-4 text-bloodRed" />
@@ -658,6 +828,13 @@ export default function PastMatchScorecardPage() {
                                                 <div key={i} className={`${baseClass} min-w-[52px] text-xs font-black relative`}>
                                                     <div className="relative flex items-center justify-center w-8 h-8">
                                                         {shape}
+                                                        {isSkins && (skinDotsMap[h.val as number]?.[p.id] ?? 0) > 0 && (
+                                                            <div className="absolute -top-0.5 -left-0.5 flex gap-px">
+                                                                {Array.from({ length: skinDotsMap[h.val as number][p.id] }).map((_, i) => (
+                                                                    <div key={i} className="w-2 h-2 rounded-full bg-bloodRed shadow-[0_0_4px_rgba(255,0,63,0.9)]" />
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                         {trash.includes('greenie') && (
                                                             <Target className="absolute -top-0.5 -right-0.5 w-[9px] h-[9px] text-neonGreen drop-shadow-[0_0_3px_rgba(0,255,102,0.6)]" />
                                                         )}
@@ -716,6 +893,12 @@ export default function PastMatchScorecardPage() {
 
                             {/* Trophies Logic */}
                             <div className="flex flex-wrap gap-x-6 gap-y-3 pt-3 border-t border-white/5">
+                                {isSkins && (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-bloodRed shadow-[0_0_4px_rgba(255,0,63,0.9)]" />
+                                        <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Skin Won</span>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-2">
                                     <Target className="w-3.5 h-3.5 text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.4)]" />
                                     <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Greenie</span>
@@ -744,6 +927,11 @@ export default function PastMatchScorecardPage() {
                         </div>
                         <div className="bg-surface rounded-xl border border-borderColor overflow-hidden">
                             {settlementItems.map((item, i) => (
+                                item.isHeader ? (
+                                    <div key={i} className="px-4 py-2 bg-black/30 border-b border-borderColor/50">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-secondaryText">{item.label}</span>
+                                    </div>
+                                ) : (
                                 <div
                                     key={i}
                                     className={`px-4 py-3 flex items-center justify-between border-b border-borderColor/50 last:border-b-0 ${item.isPress ? 'bg-bloodRed/5 border-l-2 border-l-bloodRed' : ''}`}
@@ -756,6 +944,7 @@ export default function PastMatchScorecardPage() {
                                         {item.amount > 0 ? '+' : ''}${item.amount}
                                     </span>
                                 </div>
+                                )
                             ))}
 
                             {/* Total row */}
@@ -769,8 +958,8 @@ export default function PastMatchScorecardPage() {
                     </div>
                 )}
 
-                {/* No settlement message for non-Nassau or guest viewers */}
-                {!myTeam && data.wagerType === 'NASSAU' && (
+                {/* No settlement message for guest viewers */}
+                {!myTeam && (data.wagerType === 'NASSAU' || format === 'skins') && (
                     <div className="px-4 mt-4 mb-4">
                         <div className="bg-surface rounded-xl border border-borderColor p-4 text-center text-secondaryText text-sm">
                             Sign in to see your settlement breakdown.

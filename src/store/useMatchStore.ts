@@ -84,12 +84,12 @@ interface MatchStoreState {
   _channel: any | null; // Keep a ref to the real-time channel
 
   // Persisted setup state (survives navigate-away to AddPlayer and back)
-  pendingFormat: '1v1' | '2v2';
+  pendingFormat: '1v1' | '2v2' | 'skins';
   currentStep: number;
   lastScoreUpdate: { playerId: string; holeNumber: number; timestamp: number } | null;
 
   // Actions
-  setPendingFormat: (fmt: '1v1' | '2v2') => void;
+  setPendingFormat: (fmt: '1v1' | '2v2' | 'skins') => void;
   setCurrentStep: (step: number) => void;
 
   // Staged before match is created — set by AddPlayer, flushed in createMatch (2v2)
@@ -119,6 +119,12 @@ interface MatchStoreState {
   setSlotWager: (slotId: string, wager: number) => void;
   createMatchGroup: (
     sharedData: { courseId: string; wagerType: 'NASSAU'; status: 'in_progress'; sideBets: Match['sideBets']; createdBy: string },
+    course: Course,
+    createdBy: string,
+    creatorHcp: number
+  ) => Promise<void>;
+  createSkinsMatch: (
+    sharedData: { courseId: string; wagerAmount: number; status: 'in_progress'; sideBets: Match['sideBets']; createdBy: string },
     course: Course,
     createdBy: string,
     creatorHcp: number
@@ -178,9 +184,9 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     pendingFormat: fmt,
     currentStep: 2, // Auto-advance to Players step after format selection
     // Clear opposing-mode staging when switching formats
-    ...(fmt === '1v1'
-      ? { stagedPlayers: [] }
-      : { poolPlayers: [], matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }] }
+    ...(fmt === '2v2'
+      ? { poolPlayers: [], matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }] }
+      : { stagedPlayers: [] }
     ),
   }),
 
@@ -407,6 +413,92 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     });
 
     get().subscribeToMatch(primary.matchId);
+  },
+
+  // ── Create a single skins match with 2-4 individual players ─
+  async createSkinsMatch(sharedData, course, createdBy, creatorHcp) {
+    const { poolPlayers } = get();
+    if (poolPlayers.length < 1) throw new Error('Add at least one other player');
+
+    set({ loading: true, error: null });
+
+    await supabase.from('courses').upsert({
+      id: course.id,
+      name: course.name,
+      holes: course.holes,
+    });
+
+    const { data, error } = await supabase
+      .from('matches')
+      .insert({
+        join_code: genJoinCode(),
+        course_id: course.id,
+        format: 'skins',
+        wager_amount: sharedData.wagerAmount,
+        wager_type: 'NASSAU', // sentinel; skins logic is driven by format
+        status: 'in_progress',
+        side_bets: sharedData.sideBets,
+        created_by: createdBy,
+        group_id: null,
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      set({ loading: false, error: error?.message ?? 'Failed to create skins match' });
+      throw new Error(error?.message ?? 'Failed to create skins match');
+    }
+
+    const match = dbToMatch(data as Record<string, unknown>);
+    localStorage.setItem('activeMatchId', match.id);
+
+    // Creator — team 'A' (all skins players share team 'A' to satisfy DB constraint)
+    await supabase.from('match_players').insert({
+      match_id: match.id,
+      user_id: createdBy,
+      team: 'A',
+      initial_handicap: creatorHcp,
+    });
+
+    const allPlayers: MatchPlayer[] = [{
+      userId: createdBy,
+      team: 'A',
+      initialHandicap: creatorHcp,
+    }];
+
+    // Remaining players from pool
+    for (const p of poolPlayers) {
+      await supabase.from('match_players').insert({
+        match_id: match.id,
+        user_id: p.userId,
+        team: 'A',
+        initial_handicap: p.handicap,
+        guest_name: p.isGuest ? p.fullName : null,
+        avatar_url: p.avatarUrl ?? null,
+      });
+      allPlayers.push({
+        userId: p.userId,
+        team: 'A',
+        initialHandicap: p.handicap,
+        ...(p.isGuest ? { guestName: p.fullName } : {}),
+        ...(p.avatarUrl ? { avatarUrl: p.avatarUrl } : {}),
+      });
+    }
+
+    set({
+      matchId: match.id,
+      match,
+      course,
+      players: allPlayers,
+      scores: [],
+      presses: [],
+      activeMatchIds: [match.id],
+      groupState: null,
+      poolPlayers: [],
+      loading: false,
+    });
+
+    get().subscribeToMatch(match.id);
   },
 
   // ── Refresh scores + presses for all matches in the group ───

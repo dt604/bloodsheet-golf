@@ -16,6 +16,11 @@ import PlayerProfilePage from './pages/PlayerProfile';
 import ResetPasswordPage from './pages/ResetPassword';
 import AuthCallbackPage from './pages/AuthCallback';
 import OnboardingPage from './pages/Onboarding';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/Dashboard';
+import UserManagement from './pages/admin/UserManagement';
+import MatchManagement from './pages/admin/MatchManagement';
+import CourseManagement from './pages/admin/CourseManagement';
 
 // Full auth required — guests are redirected to welcome
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -51,6 +56,14 @@ function AppRoutes() {
       <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
       <Route path="/history/:matchId" element={<ProtectedRoute><PastMatchScorecardPage /></ProtectedRoute>} />
       <Route path="/player/:userId" element={<ProtectedRoute><PlayerProfilePage /></ProtectedRoute>} />
+
+      {/* Admin Routes */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="users" element={<UserManagement />} />
+        <Route path="matches" element={<MatchManagement />} />
+        <Route path="courses" element={<CourseManagement />} />
+      </Route>
     </Routes>
   );
 }

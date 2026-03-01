@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Pencil, Check } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
@@ -439,7 +439,23 @@ export default function LiveScorecardPage() {
         teamHandicapDiff = { diff, spottedTeam };
     }
 
-    const holesUp = calcHolesUp(teamAIds, teamBIds, scoresWithAdjusted, match.format ?? '1v1', course, match.sideBets?.birdiesDouble, match.sideBets, teamHandicapDiff);
+    const holesUp = match.format === 'skins' ? 0 : calcHolesUp(teamAIds, teamBIds, scoresWithAdjusted, match.format as '1v1' | '2v2', course, match.sideBets?.birdiesDouble, match.sideBets, teamHandicapDiff);
+
+    // ── Skins: current accumulated pot value ──────────────────
+    const currentSkinPot = useMemo(() => {
+        if (match?.format !== 'skins') return 0;
+        const skinValue = match.wagerAmount;
+        let carry = 0;
+        for (let h = 1; h < currentHole; h++) {
+            const hScores = scores.filter(s => s.holeNumber === h);
+            if (hScores.length < players.length) break;
+            const minNet = Math.min(...hScores.map(s => s.net));
+            const winners = hScores.filter(s => s.net === minNet);
+            if (winners.length === 1) carry = 0;
+            else carry += 1;
+        }
+        return (1 + carry) * skinValue;
+    }, [match, scores, players, currentHole]);
 
     // ── Group mode: per-match holes-up calculation ────────────
     function calcGroupMatchHolesUp(entry: typeof groupState extends null ? never : NonNullable<typeof groupState>['matches'][0]): number {
@@ -572,6 +588,14 @@ export default function LiveScorecardPage() {
                     </div>
                 </div>
 
+                {/* Skin Pot Chip — shown in skins mode when a carryover is active */}
+                {match.format === 'skins' && currentSkinPot > match.wagerAmount && (
+                    <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Carried Skin Pot</span>
+                        <span className="text-sm font-black text-white">${currentSkinPot}</span>
+                    </div>
+                )}
+
                 {/* Match Ticker Strip — shown only in multi-match mode */}
                 {isGroupMode && groupState && (
                     <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
@@ -647,7 +671,7 @@ export default function LiveScorecardPage() {
                                             <div>
                                                 <span className="font-bold block text-sm">{displayName}{isMe ? ' (You)' : ''}</span>
                                                 <span className={`text-[10px] uppercase tracking-widest font-bold ${player.team === 'B' ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                    Team {player.team} • HCP {(playerProfiles[player.userId]?.handicap ?? player.initialHandicap).toFixed(1)}
+                                                    {match.format !== 'skins' && `Team ${player.team} • `}HCP {(playerProfiles[player.userId]?.handicap ?? player.initialHandicap).toFixed(1)}
                                                 </span>
                                             </div>
                                         </div>
@@ -711,9 +735,18 @@ export default function LiveScorecardPage() {
                                     </div>
 
                                     {/* Trash selectors — available for all players */}
-                                    {match.sideBets && (match.sideBets.greenies || match.sideBets.sandies || match.sideBets.snake) && (
+                                    {match.sideBets && ((match.sideBets.greenies && holeData.par === 3) || match.sideBets.sandies || match.sideBets.snake || (match.sideBets.bonusSkins && match.format === 'skins' && holeData.par === 3)) && (
                                         <div className="mt-4 pt-4 border-t border-borderColor/50 flex gap-2">
-                                            {match.sideBets.greenies && (
+                                            {match.sideBets.bonusSkins && match.format === 'skins' && holeData.par === 3 && (
+                                                <button
+                                                    onClick={() => isScorekeeper && toggleTrash(player.userId, 'pin')}
+                                                    disabled={!isScorekeeper}
+                                                    className={`flex-1 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors ${trash.includes('pin') ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' : 'bg-surfaceHover text-secondaryText border border-transparent'} ${!isScorekeeper ? 'opacity-70 cursor-default' : ''}`}
+                                                >
+                                                    <Target className="w-3.5 h-3.5" /> Pin
+                                                </button>
+                                            )}
+                                            {match.sideBets.greenies && holeData.par === 3 && (
                                                 <button
                                                     onClick={() => isScorekeeper && toggleTrash(player.userId, 'greenie')}
                                                     disabled={!isScorekeeper}
@@ -743,8 +776,8 @@ export default function LiveScorecardPage() {
                                         </div>
                                     )}
 
-                                    {/* Press button — only show on the DOWN team's card */}
-                                    {isScorekeeper && downTeam !== null && player.team === downTeam && (
+                                    {/* Press button — only show on the DOWN team's card (not for skins) */}
+                                    {match.format !== 'skins' && isScorekeeper && downTeam !== null && player.team === downTeam && (
                                         <div className="mt-4 pt-4 border-t border-borderColor/50 flex justify-between items-center px-1">
                                             <span className="text-xs text-secondaryText uppercase tracking-wider font-semibold">Team {player.team}</span>
                                             <button

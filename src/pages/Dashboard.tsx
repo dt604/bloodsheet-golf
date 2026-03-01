@@ -312,10 +312,35 @@ export default function DashboardPage() {
                         const { my, opp } = holePoints(h);
                         totalMyPts += my; totalOppPts += opp;
                     }
-                    payoutMap[matchId] = { payout: matchPayout, holesUp: totalMyPts - totalOppPts };
-
-                    lifetimePayout += matchPayout;
-                    if (matchPayout > 0) wins++;
+                    if (format === 'skins') {
+                        // Skins payout: lowest net wins the hole (+ carry)
+                        const numPlayers = matchPlayers.length;
+                        let carry = 0;
+                        let skinsPayout = 0;
+                        for (let h = 1; h <= 18; h++) {
+                            const hScores = matchScores
+                                .filter(s => (s as any).hole_number === h)
+                                .map(s => ({ playerId: (s as any).player_id as string, net: (s as any).net as number }));
+                            if (hScores.length < numPlayers) continue;
+                            const holesInPot = 1 + carry;
+                            const pot = holesInPot * wagerAmount;
+                            const minNet = Math.min(...hScores.map(s => s.net));
+                            const winners = hScores.filter(s => s.net === minNet);
+                            if (winners.length === 1) {
+                                skinsPayout += winners[0].playerId === userId ? pot * (numPlayers - 1) : -pot;
+                                carry = 0;
+                            } else {
+                                carry += 1;
+                            }
+                        }
+                        payoutMap[matchId] = { payout: skinsPayout, holesUp: 0 };
+                        lifetimePayout += skinsPayout;
+                        if (skinsPayout > 0) wins++;
+                    } else {
+                        payoutMap[matchId] = { payout: matchPayout, holesUp: totalMyPts - totalOppPts };
+                        lifetimePayout += matchPayout;
+                        if (matchPayout > 0) wins++;
+                    }
 
                     // Snake avoided: snake was enabled and user's team never picked up a snake dot
                     if (sideBets?.snake) {
@@ -468,7 +493,7 @@ export default function DashboardPage() {
                                             {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
                                         </div>
                                         <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                            {item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
+                                            {item.format === 'skins' ? 'SKINS' : item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
                                         </div>
                                     </div>
                                 </div>

@@ -1,4 +1,4 @@
-export type MatchFormat = '1v1' | '2v2';
+export type MatchFormat = '1v1' | '2v2' | 'skins';
 export type WagerType = 'PER_HOLE' | 'NASSAU';
 
 export interface User {
@@ -95,6 +95,7 @@ export interface Match {
     par3Pot?: number;
     par5Contest?: boolean;
     par5Pot?: number;
+    bonusSkins?: boolean;
   };
   createdBy: string;
 }

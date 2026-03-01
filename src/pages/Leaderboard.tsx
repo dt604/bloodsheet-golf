@@ -116,6 +116,65 @@ function calcMatchPlay(
     };
 }
 
+function calcSkinsStandings(
+    players: { userId: string }[],
+    scores: { holeNumber: number; playerId: string; net: number; gross?: number; trashDots?: string[] }[],
+    skinValue: number,
+    sideBets?: { bonusSkins?: boolean },
+    course?: any
+) {
+    const numPlayers = players.length;
+    let carry = 0;
+    const earned: Record<string, number> = {};
+    const skinsWon: Record<string, number> = {};
+    const holeResults: { hole: number; winnerId: string | null; holesInPot: number; pot: number }[] = [];
+
+    for (let h = 1; h <= 18; h++) {
+        const hScores = scores.filter(s => s.holeNumber === h);
+        if (hScores.length < numPlayers) continue;
+        const holesInPot = 1 + carry;
+        const potPerPlayer = holesInPot * skinValue;
+        const minNet = Math.min(...hScores.map(s => s.net));
+        const winners = hScores.filter(s => s.net === minNet);
+        if (winners.length === 1) {
+            const wId = winners[0].playerId;
+            earned[wId] = (earned[wId] ?? 0) + potPerPlayer * (numPlayers - 1);
+            hScores.filter(s => s.playerId !== wId).forEach(s => {
+                earned[s.playerId] = (earned[s.playerId] ?? 0) - potPerPlayer;
+            });
+            skinsWon[wId] = (skinsWon[wId] ?? 0) + holesInPot;
+            holeResults.push({ hole: h, winnerId: wId, holesInPot, pot: potPerPlayer * numPlayers });
+            carry = 0;
+        } else {
+            holeResults.push({ hole: h, winnerId: null, holesInPot, pot: potPerPlayer * numPlayers });
+            carry += 1;
+        }
+    }
+
+    // Bonus skins: birdie (+1), eagle (+2), pin (+1)
+    if (sideBets?.bonusSkins) {
+        for (let h = 1; h <= 18; h++) {
+            const hScores = scores.filter(s => s.holeNumber === h);
+            if (hScores.length < numPlayers) continue;
+            const par = course?.holes?.find((hole: any) => hole.number === h)?.par ?? 4;
+            for (const s of hScores) {
+                const pinBonus = s.trashDots?.includes('pin') ? 1 : 0;
+                const birdieBonus = s.gross === par - 1 ? 1 : 0;
+                const eagleBonus = s.gross !== undefined && s.gross <= par - 2 ? 2 : 0;
+                const bonusCount = pinBonus + birdieBonus + eagleBonus;
+                if (bonusCount === 0) continue;
+                earned[s.playerId] = (earned[s.playerId] ?? 0) + bonusCount * skinValue * (numPlayers - 1);
+                hScores.filter(x => x.playerId !== s.playerId).forEach(x => {
+                    earned[x.playerId] = (earned[x.playerId] ?? 0) - bonusCount * skinValue;
+                });
+                skinsWon[s.playerId] = (skinsWon[s.playerId] ?? 0) + bonusCount;
+            }
+        }
+    }
+
+    return { earned, skinsWon, holeResults, currentCarry: carry, currentPot: (1 + carry) * skinValue };
+}
+
 function matchLabel(holesUp: number, holesPlayed: number = 0): string {
     if (holesPlayed === 0) return 'AS';
     const holesRemaining = 18 - holesPlayed;
@@ -307,13 +366,18 @@ export default function LeaderboardPage() {
             };
         });
 
-        rows.sort((a, b) => a.team.localeCompare(b.team));
+        if (isSkins && skinsStandings) {
+            rows.sort((a, b) => (skinsStandings.earned[b.userId] ?? 0) - (skinsStandings.earned[a.userId] ?? 0));
+        } else {
+            rows.sort((a, b) => a.team.localeCompare(b.team));
+        }
         setPlayerRows(rows);
     }, [currentPlayers, currentScores, playerProfiles, course]);
 
     const teamAIds = currentPlayers.filter((p) => p.team === 'A').map((p) => p.userId);
     const teamBIds = currentPlayers.filter((p) => p.team === 'B').map((p) => p.userId);
     const format = currentMatch?.format ?? '1v1';
+    const isSkins = format === 'skins';
 
     const matchHcps = currentPlayers.map(p => Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap));
     const lowestMatchHcp = matchHcps.length > 0 ? Math.min(...matchHcps) : 0;
@@ -342,9 +406,35 @@ export default function LeaderboardPage() {
         teamHandicapDiff = { diff, spottedTeam };
     }
 
-    const matchPlaySplits = calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format, course, currentMatch?.sideBets?.birdiesDouble, currentMatch?.sideBets, teamHandicapDiff);
-    const { holesUp, holesPlayed } = matchPlaySplits.overall;
+    const matchPlaySplits = isSkins ? null : calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format as '1v1' | '2v2', course, currentMatch?.sideBets?.birdiesDouble, currentMatch?.sideBets, teamHandicapDiff);
+    const { holesUp, holesPlayed } = matchPlaySplits?.overall ?? { holesUp: 0, holesPlayed: 0 };
+    const skinsStandings = isSkins && currentMatch ? calcSkinsStandings(currentPlayers, currentScores.map(s => ({ ...s, net: scoresWithAdjusted.find(x => x.playerId === s.playerId && x.holeNumber === s.holeNumber)?.adjustedNet ?? s.net })), currentMatch.wagerAmount, currentMatch.sideBets, course) : null;
 
+    // skinDotsMap[hole][playerId] = number of dots to render on that cell
+    const skinDotsMap: Record<number, Record<string, number>> = {};
+    if (skinsStandings) {
+        // 1 dot per hole in the carry run for the eventual winner
+        for (const result of skinsStandings.holeResults) {
+            if (!result.winnerId) continue;
+            for (let h = result.hole - result.holesInPot + 1; h <= result.hole; h++) {
+                if (!skinDotsMap[h]) skinDotsMap[h] = {};
+                skinDotsMap[h][result.winnerId] = (skinDotsMap[h][result.winnerId] ?? 0) + 1;
+            }
+        }
+        // Bonus skins: birdie/eagle/pin add extra dots on that specific hole
+        if (currentMatch?.sideBets?.bonusSkins) {
+            for (const s of currentScores) {
+                const par = course?.holes?.find((h: any) => h.number === s.holeNumber)?.par ?? 4;
+                const pinBonus = s.trashDots?.includes('pin') ? 1 : 0;
+                const birdieBonus = s.gross === par - 1 ? 1 : 0;
+                const eagleBonus = s.gross !== undefined && s.gross <= par - 2 ? 2 : 0;
+                const bonusCount = pinBonus + birdieBonus + eagleBonus;
+                if (bonusCount === 0) continue;
+                if (!skinDotsMap[s.holeNumber]) skinDotsMap[s.holeNumber] = {};
+                skinDotsMap[s.holeNumber][s.playerId] = (skinDotsMap[s.holeNumber][s.playerId] ?? 0) + bonusCount;
+            }
+        }
+    }
 
     const heroLabel = matchLabel(holesUp, holesPlayed);
     const heroLeader = holesUp > 0 ? 'A' : holesUp < 0 ? 'B' : null;
@@ -354,29 +444,52 @@ export default function LeaderboardPage() {
     // Activity feed aggregated from all matches in group
     const activityEvents: ActivityEvent[] = [];
 
-    // 1. Scan for Presses (Match-specific)
-    const entriesToScan = isGroupMode && groupState ? groupState.matches : [{
-        matchId: primaryMatchId!,
-        match: primaryMatch!,
-        players: primaryPlayers,
-        scores: primaryScores,
-        presses: primaryPresses
-    }];
+    // 1. Scan for Presses (Match-specific, Nassau only)
+    if (!isSkins) {
+        const entriesToScan = isGroupMode && groupState ? groupState.matches : [{
+            matchId: primaryMatchId!,
+            match: primaryMatch!,
+            players: primaryPlayers,
+            scores: primaryScores,
+            presses: primaryPresses
+        }];
 
-    for (const entry of entriesToScan) {
-        if (!entry.match) continue;
-        const opponent = entry.players.find(p => p.team === 'B');
-        const oppName = opponent?.guestName ?? playerProfiles[opponent?.userId ?? '']?.fullName.split(' ')[0] ?? 'Opp';
+        for (const entry of entriesToScan) {
+            if (!entry.match) continue;
+            const opponent = entry.players.find(p => p.team === 'B');
+            const oppName = opponent?.guestName ?? playerProfiles[opponent?.userId ?? '']?.fullName.split(' ')[0] ?? 'Opp';
 
-        for (const press of entry.presses) {
+            for (const press of entry.presses) {
+                activityEvents.push({
+                    id: `press-${press.id}`,
+                    message: (
+                        <>
+                            <strong className="text-white">Team {press.pressedByTeam}</strong> pressed <strong className="text-bloodRed">{oppName}</strong> on Hole {press.startHole}.
+                        </>
+                    ),
+                    color: 'bg-bloodRed/80',
+                });
+            }
+        }
+    }
+
+    // 1b. Skin win events (skins only)
+    if (isSkins && skinsStandings) {
+        for (const result of skinsStandings.holeResults) {
+            if (!result.winnerId) continue;
+            const player = currentPlayers.find(p => p.userId === result.winnerId);
+            const pName = player?.guestName ?? playerProfiles[result.winnerId]?.fullName.split(' ')[0] ?? 'Player';
+            const rangeLabel = result.holesInPot > 1
+                ? `Holes ${result.hole - result.holesInPot + 1}–${result.hole}`
+                : `Hole ${result.hole}`;
             activityEvents.push({
-                id: `press-${press.id}`, // DB ID is already global
+                id: `skin-${result.hole}`,
                 message: (
                     <>
-                        <strong className="text-white">Team {press.pressedByTeam}</strong> pressed <strong className="text-bloodRed">{oppName}</strong> on Hole {press.startHole}.
+                        <strong className="text-white">{pName}</strong> won <strong className="text-neonGreen">{rangeLabel}</strong> — ${result.pot}
                     </>
                 ),
-                color: 'bg-bloodRed/80',
+                color: 'bg-neonGreen/80',
             });
         }
     }
@@ -425,9 +538,9 @@ export default function LeaderboardPage() {
     const backNine = sortedHoles.slice(9, 18);
     const headers: { type: 'hole' | 'divider' | 'header'; val: number | string; splitData?: { holesUp: number; holesPlayed: number } }[] = [
         ...frontNine.map(h => ({ type: 'hole' as const, val: h.number })),
-        { type: 'divider' as const, val: 'OUT', splitData: matchPlaySplits.front9 },
+        { type: 'divider' as const, val: 'OUT', splitData: isSkins ? undefined : matchPlaySplits?.front9 },
         ...backNine.map(h => ({ type: 'hole' as const, val: h.number })),
-        { type: 'divider' as const, val: 'IN', splitData: matchPlaySplits.back9 },
+        { type: 'divider' as const, val: 'IN', splitData: isSkins ? undefined : matchPlaySplits?.back9 },
         { type: 'header' as const, val: 'GROSS' },
         { type: 'header' as const, val: 'NET' }
     ];
@@ -493,9 +606,19 @@ export default function LeaderboardPage() {
             shape = <span className="font-black text-white text-xs">{val}</span>;
         }
 
+        const skinDotCount = isSkins ? (skinDotsMap[hNum]?.[pId] ?? 0) : 0;
+
         return (
             <div className="relative flex items-center justify-center w-8 h-8">
                 {shape}
+                {/* Skin winner dots — one per skin won (carry + bonus) */}
+                {skinDotCount > 0 && (
+                    <div className="absolute -top-0.5 -left-0.5 flex gap-px">
+                        {Array.from({ length: skinDotCount }).map((_, i) => (
+                            <div key={i} className="w-2 h-2 rounded-full bg-bloodRed shadow-[0_0_4px_rgba(255,0,63,0.9)]" />
+                        ))}
+                    </div>
+                )}
                 {/* Side Bet Trophies */}
                 {trash.includes('greenie') && (
                     <Target className="absolute -top-0.5 -right-0.5 w-[9px] h-[9px] text-neonGreen drop-shadow-[0_0_3px_rgba(0,255,102,0.6)]" />
@@ -617,38 +740,74 @@ export default function LeaderboardPage() {
                         </span>
                         {isGroupMode && <span className="text-[10px] bg-bloodRed/20 text-bloodRed px-2 py-0.5 rounded-full font-black">MATCH {focusedMatchIdx + 1}</span>}
                     </div>
-                    <Card className="flex items-center justify-between p-5 py-8 border border-borderColor shadow-lg relative overflow-hidden bg-gradient-to-br from-surface to-background">
-                        {/* Team A */}
-                        <div className={`text-center z-10 transition-opacity ${heroLeader === 'B' ? 'opacity-40' : ''}`}>
-                            <span className="text-sm font-bold uppercase tracking-widest text-white">Team A</span>
-                            <span className="block text-xs text-secondaryText mt-1">
-                                {playerRows.filter((r) => r.team === 'A').map((r) => r.fullName.split(' ')[0]).join(' & ') || '—'}
-                            </span>
-                        </div>
+                    {isSkins ? (
+                        /* ── Skins Standings ── */
+                        <Card className="p-4 border border-borderColor shadow-lg relative overflow-hidden bg-gradient-to-br from-surface to-background">
+                            <div className="space-y-2">
+                                {playerRows.map((row, idx) => {
+                                    const net = skinsStandings?.earned[row.userId] ?? 0;
+                                    const skins = skinsStandings?.skinsWon[row.userId] ?? 0;
+                                    const isLeading = idx === 0 && net > 0;
+                                    return (
+                                        <div key={row.userId} className="flex items-center gap-3">
+                                            <span className="text-[10px] font-black text-secondaryText/50 w-4 text-right">{idx + 1}</span>
+                                            <div className="w-7 h-7 rounded-full bg-surface border border-borderColor flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
+                                                {row.avatarUrl ? <img src={row.avatarUrl} alt="" className="w-full h-full object-cover" /> : row.fullName.slice(0, 1).toUpperCase()}
+                                            </div>
+                                            <span className="font-bold text-sm text-white flex-1">{row.fullName.split(' ')[0]}</span>
+                                            <span className="text-[10px] font-black text-secondaryText/60 uppercase tracking-wide mr-2">
+                                                {skins} {skins === 1 ? 'skin' : 'skins'}
+                                            </span>
+                                            <span className={`font-black text-base leading-none ${isLeading ? 'text-neonGreen drop-shadow-[0_0_10px_rgba(0,255,102,0.4)]' : net < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                {net === 0 ? 'E' : net > 0 ? `+$${net}` : `-$${Math.abs(net)}`}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                                {playerRows.length === 0 && (
+                                    <p className="text-center text-secondaryText/40 text-sm py-2">No scores yet</p>
+                                )}
+                            </div>
+                            {/* Carry pot chip */}
+                            {skinsStandings && skinsStandings.currentCarry > 0 && (
+                                <div className="mt-4 flex items-center justify-center gap-2 px-3 py-2 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Carried Pot</span>
+                                    <span className="text-sm font-black text-white">${skinsStandings.currentPot}</span>
+                                    <span className="text-[10px] text-secondaryText/60">({skinsStandings.currentCarry} {skinsStandings.currentCarry === 1 ? 'hole' : 'holes'})</span>
+                                </div>
+                            )}
+                        </Card>
+                    ) : (
+                        /* ── Nassau Hero Card ── */
+                        <Card className="flex items-center justify-between p-5 py-8 border border-borderColor shadow-lg relative overflow-hidden bg-gradient-to-br from-surface to-background">
+                            {/* Team A */}
+                            <div className={`text-center z-10 transition-opacity ${heroLeader === 'B' ? 'opacity-40' : ''}`}>
+                                <span className="text-sm font-bold uppercase tracking-widest text-white">Team A</span>
+                                <span className="block text-xs text-secondaryText mt-1">
+                                    {playerRows.filter((r) => r.team === 'A').map((r) => r.fullName.split(' ')[0]).join(' & ') || '—'}
+                                </span>
+                            </div>
+                            {/* Centre score */}
+                            <div className="flex flex-col items-center z-10 scale-125 mx-2">
+                                <span className={`text-5xl font-black font-sans tracking-tighter leading-none ${holesUp > 0 ? 'text-neonGreen drop-shadow-[0_0_15px_rgba(0,255,102,0.4)]' : holesUp < 0 ? 'text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.4)]' : 'text-secondaryText'}`}>
+                                    {heroLabel}
+                                </span>
+                                <span className="text-[10px] text-secondaryText uppercase tracking-widest mt-1">
+                                    {holesPlayed === 0 ? 'No holes yet' : `Thru ${holesPlayed}`}
+                                </span>
+                            </div>
+                            {/* Team B */}
+                            <div className={`text-center z-10 transition-opacity ${heroLeader === 'A' ? 'opacity-40' : ''}`}>
+                                <span className="text-sm font-bold uppercase tracking-widest text-white">Team B</span>
+                                <span className="block text-xs text-secondaryText mt-1">
+                                    {playerRows.filter((r) => r.team === 'B').map((r) => r.fullName.split(' ')[0]).join(' & ') || '—'}
+                                </span>
+                            </div>
+                        </Card>
+                    )}
 
-                        {/* Centre score */}
-                        <div className="flex flex-col items-center z-10 scale-125 mx-2">
-                            <span className={`text-5xl font-black font-sans tracking-tighter leading-none ${holesUp > 0 ? 'text-neonGreen drop-shadow-[0_0_15px_rgba(0,255,102,0.4)]'
-                                : holesUp < 0 ? 'text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.4)]'
-                                    : 'text-secondaryText'
-                                }`}>
-                                {heroLabel}
-                            </span>
-                            <span className="text-[10px] text-secondaryText uppercase tracking-widest mt-1">
-                                {holesPlayed === 0 ? 'No holes yet' : `Thru ${holesPlayed}`}
-                            </span>
-                        </div>
-
-                        {/* Team B */}
-                        <div className={`text-center z-10 transition-opacity ${heroLeader === 'A' ? 'opacity-40' : ''}`}>
-                            <span className="text-sm font-bold uppercase tracking-widest text-white">Team B</span>
-                            <span className="block text-xs text-secondaryText mt-1">
-                                {playerRows.filter((r) => r.team === 'B').map((r) => r.fullName.split(' ')[0]).join(' & ') || '—'}
-                            </span>
-                        </div>
-                    </Card>
-
-                    {/* Nassau Splits Tracker */}
+                    {/* Nassau Splits Tracker — hidden for skins */}
+                    {!isSkins && matchPlaySplits && (
                     <div className="mt-3 grid grid-cols-3 gap-2">
                         {[
                             { label: 'FRONT', data: matchPlaySplits.front9, isComplete: matchPlaySplits.front9.holesPlayed === 9 },
@@ -684,6 +843,7 @@ export default function LeaderboardPage() {
                             );
                         })}
                     </div>
+                    )}
                 </section>
 
                 {/* Scorecard Overview */}
@@ -894,6 +1054,12 @@ export default function LeaderboardPage() {
 
                             {/* Trophies Logic */}
                             <div className="flex flex-wrap gap-x-6 gap-y-3 pt-3 border-t border-white/5">
+                                {isSkins && (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-bloodRed shadow-[0_0_4px_rgba(255,0,63,0.9)]" />
+                                        <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Skin Won</span>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-2">
                                     <Target className="w-3.5 h-3.5 text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.4)]" />
                                     <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Greenie</span>
@@ -920,11 +1086,13 @@ export default function LeaderboardPage() {
 
                     <div className="space-y-3">
                         {playerRows.map((row) => {
-                            // Each player sees the score from their team's perspective
                             const playerHolesUp = row.team === 'A' ? holesUp : -holesUp;
-                            const standing = matchLabel(playerHolesUp, row.holesPlayed);
-                            const isUp = playerHolesUp > 0;
-                            const isDown = playerHolesUp < 0;
+                            const net = skinsStandings?.earned[row.userId] ?? 0;
+                            const standing = isSkins
+                                ? (net === 0 ? 'E' : net > 0 ? `+$${net}` : `-$${Math.abs(net)}`)
+                                : matchLabel(playerHolesUp, row.holesPlayed);
+                            const isUp = isSkins ? net > 0 : playerHolesUp > 0;
+                            const isDown = isSkins ? net < 0 : playerHolesUp < 0;
 
                             const toParStr = row.holesPlayed === 0 ? '—' : row.scoreToPar === 0 ? 'E' : row.scoreToPar > 0 ? `+${row.scoreToPar}` : `${row.scoreToPar}`;
 
@@ -947,14 +1115,14 @@ export default function LeaderboardPage() {
                                         <div>
                                             <span className="font-bold text-sm block">{row.fullName}</span>
                                             <span className={`text-[10px] uppercase tracking-widest font-bold ${row.team === 'B' ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                Team {row.team} • HCP {row.handicap.toFixed(1)}
+                                                {isSkins ? '' : `Team ${row.team} • `}HCP {row.handicap.toFixed(1)}
                                             </span>
                                         </div>
                                     </div>
 
                                     <div className="flex items-center gap-4 text-center font-sans">
                                         <div>
-                                            <div className="text-[10px] text-secondaryText font-bold uppercase tracking-wider mb-0.5">Status</div>
+                                            <div className="text-[10px] text-secondaryText font-bold uppercase tracking-wider mb-0.5">{isSkins ? 'Net' : 'Status'}</div>
                                             <div className={`font-black text-lg leading-none ${isUp ? 'text-neonGreen' : isDown ? 'text-bloodRed' : 'text-secondaryText'
                                                 }`}>
                                                 {standing}

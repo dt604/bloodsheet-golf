@@ -4,6 +4,7 @@ interface Step {
     id: number;
     label: string;
     description?: string;
+    display?: number;
 }
 
 interface StepTrackerProps {
@@ -38,7 +39,7 @@ export function StepTracker({ steps, currentStep, onStepClick }: StepTrackerProp
                                     }
                                 `}
                             >
-                                {isCompleted ? '✓' : step.id}
+                                {isCompleted ? '✓' : (step.display ?? step.id)}
                             </div>
                             <span
                                 className={`absolute -bottom-6 text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-colors duration-300

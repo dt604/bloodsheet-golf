@@ -18,6 +18,7 @@ export default function MatchSetupPage() {
 
     const createMatch = useMatchStore((s) => s.createMatch);
     const createMatchGroup = useMatchStore((s) => s.createMatchGroup);
+    const createSkinsMatch = useMatchStore((s) => s.createSkinsMatch);
     const stagedPlayers = useMatchStore((s) => s.stagedPlayers);
     const removeStagedPlayer = useMatchStore((s) => s.removeStagedPlayer);
     const updateStagedPlayerHandicap = useMatchStore((s) => s.updateStagedPlayerHandicap);
@@ -62,39 +63,38 @@ export default function MatchSetupPage() {
     const [par3Pot, setPar3Pot] = useState(5);
     const [par5Contest, setPar5Contest] = useState(false);
     const [par5Pot, setPar5Pot] = useState(5);
+    const [bonusSkins, setBonusSkins] = useState(false);
 
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
 
-    const steps = [
-        { id: 1, label: 'Format' },
-        { id: 2, label: 'Players' },
-        { id: 3, label: 'Matches' },
-        { id: 4, label: 'Setup' }
-    ];
+    const steps = format === 'skins'
+        ? [{ id: 1, label: 'Format' }, { id: 2, label: 'Players' }, { id: 4, label: 'Course', display: 3 }]
+        : [{ id: 1, label: 'Format' }, { id: 2, label: 'Players' }, { id: 3, label: 'Matches' }, { id: 4, label: 'Course' }];
 
     const canAdvance = () => {
-        if (currentStep === 1) return true; // Format is always selected
+        if (currentStep === 1) return true;
         if (currentStep === 2) {
-            if (format === '1v1') return true; // Can play alone or add pool players
-            return stagedPlayers.filter(p => p.team === 'A').length >= 1; // Need at least partner for 2v2
+            if (format === 'skins') return poolPlayers.length >= 1; // Need at least 1 other player
+            if (format === '1v1') return true;
+            return stagedPlayers.filter(p => p.team === 'A').length >= 1;
         }
         if (currentStep === 3) {
-            if (format === '1v1') {
-                return matchSlots.some(s => s.opponentId !== null);
-            }
-            return stagedPlayers.filter(p => p.team === 'B').length >= 1; // Need at least one opponent for 2v2
+            if (format === '1v1') return matchSlots.some(s => s.opponentId !== null);
+            return stagedPlayers.filter(p => p.team === 'B').length >= 1;
         }
         if (currentStep === 4) return selectedCourse !== null;
         return false;
     };
 
     const nextStep = () => {
+        if (currentStep === 2 && format === 'skins') { setCurrentStep(4); return; } // skip Matches step
         if (currentStep < 4) setCurrentStep(currentStep + 1);
         else handleStartMatch();
     };
 
     const prevStep = () => {
+        if (currentStep === 4 && format === 'skins') { setCurrentStep(2); return; } // skip back over Matches
         if (currentStep > 1) setCurrentStep(currentStep - 1);
         else navigate(-1);
     };
@@ -170,12 +170,20 @@ export default function MatchSetupPage() {
         if (!user) return;
         if (!selectedCourse) { setError('Please select a course first.'); return; }
 
-        const sideBets = { greenies, sandies, snake, autoPress, birdiesDouble, trashValue, startingHole, par3Contest, par3Pot, par5Contest, par5Pot };
+        const sideBets = { greenies, sandies, snake, autoPress, birdiesDouble, trashValue, startingHole, par3Contest, par3Pot, par5Contest, par5Pot, bonusSkins };
 
         setCreating(true);
         setError('');
         try {
-            if (format === '1v1') {
+            if (format === 'skins') {
+                if (poolPlayers.length < 1) { setError('Add at least one other player.'); setCreating(false); return; }
+                await createSkinsMatch(
+                    { courseId: selectedCourse.id, wagerAmount: wager, status: 'in_progress', sideBets, createdBy: user.id },
+                    selectedCourse,
+                    user.id,
+                    creatorHcp
+                );
+            } else if (format === '1v1') {
                 const validSlots = matchSlots.filter((s) => s.opponentId !== null && (s.player1Id ?? user.id) !== s.opponentId);
                 if (validSlots.length === 0) { setError('Select at least one opponent.'); setCreating(false); return; }
                 await createMatchGroup(
@@ -296,6 +304,30 @@ export default function MatchSetupPage() {
                                         </div>
                                     )}
                                 </button>
+
+                                <button
+                                    className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 text-left overflow-hidden ${format === 'skins' ? 'border-bloodRed bg-bloodRed/5 shadow-[0_0_30px_rgba(255,0,63,0.1)]' : 'border-borderColor bg-surface hover:border-secondaryText'}`}
+                                    onClick={() => { setFormat('skins'); nextStep(); }}
+                                >
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className={`p-3 rounded-xl ${format === 'skins' ? 'bg-bloodRed text-white' : 'bg-surfaceHover text-secondaryText'}`}>
+                                            <span className="text-base font-black leading-none">💀</span>
+                                        </div>
+                                        {format === 'skins' && (
+                                            <div className="w-6 h-6 rounded-full bg-bloodRed flex items-center justify-center">
+                                                <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <h3 className="text-xl font-black uppercase tracking-tight mb-1">Skins Game</h3>
+                                    <p className="text-sm text-secondaryText font-medium">2–4 individual players. Each hole is a skin. Ties carry over.</p>
+
+                                    {format === 'skins' && (
+                                        <div className="absolute right-0 bottom-0 p-4 opacity-20">
+                                            <Swords className="w-16 h-16 -rotate-12" />
+                                        </div>
+                                    )}
+                                </button>
                             </div>
                         </motion.div>
                     )}
@@ -312,14 +344,14 @@ export default function MatchSetupPage() {
                             <div className="flex items-center justify-between mb-2">
                                 <div className="text-sm font-black text-white uppercase tracking-wider italic">Who's playing today?</div>
                                 <span className="text-[10px] font-bold text-secondaryText uppercase tracking-widest bg-surface px-2 py-0.5 rounded-full border border-borderColor">
-                                    {format === '1v1' ? poolPlayers.length + 1 : stagedPlayers.length + 1} Total
+                                    {format === '2v2' ? stagedPlayers.length + 1 : poolPlayers.length + 1} Total
                                 </span>
                             </div>
 
                             <div className="space-y-3">
 
 
-                                {format === '1v1' ? (
+                                {format === '1v1' || format === 'skins' ? (
                                     <>
                                         <Card className="p-4 border-neonGreen/30 bg-neonGreen/5 mb-3">
                                             <div className="flex items-center gap-3">
@@ -377,15 +409,19 @@ export default function MatchSetupPage() {
                                             </Card>
                                         ))}
 
-                                        <button
-                                            onClick={() => navigate('/add-player?pool=1')}
-                                            className="w-full p-4 rounded-xl border-2 border-dashed border-borderColor hover:border-neonGreen/50 transition-all flex items-center justify-center gap-2 group bg-surface/30"
-                                        >
-                                            <div className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-secondaryText group-hover:text-neonGreen transition-colors">
-                                                <Plus className="w-4 h-4" />
-                                            </div>
-                                            <span className="text-sm font-bold text-secondaryText italic uppercase tracking-tight group-hover:text-white transition-colors">Add someone else</span>
-                                        </button>
+                                        {(format !== 'skins' || poolPlayers.length < 3) && (
+                                            <button
+                                                onClick={() => navigate('/add-player?pool=1')}
+                                                className="w-full p-4 rounded-xl border-2 border-dashed border-borderColor hover:border-neonGreen/50 transition-all flex items-center justify-center gap-2 group bg-surface/30"
+                                            >
+                                                <div className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-secondaryText group-hover:text-neonGreen transition-colors">
+                                                    <Plus className="w-4 h-4" />
+                                                </div>
+                                                <span className="text-sm font-bold text-secondaryText italic uppercase tracking-tight group-hover:text-white transition-colors">
+                                                    {format === 'skins' ? 'Add player' : 'Add someone else'}
+                                                </span>
+                                            </button>
+                                        )}
                                     </>
                                 ) : (
                                     <div className="grid grid-cols-1 gap-6">
@@ -865,6 +901,24 @@ export default function MatchSetupPage() {
                                                 </div>
                                             </div>
                                         )}
+                                        {format === 'skins' && (
+                                            <div className="p-4 border-b border-borderColor/30 flex justify-between items-center">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center">
+                                                        <span className="text-neonGreen font-black">$</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-black text-xs uppercase tracking-tight block">Skin Value</span>
+                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">$ per skin</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <button onClick={() => setWager(Math.max(5, wager - 5))} className="w-8 h-8 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all">-</button>
+                                                    <span className="text-xl font-black w-10 text-center tabular-nums">${wager}</span>
+                                                    <button onClick={() => setWager(wager + 5)} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Trash Bets Trigger */}
                                         <button
@@ -888,12 +942,17 @@ export default function MatchSetupPage() {
                                     <BottomSheet open={trashOpen} onClose={() => setTrashOpen(false)} title="Trash & Side Bets">
                                         <div className="divide-y divide-borderColor/50 px-2">
                                             {[
-                                                { id: 'greenies', label: 'Greenies', sub: 'Closest to pin, par+', state: greenies, set: setGreenies },
-                                                { id: 'sandies', label: 'Sandies', sub: 'Par+ from bunker', state: sandies, set: setSandies },
-                                                { id: 'snake', label: 'Snake', sub: '3-putt penalty', state: snake, set: setSnake },
-                                                { id: 'autopress', label: 'Auto Press', sub: 'Press when 2 down', state: autoPress, set: setAutoPress },
-                                                { id: 'birdies', label: 'Birdies Double', sub: 'Net Birdie = 2 pts', state: birdiesDouble, set: setBirdiesDouble }
-                                            ].map((item) => (
+                                                { id: 'greenies', label: 'Greenies', sub: 'Closest to pin, par+', state: greenies, set: setGreenies, skinsOnly: false },
+                                                { id: 'sandies', label: 'Sandies', sub: 'Par+ from bunker', state: sandies, set: setSandies, skinsOnly: false },
+                                                { id: 'snake', label: 'Snake', sub: '3-putt penalty', state: snake, set: setSnake, skinsOnly: false },
+                                                { id: 'autopress', label: 'Auto Press', sub: 'Press when 2 down', state: autoPress, set: setAutoPress, nassauOnly: true },
+                                                { id: 'birdies', label: 'Birdies Double', sub: 'Net Birdie = 2 pts', state: birdiesDouble, set: setBirdiesDouble, nassauOnly: true },
+                                                { id: 'bonusSkins', label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', state: bonusSkins, set: setBonusSkins, skinsOnly: true },
+                                            ].filter(item => {
+                                                if ((item as any).skinsOnly) return format === 'skins';
+                                                if ((item as any).nassauOnly) return format !== 'skins';
+                                                return true;
+                                            }).map((item) => (
                                                 <div key={item.id} className="flex items-center justify-between p-4">
                                                     <div>
                                                         <span className="font-bold text-sm block text-white uppercase tracking-tight">{item.label}</span>

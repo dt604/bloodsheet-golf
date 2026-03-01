@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS public.matches (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   join_code     TEXT UNIQUE,
   course_id     TEXT REFERENCES public.courses(id),
-  format        TEXT NOT NULL CHECK (format IN ('1v1', '2v2')),
+  format        TEXT NOT NULL CHECK (format IN ('1v1', '2v2', 'skins')),
   wager_amount  INTEGER NOT NULL DEFAULT 10,
   wager_type    TEXT NOT NULL DEFAULT 'NASSAU' CHECK (wager_type IN ('PER_HOLE', 'NASSAU')),
   status        TEXT NOT NULL DEFAULT 'setup' CHECK (status IN ('setup', 'in_progress', 'completed')),
