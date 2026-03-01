@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS public.matches (
   format        TEXT NOT NULL CHECK (format IN ('1v1', '2v2', 'skins')),
   wager_amount  INTEGER NOT NULL DEFAULT 10,
   wager_type    TEXT NOT NULL DEFAULT 'NASSAU' CHECK (wager_type IN ('PER_HOLE', 'NASSAU')),
-  status        TEXT NOT NULL DEFAULT 'setup' CHECK (status IN ('setup', 'in_progress', 'completed')),
+  status        TEXT NOT NULL DEFAULT 'setup' CHECK (status IN ('setup', 'in_progress', 'pending_attestation', 'completed')),
   side_bets     JSONB NOT NULL DEFAULT '{"greenies":true,"sandies":true,"snake":true,"autoPress":false,"trashValue":5}',
   created_by    UUID REFERENCES public.profiles(id),
   group_id      UUID,
@@ -163,3 +163,53 @@ CREATE POLICY "Match players can initiate presses"
 ALTER PUBLICATION supabase_realtime ADD TABLE public.hole_scores;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.presses;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.matches;
+
+-- ============================================================
+-- ATTEST FEATURE
+-- ============================================================
+
+-- For existing databases: update the matches status constraint
+-- ALTER TABLE public.matches DROP CONSTRAINT IF EXISTS matches_status_check;
+-- ALTER TABLE public.matches ADD CONSTRAINT matches_status_check
+--   CHECK (status IN ('setup', 'in_progress', 'pending_attestation', 'completed'));
+
+-- ─── MATCH ATTESTATIONS ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.match_attestations (
+  match_id    UUID REFERENCES public.matches(id) ON DELETE CASCADE,
+  user_id     UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  attested_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  PRIMARY KEY (match_id, user_id)
+);
+
+ALTER TABLE public.match_attestations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "match_attestations_select"
+  ON public.match_attestations FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Players can only insert their own attestation, and only if they're in the match
+CREATE POLICY "match_attestations_insert"
+  ON public.match_attestations FOR INSERT WITH CHECK (
+    auth.uid() = user_id
+    AND auth.uid() IN (
+      SELECT user_id FROM public.match_players WHERE match_id = match_attestations.match_id
+    )
+  );
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.match_attestations;
+
+-- ─── TRIGGER: auto-complete match when first attestation arrives ──
+CREATE OR REPLACE FUNCTION public.auto_complete_on_attest()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.matches
+  SET status = 'completed'
+  WHERE id = NEW.match_id
+    AND status = 'pending_attestation';
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_match_attestation ON public.match_attestations;
+CREATE TRIGGER on_match_attestation
+  AFTER INSERT ON public.match_attestations
+  FOR EACH ROW EXECUTE FUNCTION public.auto_complete_on_attest();
