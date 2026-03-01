@@ -96,7 +96,7 @@ export default function LiveScorecardPage() {
     const currentHole = parseInt(hole || '1', 10);
 
     const { user, profile } = useAuth();
-    const { matchId, match, course, players, scores, lastScoreUpdate, saveScore, initiatePress, loadMatch, refreshScores, refreshGroupScores, clearMatch, groupState, activeMatchIds } = useMatchStore();
+    const { matchId, match, course, players, scores, lastScoreUpdate, saveScore, initiatePress, loadMatch, refreshScores, refreshGroupScores, clearMatch, deleteMatch, groupState, activeMatchIds } = useMatchStore();
     const [saving, setSaving] = useState(false);
     const [codeCopied, setCodeCopied] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
@@ -815,14 +815,17 @@ export default function LiveScorecardPage() {
             {showQuitConfirm && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
                     <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm p-6 space-y-4">
-                        <h3 className="text-xl font-black text-center">Abandon Round?</h3>
-                        <p className="text-sm text-secondaryText text-center">Scores so far are saved. You can rejoin later with the match code.</p>
-                        <div className="flex gap-3 pt-2">
-                            <Button variant="outline" size="lg" className="flex-1" onClick={() => setShowQuitConfirm(false)}>
-                                Keep Playing
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xl font-black">Abandon Round?</h3>
+                            <button onClick={() => setShowQuitConfirm(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                        </div>
+                        <p className="text-sm text-secondaryText text-center">Quit saves your scores so far. Quit & Delete permanently removes this match.</p>
+                        <div className="flex flex-col gap-3 pt-2">
+                            <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={() => { if (matchId) sessionStorage.setItem('dismissedMatchId', matchId); clearMatch(); navigate('/dashboard'); }}>
+                                Quit Round
                             </Button>
-                            <Button size="lg" className="flex-1 bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={() => { if (matchId) sessionStorage.setItem('dismissedMatchId', matchId); clearMatch(); navigate('/dashboard'); }}>
-                                Quit
+                            <Button variant="outline" size="lg" className="w-full border-bloodRed text-bloodRed hover:bg-bloodRed/10" onClick={async () => { if (matchId) { await deleteMatch(matchId); } clearMatch(); navigate('/dashboard'); }}>
+                                Quit & Delete Round
                             </Button>
                         </div>
                     </div>
