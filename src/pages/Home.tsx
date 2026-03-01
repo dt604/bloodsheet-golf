@@ -12,6 +12,7 @@ export default function Home() {
     const navigate = useNavigate();
     const { loadMatch } = useMatchStore();
     const [activeMatch, setActiveMatch] = useState<any>(null);
+    const [pendingAttestMatch, setPendingAttestMatch] = useState<any>(null);
     const [recentMatches, setRecentMatches] = useState<any[]>([]);
     const [loadingMatches, setLoadingMatches] = useState(true);
 
@@ -34,6 +35,19 @@ export default function Home() {
                 setActiveMatch((activeJoin[0] as any).matches);
             }
 
+            // 1b. Check for pending attestation match
+            const { data: attestJoin } = await supabase
+                .from('match_players')
+                .select('match_id, matches!inner(id, status, created_at, courses(name))')
+                .eq('user_id', profile?.id)
+                .eq('matches.status', 'pending_attestation')
+                .order('matches(created_at)', { ascending: false })
+                .limit(1);
+
+            if (attestJoin && attestJoin.length > 0) {
+                setPendingAttestMatch((attestJoin[0] as any).matches);
+            }
+
             // 2. Fetch Recent Matches (History)
             const { data: historyJoin } = await supabase
                 .from('match_players')
@@ -51,6 +65,13 @@ export default function Home() {
 
         fetchData();
     }, [profile]);
+
+    const handleAttest = async () => {
+        if (!pendingAttestMatch) return;
+        localStorage.setItem('activeMatchId', pendingAttestMatch.id);
+        await loadMatch(pendingAttestMatch.id);
+        navigate('/ledger');
+    };
 
     const handleResume = async () => {
         if (!activeMatch) return;
@@ -119,6 +140,28 @@ export default function Home() {
                                     className="w-full bg-white text-bloodRed hover:bg-white/90 font-black shadow-lg flex items-center justify-center gap-2 py-6 rounded-2xl group/btn transition-transform active:scale-[0.98]"
                                 >
                                     RESUME MATCH
+                                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </Button>
+                            </div>
+                        </div>
+                    ) : pendingAttestMatch ? (
+                        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-amber-600 to-amber-700 p-8 shadow-[0_0_30px_rgba(217,119,6,0.3)] border border-white/20 group">
+                            <div className="relative z-10 flex flex-col items-start gap-4">
+                                <div className="flex items-center gap-2 px-2 py-1 bg-black/20 backdrop-blur-md rounded-full border border-white/10">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-white leading-none">Awaiting Your Signature</span>
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-black text-white mb-1 flex items-center gap-2 uppercase italic">
+                                        {pendingAttestMatch.courses?.name || 'Match Complete'}
+                                    </h2>
+                                    <p className="text-white/80 text-[10px] font-bold uppercase tracking-[0.2em]">Review Scores · Sign Off</p>
+                                </div>
+                                <Button
+                                    onClick={handleAttest}
+                                    className="w-full bg-white text-amber-700 hover:bg-white/90 font-black shadow-lg flex items-center justify-center gap-2 py-6 rounded-2xl group/btn transition-transform active:scale-[0.98]"
+                                >
+                                    REVIEW & ATTEST
                                     <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                 </Button>
                             </div>
