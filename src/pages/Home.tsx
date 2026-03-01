@@ -59,6 +59,12 @@ export default function Home() {
         navigate('/play/1');
     };
 
+    const handleMatchClick = async (matchId: string) => {
+        localStorage.setItem('activeMatchId', matchId);
+        await loadMatch(matchId);
+        navigate('/play/1');
+    };
+
     const initials = profile?.fullName
         ? profile.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
         : '?';
@@ -159,7 +165,7 @@ export default function Home() {
             <section className="px-4">
                 <div className="flex items-center justify-between mb-4 ml-1">
                     <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Recent Activity</h3>
-                    <Link to="/dashboard" className="text-[10px] text-bloodRed font-black uppercase tracking-widest hover:underline">See All</Link>
+                    <Link to="/history" className="text-[10px] text-bloodRed font-black uppercase tracking-widest hover:underline">See All</Link>
                 </div>
                 <div className="space-y-3">
                     {loadingMatches ? (
@@ -171,7 +177,7 @@ export default function Home() {
                             <Card
                                 key={match.id}
                                 className="p-4 bg-surface border-white/5 flex items-center justify-between group hover:border-bloodRed/30 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
-                                onClick={() => navigate(match.status === 'completed' ? `/past-match/${match.id}` : `/play/1`)}
+                                onClick={() => match.status === 'completed' ? navigate(`/history/${match.id}`) : handleMatchClick(match.id)}
                             >
                                 <div className="flex items-center gap-3 min-w-0">
                                     <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed shrink-0 overflow-hidden">
