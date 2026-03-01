@@ -28,7 +28,11 @@ import { AdminRoute } from './components/admin/AdminRoute';
 // Full auth required — guests are redirected to welcome
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, isGuest } = useAuth();
-  if (loading) return null;
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center p-6 text-center">
+      <div className="w-8 h-8 border-2 border-bloodRed border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
   if (!user || isGuest) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -36,7 +40,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Any signed-in user (including guests) — used for view-only match routes
 function ViewerRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center p-6 text-center">
+      <div className="w-8 h-8 border-2 border-bloodRed border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
   if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }

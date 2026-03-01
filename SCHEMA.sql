@@ -16,12 +16,17 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name)
+  INSERT INTO public.profiles (id, full_name, avatar_url, handicap)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', '')
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', ''),
+    NEW.raw_user_meta_data->>'avatar_url',
+    COALESCE((NEW.raw_user_meta_data->>'handicap')::DECIMAL, 0.0)
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    avatar_url = COALESCE(public.profiles.avatar_url, EXCLUDED.avatar_url),
+    handicap = CASE WHEN public.profiles.handicap = 0 THEN EXCLUDED.handicap ELSE public.profiles.handicap END;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

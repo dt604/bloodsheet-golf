@@ -35,41 +35,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (data) {
-      setProfile({
-        id: data.id,
-        fullName: data.full_name,
-        avatarUrl: data.avatar_url ?? undefined,
-        handicap: data.handicap,
-        is_admin: data.is_admin ?? false,
-        createdAt: data.created_at,
-      });
+  async function fetchProfile(userId: string, retries = 3) {
+    for (let i = 0; i < retries; i++) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      if (data) {
+        setProfile({
+          id: data.id,
+          fullName: data.full_name,
+          avatarUrl: data.avatar_url ?? undefined,
+          handicap: data.handicap,
+          is_admin: data.is_admin ?? false,
+          createdAt: data.created_at,
+        });
+        return;
+      }
+      if (i < retries - 1) await new Promise(r => setTimeout(r, 600));
     }
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user && !session.user.is_anonymous) fetchProfile(session.user.id);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+    async function initAuth() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user && !session.user.is_anonymous) {
-          fetchProfile(session.user.id);
+          await fetchProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user && !session.user.is_anonymous) {
+          await fetchProfile(session.user.id);
         } else {
           setProfile(null);
         }
+        setLoading(false);
       }
     );
 
