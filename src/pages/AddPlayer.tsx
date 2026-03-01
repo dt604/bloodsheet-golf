@@ -206,16 +206,16 @@ export default function AddPlayerPage() {
                             p.fullName.slice(0, 1).toUpperCase()
                         )}
                     </div>
-                    <div>
-                        <span className="font-bold text-sm flex items-center gap-2">
-                            {p.fullName}
+                    <div className="flex-1 min-w-0">
+                        <span className="font-bold text-sm flex items-center gap-2 truncate">
+                            <span className="truncate">{p.fullName}</span>
                             {p.isGrint && (
-                                <span className="bg-[#4277b9] text-white text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider uppercase">Grint</span>
+                                <span className="bg-[#4277b9] text-white text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider uppercase shrink-0">Grint</span>
                             )}
                         </span>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] text-secondaryText uppercase tracking-widest font-bold">HCP {p.handicap.toFixed(1)}</span>
-                            {p.username && <span className="text-[10px] text-secondaryText italic border-l border-borderColor pl-2">@{p.username.split('@')[0]}</span>}
+                            <span className="text-[10px] text-secondaryText uppercase tracking-widest font-bold shrink-0">HCP {p.handicap.toFixed(1)}</span>
+                            {p.username && <span className="text-[10px] text-secondaryText italic border-l border-borderColor pl-2 truncate">@{p.username.split('@')[0]}</span>}
                         </div>
                     </div>
                 </div>

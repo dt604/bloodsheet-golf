@@ -824,10 +824,10 @@ export default function MatchSetupPage() {
                                         <div className="w-12 h-12 rounded-xl bg-bloodRed/20 flex items-center justify-center shrink-0">
                                             <MapPin className="w-6 h-6 text-bloodRed" />
                                         </div>
-                                        <div className="flex-1">
-                                            <h3 className="font-black uppercase tracking-tight text-white mb-0.5">{selectedCourse.name}</h3>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-black uppercase tracking-tight text-white mb-0.5 truncate">{selectedCourse.name}</h3>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black bg-white/10 px-1.5 py-0.5 rounded text-secondaryText uppercase">{selectedCourse.holes.length} Holes</span>
+                                                <span className="text-[10px] font-black bg-white/10 px-1.5 py-0.5 rounded text-secondaryText uppercase shrink-0">{selectedCourse.holes.length} Holes</span>
                                             </div>
                                         </div>
                                         <button
@@ -876,7 +876,7 @@ export default function MatchSetupPage() {
                                                         <div className="w-10 h-10 rounded-xl bg-surfaceHover flex items-center justify-center group-hover:bg-bloodRed/10 group-hover:text-bloodRed transition-colors">
                                                             <MapPin className="w-5 h-5 text-secondaryText group-hover:text-bloodRed" />
                                                         </div>
-                                                        <div className="flex-1">
+                                                        <div className="flex-1 min-w-0">
                                                             <span className="font-bold text-sm text-white block truncate">{c.name}</span>
                                                             <span className="text-[10px] text-secondaryText font-medium uppercase tracking-widest">{c.holes.length} Holes</span>
                                                         </div>

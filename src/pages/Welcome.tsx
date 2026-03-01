@@ -212,11 +212,11 @@ export default function WelcomePage() {
                                                 {res.fullName.charAt(0)}
                                             </div>
                                         )}
-                                        <div>
-                                            <div className="text-white font-bold text-sm tracking-wide group-hover:text-bloodRed transition-colors">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-white font-bold text-sm tracking-wide group-hover:text-bloodRed transition-colors truncate">
                                                 {res.fullName}
                                             </div>
-                                            <div className="text-[10px] text-secondaryText font-mono uppercase tracking-widest mt-0.5">
+                                            <div className="text-[10px] text-secondaryText font-mono uppercase tracking-widest mt-0.5 truncate">
                                                 {res.username}
                                             </div>
                                         </div>
