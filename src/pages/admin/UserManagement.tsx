@@ -253,7 +253,7 @@ export default function UserManagement() {
 
             {/* Bulk Action Bar */}
             {selectedIds.size > 0 && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-surface border border-bloodRed/30 shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-2xl p-4 z-[50] animate-in slide-in-from-bottom-4 duration-300 flex items-center justify-between backdrop-blur-md bg-opacity-90">
+                <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-surface border-t border-bloodRed shadow-[0_-8px_32px_rgba(0,0,0,0.5)] p-4 z-[100] animate-in slide-in-from-bottom-full duration-300 flex items-center justify-between backdrop-blur-md bg-opacity-95">
                     <div className="flex flex-col">
                         <span className="text-white font-black text-sm uppercase tracking-tight">{selectedIds.size} Users Selected</span>
                         <span className="text-[10px] text-secondaryText uppercase font-bold tracking-widest">Bulk Management</span>
