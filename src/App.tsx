@@ -11,6 +11,7 @@ import AddPlayerPage from './pages/AddPlayer';
 import SettingsPage from './pages/Settings';
 import JoinMatchPage from './pages/JoinMatch';
 import PastMatchScorecardPage from './pages/PastMatchScorecard';
+import MatchHistoryPage from './pages/MatchHistory';
 import FriendsPage from './pages/Friends';
 import PlayerProfilePage from './pages/PlayerProfile';
 import ResetPasswordPage from './pages/ResetPassword';
@@ -54,6 +55,7 @@ function AppRoutes() {
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/join" element={<ViewerRoute><JoinMatchPage /></ViewerRoute>} />
       <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
+      <Route path="/history" element={<ProtectedRoute><MatchHistoryPage /></ProtectedRoute>} />
       <Route path="/history/:matchId" element={<ProtectedRoute><PastMatchScorecardPage /></ProtectedRoute>} />
       <Route path="/player/:userId" element={<ProtectedRoute><PlayerProfilePage /></ProtectedRoute>} />
 

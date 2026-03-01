@@ -467,9 +467,12 @@ export default function DashboardPage() {
 
                 {/* Recent Matches */}
                 <section>
-                    <div className="flex items-center gap-2 mb-3 px-2 mt-4">
-                        <History className="w-5 h-5 text-secondaryText" />
-                        <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText">Recent History</h3>
+                    <div className="flex items-center justify-between mb-3 px-2 mt-4">
+                        <div className="flex items-center gap-2">
+                            <History className="w-5 h-5 text-secondaryText" />
+                            <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText">Recent History</h3>
+                        </div>
+                        <button onClick={() => navigate('/history')} className="text-xs font-bold text-bloodRed uppercase tracking-widest hover:opacity-70 transition-opacity">View All</button>
                     </div>
                     {history.length === 0 ? (
                         <p className="text-secondaryText text-sm px-2">No matches yet. Start your first one!</p>
