@@ -697,15 +697,21 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      // 1. Fetch the primary match row
-      const { data: primaryRow, error: pError } = await supabase
+      const fetchPromise = supabase
         .from('matches')
         .select('*, courses(*)')
         .eq('id', matchId)
         .single();
 
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Match load timeout')), 10000)
+      );
+
+      // 1. Fetch the primary match row
+      const { data: primaryRow, error: pError } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
       if (pError || !primaryRow) {
-        set({ loading: false, error: 'Match not found' });
+        set({ loading: false, error: 'Match not found or connection timed out' });
         return;
       }
 
@@ -1046,7 +1052,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
             const updatedMatch = dbToMatch(payload.new as Record<string, unknown>);
             // Clear localStorage when match completes (covers non-scorekeeper devices)
             if (updatedMatch.status === 'completed' &&
-                localStorage.getItem('activeMatchId') === updatedMatch.id) {
+              localStorage.getItem('activeMatchId') === updatedMatch.id) {
               localStorage.removeItem('activeMatchId');
             }
             set((state) => {

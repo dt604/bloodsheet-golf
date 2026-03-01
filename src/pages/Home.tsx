@@ -124,25 +124,28 @@ export default function Home() {
                             </div>
                         </div>
                     ) : (
-                        <div className="relative overflow-hidden rounded-[2.5rem] bg-[#1a1a1c] border border-white/5 p-8 sm:p-10 flex flex-col sm:flex-row items-center justify-between group shadow-2xl min-h-[260px]">
-                            {/* Decorative Premium Backgrounds */}
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(255,0,63,0.15),transparent_50%)]" />
-                            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-bloodRed/10 rounded-full blur-[80px]" />
+                        <div className="relative overflow-hidden rounded-[2.5rem] bg-[#1a1a1c] border border-white/10 flex flex-col items-center justify-center group shadow-2xl min-h-[300px] text-center p-8">
+                            {/* Premium Background with welcome-bg image */}
+                            <div
+                                className="absolute inset-0 z-0 bg-cover bg-center transition-transform duration-[10s] group-hover:scale-110"
+                                style={{ backgroundImage: 'url("/welcome-bg.png")' }}
+                            />
+                            <div className="absolute inset-0 bg-black/70 z-1" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-2" />
 
-                            <div className="relative z-10 text-center sm:text-left space-y-4 order-2 sm:order-1 mt-6 sm:mt-0">
-                                <h2 className="text-3xl sm:text-5xl font-black text-white italic tracking-tighter leading-none whitespace-nowrap">
-                                    <span className="text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.3)]">READY</span> TO GOLF?
-                                </h2>
-                                <div className="h-1.5 w-16 bg-bloodRed rounded-full mx-auto sm:mx-0 shadow-[0_0_10px_rgba(255,0,63,0.5)]" />
-                            </div>
-
-                            <div className="relative z-10 w-44 h-44 sm:w-64 sm:h-64 order-1 sm:order-2 transition-transform duration-700 group-hover:scale-105">
-                                <div className="absolute inset-0 bg-bloodRed/20 rounded-full blur-3xl animate-pulse" />
+                            <div className="relative z-10 w-48 h-48 mb-4 transition-all duration-700 group-hover:scale-110 group-hover:rotate-2">
                                 <img
                                     src="/logo-final.png"
                                     alt="BloodSheet Golf"
-                                    className="w-full h-full object-contain filter drop-shadow-[0_0_35px_rgba(255,0,63,0.5)] relative z-10"
+                                    className="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(255,0,63,0.6)]"
                                 />
+                            </div>
+
+                            <div className="relative z-10 space-y-2">
+                                <h2 className="text-4xl sm:text-5xl font-black text-white italic tracking-tighter leading-none">
+                                    <span className="text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.5)]">BLOOD</span>SHEET
+                                </h2>
+                                <p className="text-[10px] text-white/60 font-black uppercase tracking-[0.3em] ml-1">The Ledger of Legend</p>
                             </div>
                         </div>
                     )}

@@ -1,70 +1,76 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 export default function AuthCallbackPage() {
     const [debugInfo, setDebugInfo] = useState('Initializing callback...');
+    const [error, setError] = useState<string | null>(null);
+
+    const navigate = useNavigate();
 
     useEffect(() => {
-        console.log('AuthCallback: Starting process...');
+        console.log('AuthCallback: Starting recovery process...');
 
         async function processAuth() {
             try {
-                // 1. Check if we even have a hash
-                if (!window.location.hash && !window.location.search.includes('code=')) {
-                    setDebugInfo('Error: No authentication tokens found in URL. Please try signing in again.');
+                const hasHash = window.location.hash.length > 1;
+                const hasCode = window.location.search.includes('code=');
 
-                    return;
-                }
+                setDebugInfo(`Verifying Connection...\nMode: ${hasHash ? 'Token Hash' : (hasCode ? 'PKCE Code' : 'No Data')}`);
 
-                setDebugInfo('Processing secure tokens...');
+                // 1. Immediate sync check
+                const { data: { session }, error: authError } = await supabase.auth.getSession();
 
-                // Supabase pick up the hash fragment automatically
-                const { data: { session }, error } = await supabase.auth.getSession();
-
-                if (error) {
-                    throw error;
-                }
+                if (authError) throw authError;
 
                 if (session) {
-                    setDebugInfo('Identity verified! Redirecting to Dashboard...');
-                    // Full page reload to clear any memory/state issues
-                    setTimeout(() => {
-                        window.location.assign('/dashboard');
-                    }, 500);
+                    setDebugInfo('Authenticated!');
+                    // Use React Router for instant navigation instead of full reload
+                    navigate('/home', { replace: true });
                 } else {
-                    setDebugInfo('Session sync failed. Retrying...');
-                    // Try one more time after 1s
-                    setTimeout(async () => {
-                        const { data } = await supabase.auth.getSession();
-                        if (data.session) window.location.assign('/dashboard');
-                        else {
-                            setDebugInfo('No session found. Please try logging in again.');
-
-                        }
-                    }, 1500);
+                    if (!hasHash && !hasCode) {
+                        setError('No login data found in the URL.');
+                    } else {
+                        setDebugInfo('Synchronizing tokens...');
+                        // Wait just enough for the hash to be processed if it's the first hit
+                        setTimeout(async () => {
+                            const { data: { session: retrySession } } = await supabase.auth.getSession();
+                            if (retrySession) {
+                                navigate('/home', { replace: true });
+                            } else {
+                                window.location.reload(); // Fallback to full reload if SPA fails
+                            }
+                        }, 500);
+                    }
                 }
             } catch (err: any) {
-                console.error('CRITICAL AUTH ERROR:', err);
-                const msg = err.message || 'Unknown initialization error';
-                setDebugInfo(`Error: ${msg}`);
-
-
-                // FINAL FALLBACK: If React is dead, write to the DOM directly
-                const root = document.getElementById('root');
-                if (root) {
-                    root.innerHTML = `
-                        <div style="background:#1C1C1E; color:white; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:sans-serif; text-align:center; padding:20px;">
-                            <h1 style="color:#FF003F;">AUTH CRASH</h1>
-                            <p style="opacity:0.6; font-size:14px;">${msg}</p>
-                            <a href="/" style="color:white; margin-top:20px; text-decoration:none; border:1px solid #333; padding:10px 20px; border-radius:10px;">Back to Welcome</a>
-                        </div>
-                    `;
-                }
+                console.error('AUTH_FAIL:', err);
+                setError(err.message || 'Authentication error');
             }
         }
 
         processAuth();
-    }, []);
+    }, [navigate]);
+
+    if (error) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#1C1C1E] min-h-screen text-white text-center">
+                <div className="w-16 h-16 bg-bloodRed/20 rounded-full flex items-center justify-center mb-6">
+                    <span className="text-bloodRed text-3xl font-black">!</span>
+                </div>
+                <h1 className="text-xl font-black uppercase italic text-white mb-2">Sync Error</h1>
+                <p className="text-secondaryText text-xs leading-relaxed max-w-xs mb-8 whitespace-pre-wrap">
+                    {error}
+                </p>
+                <button
+                    onClick={() => window.location.assign('/')}
+                    className="px-8 py-4 bg-bloodRed text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl active:scale-95 transition-all"
+                >
+                    Back to Login
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#1C1C1E] min-h-screen text-white">
@@ -77,9 +83,9 @@ export default function AuthCallbackPage() {
                 <h1 className="text-2xl font-black italic uppercase tracking-tighter text-bloodRed animate-pulse">
                     Authenticating
                 </h1>
-                <p className="text-secondaryText text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">
+                <pre className="text-secondaryText text-[8px] font-mono leading-relaxed opacity-60 text-left bg-black/30 p-4 rounded-xl border border-white/5">
                     {debugInfo}
-                </p>
+                </pre>
             </div>
         </div>
     );

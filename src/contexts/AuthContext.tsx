@@ -37,21 +37,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function fetchProfile(userId: string, retries = 3) {
     for (let i = 0; i < retries; i++) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      if (data) {
-        setProfile({
-          id: data.id,
-          fullName: data.full_name,
-          avatarUrl: data.avatar_url ?? undefined,
-          handicap: data.handicap,
-          is_admin: data.is_admin ?? false,
-          createdAt: data.created_at,
-        });
-        return;
+      try {
+        const profilePromise = supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 3000));
+
+        const { data } = await Promise.race([profilePromise, timeoutPromise]) as any;
+
+        if (data) {
+          setProfile({
+            id: data.id,
+            fullName: data.full_name,
+            avatarUrl: data.avatar_url ?? undefined,
+            handicap: data.handicap,
+            is_admin: data.is_admin ?? false,
+            createdAt: data.created_at,
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn(`Profile fetch attempt ${i + 1} failed:`, e);
       }
       if (i < retries - 1) await new Promise(r => setTimeout(r, 600));
     }
@@ -60,7 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function initAuth() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Auth init timeout')), 5000));
+
+        const { data: { session } } = await Promise.race([sessionPromise, timeout]) as any;
+
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user && !session.user.is_anonymous) {
@@ -77,10 +90,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log('Auth Event:', _event);
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user && !session.user.is_anonymous) {
-          await fetchProfile(session.user.id);
+          await fetchProfile(session.user.id).catch(e => console.error('onAuthStateChange profile fetch failed:', e));
         } else {
           setProfile(null);
         }
