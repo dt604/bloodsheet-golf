@@ -102,21 +102,26 @@ export default function Home() {
                         </div>
                     </div>
                 ) : (
-                    <div className="relative overflow-hidden rounded-3xl bg-surface border border-borderColor p-8 flex flex-col items-center text-center group shadow-xl">
-                        <div className="absolute inset-0 bg-gradient-to-br from-bloodRed/10 via-transparent to-transparent opacity-50" />
+                    <div className="relative overflow-hidden rounded-[2.5rem] bg-[#1a1a1c] border border-white/5 p-8 sm:p-10 flex flex-col sm:flex-row items-center justify-between group shadow-2xl min-h-[220px]">
+                        {/* Decorative Premium Backgrounds */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(255,0,63,0.15),transparent_50%)]" />
+                        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-bloodRed/10 rounded-full blur-[80px]" />
 
-                        <div className="relative z-10 w-32 h-32 mb-6 group-hover:scale-110 transition-transform duration-500">
+                        <div className="relative z-10 text-center sm:text-left space-y-2 order-2 sm:order-1 mt-6 sm:mt-0">
+                            <h2 className="text-4xl sm:text-5xl font-black text-white italic tracking-tighter leading-none flex flex-col">
+                                <span className="text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.3)]">READY TO</span>
+                                <span>TEE OFF?</span>
+                            </h2>
+                            <div className="h-1 w-12 bg-bloodRed rounded-full mx-auto sm:mx-0" />
+                        </div>
+
+                        <div className="relative z-10 w-32 h-32 sm:w-40 sm:h-40 order-1 sm:order-2">
+                            <div className="absolute inset-0 bg-bloodRed/20 rounded-full blur-2xl animate-pulse" />
                             <img
                                 src="/logo-final.png"
                                 alt="BloodSheet Golf"
-                                className="w-full h-full object-contain filter drop-shadow-[0_0_20px_rgba(255,0,63,0.4)]"
+                                className="w-full h-full object-contain filter drop-shadow-[0_0_25px_rgba(255,0,63,0.4)] relative z-10"
                             />
-                        </div>
-
-                        <div className="relative z-10">
-                            <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic">
-                                Ready to <span className="text-bloodRed">Tee Off?</span>
-                            </h2>
                         </div>
                     </div>
                 )}
