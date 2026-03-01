@@ -108,14 +108,14 @@ export default function Home() {
                         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-bloodRed/10 rounded-full blur-[80px]" />
 
                         <div className="relative z-10 text-center sm:text-left space-y-2 order-2 sm:order-1 mt-6 sm:mt-0">
-                            <h2 className="text-5xl sm:text-6xl font-black text-white italic tracking-tighter leading-none flex flex-col">
+                            <h2 className="text-4xl sm:text-5xl font-black text-white italic tracking-tighter leading-none flex flex-col">
                                 <span className="text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.3)]">READY TO</span>
                                 <span>TEE OFF?</span>
                             </h2>
                             <div className="h-1.5 w-16 bg-bloodRed rounded-full mx-auto sm:mx-0 shadow-[0_0_10px_rgba(255,0,63,0.5)]" />
                         </div>
 
-                        <div className="relative z-10 w-40 h-40 sm:w-52 sm:h-52 order-1 sm:order-2 transition-transform duration-700 group-hover:scale-105">
+                        <div className="relative z-10 w-44 h-44 sm:w-64 sm:h-64 order-1 sm:order-2 transition-transform duration-700 group-hover:scale-105">
                             <div className="absolute inset-0 bg-bloodRed/20 rounded-full blur-3xl animate-pulse" />
                             <img
                                 src="/logo-final.png"
@@ -215,25 +215,6 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* Mini Dashboard Snippet */}
-            <section className="px-4">
-                <Card className="p-6 bg-surface border-borderColor relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 font-black opacity-[0.03] text-6xl tracking-tighter select-none group-hover:opacity-[0.05] transition-opacity">
-                        STATS
-                    </div>
-                    <div className="relative z-10 flex items-center justify-between">
-                        <div className="space-y-1">
-                            <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Player Profile</h3>
-                            <span className="block text-2xl font-black text-white italic tracking-tight uppercase">Dashboard</span>
-                        </div>
-                        <Link to="/dashboard">
-                            <Button variant="outline" size="sm" className="rounded-full border-bloodRed/30 text-bloodRed font-black text-[10px] tracking-widest px-6 hover:bg-bloodRed hover:text-white transition-all">
-                                VIEW
-                            </Button>
-                        </Link>
-                    </div>
-                </Card>
-            </section>
         </div>
     );
 }
