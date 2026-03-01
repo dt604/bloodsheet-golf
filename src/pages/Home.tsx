@@ -64,7 +64,7 @@ export default function Home() {
         : '?';
 
     return (
-        <div className="flex-1 overflow-y-auto momentum-scroll space-y-8 pb-32 pt-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden momentum-scroll space-y-8 pb-32 pt-6">
             {/* Dynamic Top Banner */}
             <div className="px-4">
                 {activeMatch ? (
@@ -173,8 +173,8 @@ export default function Home() {
                                 className="p-4 bg-surface border-white/5 flex items-center justify-between group hover:border-bloodRed/30 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
                                 onClick={() => navigate(match.status === 'completed' ? `/past-match/${match.id}` : `/play/1`)}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold text-bloodRed shrink-0 overflow-hidden">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed shrink-0 overflow-hidden">
                                         {profile?.avatarUrl ? (
                                             <img src={profile.avatarUrl} alt="Me" className="w-full h-full object-cover grayscale" />
                                         ) : (
@@ -183,8 +183,8 @@ export default function Home() {
                                     </div>
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2">
-                                            <span className="font-black text-white text-[10px] uppercase tracking-wider">{match.format || 'Match'}</span>
-                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${match.status === 'completed' ? 'bg-neonGreen/10 text-neonGreen' : 'bg-bloodRed/10 text-bloodRed animate-pulse'}`}>
+                                            <span className="font-black text-white text-[10px] uppercase tracking-wider truncate block">{match.format || 'Match'}</span>
+                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded shrink-0 ${match.status === 'completed' ? 'bg-neonGreen/10 text-neonGreen' : 'bg-bloodRed/10 text-bloodRed animate-pulse'}`}>
                                                 {match.status === 'completed' ? 'Finished' : 'Live'}
                                             </span>
                                         </div>
