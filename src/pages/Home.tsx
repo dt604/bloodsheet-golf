@@ -53,20 +53,45 @@ export default function Home() {
     return (
         <div className="flex-1 overflow-y-auto momentum-scroll space-y-8 pb-32">
             {/* Header Area */}
-            <header className="px-4 pt-4 flex justify-between items-center">
-                <div className="flex items-center">
+            {/* Premium Centralized Header */}
+            <header className="relative pt-12 pb-6 px-4 flex flex-col items-center">
+                {/* Decorative Background Elements */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-bloodRed/5 rounded-full blur-[100px] -z-10" />
+
+                {/* Large Central Logo */}
+                <div className="relative group">
+                    <div className="absolute inset-0 bg-bloodRed/20 rounded-full blur-2xl group-hover:bg-bloodRed/30 transition-all duration-700" />
                     <img
                         src="/logo-final.png"
                         alt="BloodSheet"
-                        className="w-16 h-16 object-contain drop-shadow-[0_0_12px_rgba(255,0,63,0.6)]"
+                        className="w-32 h-32 object-contain relative z-10 drop-shadow-[0_0_20px_rgba(255,0,0,0.4)] transition-transform duration-500 hover:scale-105"
                     />
                 </div>
-                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner overflow-hidden">
-                    {profile?.avatarUrl ? (
-                        <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                    ) : (
-                        initials
-                    )}
+
+                {/* Profile Info Underneath */}
+                <div className="mt-6 flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-4">
+                        <div className="h-[1px] w-8 bg-gradient-to-r from-transparent to-bloodRed/50" />
+                        <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-bloodRed to-neonGreen shadow-[0_0_15px_rgba(255,0,0,0.2)]">
+                            <div className="w-full h-full rounded-full bg-surfaceHover border border-black/20 flex items-center justify-center font-black text-bloodRed text-xs overflow-hidden">
+                                {profile?.avatarUrl ? (
+                                    <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    initials
+                                )}
+                            </div>
+                        </div>
+                        <div className="h-[1px] w-8 bg-gradient-to-l from-transparent to-bloodRed/50" />
+                    </div>
+
+                    <div className="text-center">
+                        <h2 className="text-xl font-black text-white italic tracking-tighter uppercase">
+                            {profile?.fullName || 'GOLFER'}
+                        </h2>
+                        <p className="text-[9px] text-secondaryText font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">
+                            Member since {new Date(profile?.createdAt || Date.now()).getFullYear()}
+                        </p>
+                    </div>
                 </div>
             </header>
 
