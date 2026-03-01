@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, History, Users, Camera, Loader, ShieldCheck, Home } from 'lucide-react';
+import { Settings, History, Users, Camera, Loader, ShieldCheck, Home, Clock, PenLine } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
@@ -17,9 +17,13 @@ interface MatchHistoryItem {
     createdAt: string;
     payout: number;
     holesUp: number;
+    status: string;
 }
 
-
+interface PendingAttestItem {
+    matchId: string;
+    courseName: string;
+}
 
 interface Stats {
     totalMatches: number;
@@ -36,6 +40,7 @@ export default function DashboardPage() {
     const [uploadingImage, setUploadingImage] = useState(false);
 
     const [history, setHistory] = useState<MatchHistoryItem[]>([]);
+    const [needsAttestation, setNeedsAttestation] = useState<PendingAttestItem[]>([]);
     const [stats, setStats] = useState<Stats>({
         totalMatches: 0,
         wins: 0,
@@ -112,14 +117,40 @@ export default function DashboardPage() {
                 }
             }
 
-            // 2. Recent match history for display (last 10)
+            // 2. Recent match history for display (last 10) — includes pending_attestation
             const { data: recentMatches } = await supabase
                 .from('matches')
-                .select('id, format, wager_type, wager_amount, status, created_at, courses(name)')
+                .select('id, format, wager_type, wager_amount, status, created_at, created_by, courses(name)')
                 .in('id', allMatchIds)
-                .eq('status', 'completed')
+                .in('status', ['completed', 'pending_attestation'])
                 .order('created_at', { ascending: false })
                 .limit(10);
+
+            // 2b. Find matches where user needs to attest (pending, not creator, not yet attested)
+            const pendingMatchIds = (recentMatches ?? [])
+                .filter((m) => (m as Record<string, unknown>).status === 'pending_attestation'
+                    && (m as Record<string, unknown>).created_by !== userId)
+                .map((m) => (m as Record<string, unknown>).id as string);
+
+            if (pendingMatchIds.length > 0) {
+                const { data: myAttestations } = await supabase
+                    .from('match_attestations')
+                    .select('match_id')
+                    .eq('user_id', userId)
+                    .in('match_id', pendingMatchIds);
+                const alreadyAttested = new Set((myAttestations ?? []).map((a: any) => a.match_id as string));
+                const unattested = (recentMatches ?? [])
+                    .filter((m) => {
+                        const row = m as Record<string, unknown>;
+                        return pendingMatchIds.includes(row.id as string) && !alreadyAttested.has(row.id as string);
+                    })
+                    .map((m) => {
+                        const row = m as Record<string, unknown>;
+                        const course = row.courses as Record<string, unknown> | null;
+                        return { matchId: row.id as string, courseName: course?.name as string ?? 'Unknown Course' };
+                    });
+                setNeedsAttestation(unattested);
+            }
 
             if (recentMatches) {
                 const recentMatchIds = (recentMatches as Record<string, unknown>[]).map((m) => m.id as string);
@@ -183,6 +214,7 @@ export default function DashboardPage() {
                         createdAt: m.created_at as string,
                         payout: 0,
                         holesUp: 0,
+                        status: m.status as string,
                     };
                 });
                 setHistory(items);
@@ -475,6 +507,35 @@ export default function DashboardPage() {
                     <StatBox label="Snakes Avoided" value={String(stats.snakesAvoided)} valueColor="neonGreen" className="px-1" />
                 </section>
 
+                {/* Action Required — matches needing the current user's attestation */}
+                {needsAttestation.length > 0 && (
+                    <section>
+                        <div className="flex items-center gap-2 mb-3 px-2">
+                            <PenLine className="w-5 h-5 text-yellow-400" />
+                            <h3 className="text-sm font-bold tracking-widest uppercase text-yellow-400">Action Required</h3>
+                        </div>
+                        <Card className="divide-y divide-borderColor/50">
+                            {needsAttestation.map((item) => (
+                                <div
+                                    key={item.matchId}
+                                    className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
+                                    onClick={async () => {
+                                        useMatchStore.setState({ matchId: item.matchId, match: null });
+                                        localStorage.setItem('activeMatchId', item.matchId);
+                                        navigate('/ledger');
+                                    }}
+                                >
+                                    <div>
+                                        <span className="font-bold text-white block">{item.courseName}</span>
+                                        <span className="text-xs text-yellow-400 font-bold uppercase tracking-wider">Your signature is needed</span>
+                                    </div>
+                                    <Clock className="w-5 h-5 text-yellow-400 shrink-0 ml-3" />
+                                </div>
+                            ))}
+                        </Card>
+                    </section>
+                )}
+
                 {/* Recent Matches */}
                 <section>
                     <div className="flex items-center justify-between mb-3 px-2 mt-4">
@@ -492,7 +553,15 @@ export default function DashboardPage() {
                                 <div
                                     key={item.id}
                                     className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
-                                    onClick={() => navigate(`/history/${item.id}`)}
+                                    onClick={() => {
+                                        if (item.status === 'pending_attestation') {
+                                            useMatchStore.setState({ matchId: item.id, match: null });
+                                            localStorage.setItem('activeMatchId', item.id);
+                                            navigate('/ledger');
+                                        } else {
+                                            navigate(`/history/${item.id}`);
+                                        }
+                                    }}
                                 >
                                     <div>
                                         <span className="font-bold text-white block">{item.courseName} • {item.format}</span>
@@ -502,12 +571,21 @@ export default function DashboardPage() {
                                         </span>
                                     </div>
                                     <div className="text-right shrink-0 ml-3">
-                                        <div className={`font-black text-base leading-tight ${item.payout > 0 ? 'text-neonGreen' : item.payout < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                            {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
-                                        </div>
-                                        <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                            {item.format === 'skins' ? 'SKINS' : item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
-                                        </div>
+                                        {item.status === 'pending_attestation' ? (
+                                            <div className="flex flex-col items-end gap-1">
+                                                <Clock className="w-4 h-4 text-yellow-400" />
+                                                <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Unattested</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className={`font-black text-base leading-tight ${item.payout > 0 ? 'text-neonGreen' : item.payout < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                    {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
+                                                </div>
+                                                <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                    {item.format === 'skins' ? 'SKINS' : item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ))}
