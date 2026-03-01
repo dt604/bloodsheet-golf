@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import {
@@ -7,18 +8,45 @@ import {
     Zap
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Home() {
-    // UI-Only Mock Data (No Logic for now as requested)
-    const hasActiveMatch = true;
+    const { profile } = useAuth();
+    const [activeMatch, setActiveMatch] = useState<any>(null);
+
+    useEffect(() => {
+        if (!profile) return;
+
+        async function checkActiveMatch() {
+            const { data } = await supabase
+                .from('match_players')
+                .select('match_id, matches!inner(id, status, created_at, courses(name))')
+                .eq('user_id', profile?.id)
+                .eq('matches.status', 'in_progress')
+                .order('matches(created_at)', { ascending: false })
+                .limit(1);
+
+            if (data && data.length > 0) {
+                setActiveMatch((data[0] as any).matches);
+            }
+        }
+
+        checkActiveMatch();
+    }, [profile]);
+
     const recentActivity = [
         { id: '1', user: 'Mike D.', action: 'finished', score: '-2', course: 'Pebble Beach', time: '2h ago' },
         { id: '2', user: 'Chris P.', action: 'won', amount: '$45', course: 'Spyglass Hill', time: '5h ago' },
         { id: '3', user: 'You', action: 'posted', score: '+4', course: 'Spanish Bay', time: 'Yesterday' }
     ];
 
+    const initials = profile?.fullName
+        ? profile.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+        : '?';
+
     return (
-        <div className="space-y-8 pb-24">
+        <div className="flex-1 overflow-y-auto momentum-scroll space-y-8 pb-32">
             {/* Header Area */}
             <header className="px-4 pt-4 flex justify-between items-center">
                 <div>
@@ -29,14 +57,14 @@ export default function Home() {
                         Golf Social Hub
                     </p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-surface border border-borderColor flex items-center justify-center font-black text-bloodRed">
-                    D
+                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner">
+                    {initials}
                 </div>
             </header>
 
-            {/* Active Match Banner (Sunlight Mode Premium) */}
-            {hasActiveMatch && (
-                <div className="px-4">
+            {/* Dynamic Top Banner */}
+            <div className="px-4">
+                {activeMatch ? (
                     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bloodRed to-[#C4002F] p-6 shadow-[0_0_30px_rgba(255,0,63,0.3)] border border-white/20 group">
                         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
                             <Zap className="w-32 h-32 text-white" />
@@ -50,12 +78,12 @@ export default function Home() {
 
                             <div>
                                 <h2 className="text-2xl font-black text-white mb-1 flex items-center gap-2">
-                                    Pebble Beach GL
+                                    {activeMatch.courses?.name || 'Active Match'}
                                 </h2>
-                                <p className="text-white/80 text-xs font-bold uppercase tracking-wider">Hole 14 • 2v2 Skins</p>
+                                <p className="text-white/80 text-xs font-bold uppercase tracking-wider">Hole 1 • Skins & Trash</p>
                             </div>
 
-                            <Link to="/play/1" className="w-full">
+                            <Link to={`/play/1`} className="w-full">
                                 <Button className="w-full bg-white text-bloodRed hover:bg-white/90 font-black shadow-lg flex items-center justify-center gap-2 py-6 rounded-2xl group/btn">
                                     RESUME MATCH
                                     <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -63,8 +91,29 @@ export default function Home() {
                             </Link>
                         </div>
                     </div>
-                </div>
-            )}
+                ) : (
+                    <div className="relative overflow-hidden rounded-3xl bg-surface border border-borderColor p-8 flex flex-col items-center text-center group shadow-xl">
+                        <div className="absolute inset-0 bg-gradient-to-br from-bloodRed/10 via-transparent to-transparent opacity-50" />
+
+                        <div className="relative z-10 w-24 h-24 mb-6 group-hover:scale-110 transition-transform duration-500">
+                            <img
+                                src="/logo-final.png"
+                                alt="BloodSheet Golf"
+                                className="w-full h-full object-contain filter drop-shadow-[0_0_20px_rgba(255,0,63,0.4)]"
+                            />
+                        </div>
+
+                        <div className="relative z-10">
+                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2 italic">
+                                Ready to <span className="text-bloodRed">Tee Off?</span>
+                            </h2>
+                            <p className="max-w-[180px] mx-auto text-secondaryText text-[10px] font-bold uppercase tracking-[0.2em] leading-relaxed opacity-80">
+                                Start a new match or join an active group code.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {/* Quick Actions Grid */}
             <section className="px-4">
