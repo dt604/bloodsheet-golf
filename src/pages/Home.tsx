@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Plus, ChevronRight, Zap, LogOut } from 'lucide-react';
+import { Flag, ChevronRight, Zap, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -181,11 +181,11 @@ export default function Home() {
                                 <div className="absolute -top-12 -right-12 w-24 h-24 bg-neonGreen/5 rounded-full blur-2xl group-hover:bg-neonGreen/10 transition-colors" />
 
                                 <div className="w-14 h-14 rounded-2xl bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center text-neonGreen shadow-inner relative shrink-0 transition-transform group-hover:scale-110 duration-500">
-                                    <Plus className="w-8 h-8 drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]" />
+                                    <Flag className="w-7 h-7 drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]" />
                                 </div>
                                 <div className="flex-1 flex flex-col justify-center relative z-10">
-                                    <span className="block text-white font-black text-lg uppercase leading-none italic group-hover:text-neonGreen transition-colors">Setup</span>
-                                    <span className="text-[9px] text-secondaryText font-black uppercase tracking-widest mt-1 opacity-60">Start Match</span>
+                                    <span className="block text-white font-black text-lg uppercase leading-none italic group-hover:text-neonGreen transition-colors">Start Round</span>
+                                    <span className="text-[9px] text-secondaryText font-black uppercase tracking-widest mt-1 opacity-60">Tee It Up</span>
                                 </div>
                             </div>
                         </Link>
