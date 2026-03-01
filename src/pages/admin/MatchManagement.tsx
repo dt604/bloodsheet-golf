@@ -37,12 +37,14 @@ export default function MatchManagement() {
                 wager_type,
                 status,
                 created_at,
-                courses ( name ),
-                profiles ( full_name )
+                courses:course_id ( name ),
+                profiles:created_by ( full_name )
             `)
             .order('created_at', { ascending: false });
 
-        if (!error && data) {
+        if (error) {
+            console.error('Error fetching matches:', error);
+        } else if (data) {
             setMatches(data as any[]);
         }
         setLoading(false);
