@@ -47,6 +47,7 @@ interface MatchScorecardData {
         sandies?: boolean;
         snake?: boolean;
         birdiesDouble?: boolean;
+        bonusSkins?: boolean;
         trashValue?: number;
     };
     holes: CourseHole[];
