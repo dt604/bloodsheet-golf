@@ -64,6 +64,18 @@ export default function MatchSetupPage() {
     const [par5Contest, setPar5Contest] = useState(false);
     const [par5Pot, setPar5Pot] = useState(5);
     const [bonusSkins, setBonusSkins] = useState(false);
+    const [teamSkins, setTeamSkins] = useState(false);
+    const [potMode, setPotMode] = useState(false);
+
+    // When toggling team skins mode, clear the conflicting player list
+    function handleTeamSkinsToggle(enabled: boolean) {
+        if (enabled) {
+            [...poolPlayers].forEach(p => removePoolPlayer(p.userId));
+        } else {
+            [...stagedPlayers].forEach(p => removeStagedPlayer(p.userId));
+        }
+        setTeamSkins(enabled);
+    }
 
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
@@ -75,7 +87,13 @@ export default function MatchSetupPage() {
     const canAdvance = () => {
         if (currentStep === 1) return true;
         if (currentStep === 2) {
-            if (format === 'skins') return poolPlayers.length >= 1; // Need at least 1 other player
+            if (format === 'skins') {
+                if (teamSkins) {
+                    // Team skins: need at least 1 player on Team A (besides creator) and 1 on Team B
+                    return stagedPlayers.filter(p => p.team === 'B').length >= 1;
+                }
+                return poolPlayers.length >= 1; // Need at least 1 other player
+            }
             if (format === '1v1') return true;
             return stagedPlayers.filter(p => p.team === 'A').length >= 1;
         }
@@ -170,13 +188,17 @@ export default function MatchSetupPage() {
         if (!user) return;
         if (!selectedCourse) { setError('Please select a course first.'); return; }
 
-        const sideBets = { greenies, sandies, snake, autoPress, birdiesDouble, trashValue, startingHole, par3Contest, par3Pot, par5Contest, par5Pot, bonusSkins };
+        const sideBets = { greenies, sandies, snake, autoPress, birdiesDouble, trashValue, startingHole, par3Contest, par3Pot, par5Contest, par5Pot, bonusSkins, teamSkins, potMode };
 
         setCreating(true);
         setError('');
         try {
             if (format === 'skins') {
-                if (poolPlayers.length < 1) { setError('Add at least one other player.'); setCreating(false); return; }
+                if (teamSkins) {
+                    if (stagedPlayers.filter(p => p.team === 'B').length < 1) { setError('Add at least one player to Team B.'); setCreating(false); return; }
+                } else {
+                    if (poolPlayers.length < 1) { setError('Add at least one other player.'); setCreating(false); return; }
+                }
                 await createSkinsMatch(
                     { courseId: selectedCourse.id, wagerAmount: wager, status: 'in_progress', sideBets, createdBy: user.id },
                     selectedCourse,
@@ -344,14 +366,25 @@ export default function MatchSetupPage() {
                             <div className="flex items-center justify-between mb-2">
                                 <div className="text-sm font-black text-white uppercase tracking-wider italic">Who's playing today?</div>
                                 <span className="text-[10px] font-bold text-secondaryText uppercase tracking-widest bg-surface px-2 py-0.5 rounded-full border border-borderColor">
-                                    {format === '2v2' ? stagedPlayers.length + 1 : poolPlayers.length + 1} Total
+                                    {(format === '2v2' || (format === 'skins' && teamSkins)) ? stagedPlayers.length + 1 : poolPlayers.length + 1} Total
                                 </span>
                             </div>
+
+                            {/* Team Skins toggle — shown at top of player step for skins format */}
+                            {format === 'skins' && (
+                                <div className="flex items-center justify-between p-4 rounded-xl border border-borderColor/50 bg-surface/50">
+                                    <div>
+                                        <span className="font-black text-xs uppercase tracking-tight block text-white">Team Skins</span>
+                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Team A vs Team B · Best ball</span>
+                                    </div>
+                                    <Toggle checked={teamSkins} onCheckedChange={handleTeamSkinsToggle} />
+                                </div>
+                            )}
 
                             <div className="space-y-3">
 
 
-                                {format === '1v1' || format === 'skins' ? (
+                                {(format === '1v1' || format === 'skins') && !teamSkins ? (
                                     <>
                                         <Card className="p-4 border-neonGreen/30 bg-neonGreen/5 mb-3">
                                             <div className="flex items-center gap-3">
@@ -902,22 +935,38 @@ export default function MatchSetupPage() {
                                             </div>
                                         )}
                                         {format === 'skins' && (
-                                            <div className="p-4 border-b border-borderColor/30 flex justify-between items-center">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center">
-                                                        <span className="text-neonGreen font-black">$</span>
+                                            <>
+                                                <div className="p-4 border-b border-borderColor/30 flex justify-between items-center">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center">
+                                                            <span className="text-neonGreen font-black">$</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-black text-xs uppercase tracking-tight block">
+                                                                {potMode ? 'Buy-in Per Player' : 'Skin Value'}
+                                                            </span>
+                                                            <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
+                                                                {potMode
+                                                                    ? `Total Pot: $${wager * ((teamSkins ? stagedPlayers.length : poolPlayers.length) + 1)}`
+                                                                    : '$ per skin'
+                                                                }
+                                                            </span>
+                                                        </div>
                                                     </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <button onClick={() => setWager(Math.max(5, wager - 5))} className="w-8 h-8 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all">-</button>
+                                                        <span className="text-xl font-black w-10 text-center tabular-nums">${wager}</span>
+                                                        <button onClick={() => setWager(wager + 5)} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between p-4 border-b border-borderColor/30">
                                                     <div>
-                                                        <span className="font-black text-xs uppercase tracking-tight block">Skin Value</span>
-                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">$ per skin</span>
+                                                        <span className="font-black text-xs uppercase tracking-tight block text-white">Pot Skins</span>
+                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Most skins wins the pot</span>
                                                     </div>
+                                                    <Toggle checked={potMode} onCheckedChange={setPotMode} />
                                                 </div>
-                                                <div className="flex items-center gap-3">
-                                                    <button onClick={() => setWager(Math.max(5, wager - 5))} className="w-8 h-8 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all">-</button>
-                                                    <span className="text-xl font-black w-10 text-center tabular-nums">${wager}</span>
-                                                    <button onClick={() => setWager(wager + 5)} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
-                                                </div>
-                                            </div>
+                                            </>
                                         )}
 
                                         {/* Trash Bets Trigger */}

@@ -102,6 +102,8 @@ export interface Match {
     par5Contest?: boolean;
     par5Pot?: number;
     bonusSkins?: boolean;
+    teamSkins?: boolean;   // Team A vs Team B best-ball per hole
+    potMode?: boolean;     // Most skins wins the pot (buy-in = wagerAmount)
   };
   createdBy: string;
 }

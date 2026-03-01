@@ -116,22 +116,82 @@ export default function MatchHistoryPage() {
 
                 if (format === 'skins') {
                     const numPlayers = matchPlayers.length;
+                    const sideBets = matchRow.side_bets as { teamSkins?: boolean; potMode?: boolean } | null;
+                    const isTeamSkins = sideBets?.teamSkins ?? false;
+                    const isPotMode = sideBets?.potMode ?? false;
+                    const skinCounts: Record<string, number> = {};
                     let carry = 0;
                     let skinsPayout = 0;
-                    for (let h = 1; h <= 18; h++) {
-                        const hScores = matchScores
+
+                    function hScoresForHole(h: number) {
+                        return matchScores
                             .filter((s) => (s as any).hole_number === h)
-                            .map((s) => ({ playerId: (s as any).player_id as string, net: (s as any).net as number }));
+                            .map((s) => ({
+                                playerId: (s as any).player_id as string,
+                                net: (s as any).net as number,
+                                team: ((matchPlayers.find(p => (p as any).user_id === (s as any).player_id) as any)?.team ?? 'A') as 'A' | 'B',
+                            }));
+                    }
+
+                    // First pass: count skins per player
+                    for (let h = 1; h <= 18; h++) {
+                        const hScores = hScoresForHole(h);
                         if (hScores.length < numPlayers) continue;
                         const holesInPot = 1 + carry;
-                        const pot = holesInPot * wagerAmount;
-                        const minNet = Math.min(...hScores.map((s) => s.net));
-                        const winners = hScores.filter((s) => s.net === minNet);
-                        if (winners.length === 1) {
-                            skinsPayout += winners[0].playerId === userId ? pot * (numPlayers - 1) : -pot;
-                            carry = 0;
+                        if (isTeamSkins) {
+                            const aNet = Math.min(...hScores.filter(s => s.team === 'A').map(s => s.net));
+                            const bNet = Math.min(...hScores.filter(s => s.team === 'B').map(s => s.net));
+                            if (aNet !== bNet) {
+                                const winTeam = aNet < bNet ? 'A' : 'B';
+                                hScores.filter(s => s.team === winTeam).forEach(s => {
+                                    skinCounts[s.playerId] = (skinCounts[s.playerId] ?? 0) + holesInPot;
+                                });
+                                carry = 0;
+                            } else carry += 1;
                         } else {
-                            carry += 1;
+                            const minNet = Math.min(...hScores.map(s => s.net));
+                            const winners = hScores.filter(s => s.net === minNet);
+                            if (winners.length === 1) {
+                                skinCounts[winners[0].playerId] = (skinCounts[winners[0].playerId] ?? 0) + holesInPot;
+                                carry = 0;
+                            } else carry += 1;
+                        }
+                    }
+
+                    if (isPotMode) {
+                        const pot = wagerAmount * numPlayers;
+                        const maxSkins = Math.max(0, ...Object.values(skinCounts));
+                        const potWinners = maxSkins > 0 ? Object.keys(skinCounts).filter(id => skinCounts[id] === maxSkins) : [];
+                        const potShare = potWinners.length > 1 ? pot / potWinners.length : pot;
+                        skinsPayout = potWinners.includes(userId) ? potShare - wagerAmount : -wagerAmount;
+                    } else {
+                        // Per-skin payout
+                        let carry2 = 0;
+                        for (let h = 1; h <= 18; h++) {
+                            const hScores = hScoresForHole(h);
+                            if (hScores.length < numPlayers) continue;
+                            const holesInPot = 1 + carry2;
+                            const potVal = holesInPot * wagerAmount;
+                            if (isTeamSkins) {
+                                const aNet = Math.min(...hScores.filter(s => s.team === 'A').map(s => s.net));
+                                const bNet = Math.min(...hScores.filter(s => s.team === 'B').map(s => s.net));
+                                if (aNet !== bNet) {
+                                    const winTeam = aNet < bNet ? 'A' : 'B';
+                                    const myScore = hScores.find(s => s.playerId === userId);
+                                    const numOpp = hScores.filter(s => s.team !== winTeam).length;
+                                    const numWin = hScores.filter(s => s.team === winTeam).length;
+                                    if (myScore?.team === winTeam) skinsPayout += potVal * numOpp;
+                                    else skinsPayout -= potVal * numWin;
+                                    carry2 = 0;
+                                } else carry2 += 1;
+                            } else {
+                                const minNet = Math.min(...hScores.map(s => s.net));
+                                const winners = hScores.filter(s => s.net === minNet);
+                                if (winners.length === 1) {
+                                    skinsPayout += winners[0].playerId === userId ? potVal * (numPlayers - 1) : -potVal;
+                                    carry2 = 0;
+                                } else carry2 += 1;
+                            }
                         }
                     }
                     payoutMap[matchId] = { payout: skinsPayout, holesUp: 0 };

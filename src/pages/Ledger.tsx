@@ -175,6 +175,179 @@ export default function LedgerPage() {
                 const skinValue = match!.wagerAmount;
                 const numPlayers = players.length;
                 const bonusSkins = match!.sideBets?.bonusSkins ?? false;
+                const isTeamSkins = match!.sideBets?.teamSkins ?? false;
+                const isPotMode = match!.sideBets?.potMode ?? false;
+
+                // Helper: get player team
+                function playerTeam(playerId: string): 'A' | 'B' {
+                    return players.find(p => p.userId === playerId)?.team ?? 'A';
+                }
+
+                // Helper: compute bonus skin count for a score on a hole
+                function bonusCount(s: typeof scores[0], par: number): number {
+                    const pin = s.trashDots.includes('pin') ? 1 : 0;
+                    const birdie = s.gross === par - 1 ? 1 : 0;
+                    const eagle = s.gross <= par - 2 ? 2 : 0;
+                    return pin + birdie + eagle;
+                }
+
+                // ── Path 2: Individual Pot Skins ──────────────────────────
+                if (isPotMode && !isTeamSkins) {
+                    const pot = skinValue * numPlayers;
+                    const skinCounts: Record<string, number> = {};
+                    let carry = 0;
+                    for (let h = 1; h <= 18; h++) {
+                        const hScores = scores.filter(s => s.holeNumber === h);
+                        if (hScores.length < numPlayers) continue;
+                        const par = bonusSkins ? (course?.holes?.find((hole: any) => hole.number === h)?.par ?? 4) : 4;
+                        // Bonus skins per player
+                        if (bonusSkins) {
+                            for (const s of hScores) {
+                                const bc = bonusCount(s, par);
+                                if (bc > 0) skinCounts[s.playerId] = (skinCounts[s.playerId] ?? 0) + bc;
+                            }
+                        }
+                        const holesInPot = 1 + carry;
+                        const minNet = Math.min(...hScores.map(s => s.net));
+                        const winners = hScores.filter(s => s.net === minNet);
+                        if (winners.length === 1) {
+                            const wId = winners[0].playerId;
+                            skinCounts[wId] = (skinCounts[wId] ?? 0) + holesInPot;
+                            carry = 0;
+                        } else {
+                            carry += 1;
+                        }
+                    }
+                    const maxSkins = Math.max(0, ...Object.values(skinCounts));
+                    const potWinners = maxSkins > 0 ? players.filter(p => (skinCounts[p.userId] ?? 0) === maxSkins) : [];
+                    const isTie = potWinners.length > 1;
+                    const potShare = isTie ? pot / potWinners.length : pot;
+                    const isUserWinner = potWinners.some(p => p.userId === user!.id);
+                    const userSkins = skinCounts[user!.id] ?? 0;
+
+                    if (maxSkins === 0) {
+                        return [{ label: 'Pot Skins', sublabel: 'No skins won — pot returned', amount: 0 }];
+                    }
+
+                    const winnerNames = potWinners.map(p => (p.guestName ?? nameMap[p.userId] ?? 'Player').split(' ')[0]).join(', ');
+                    const netAmount = isUserWinner ? potShare - skinValue : -skinValue;
+                    const sublabel = isUserWinner
+                        ? isTie
+                            ? `Tied ${maxSkins} skins — split $${pot} pot (${potWinners.length} ways)`
+                            : `${maxSkins} skins — you win $${pot} pot`
+                        : `You: ${userSkins} skin${userSkins !== 1 ? 's' : ''} — ${isTie ? `${winnerNames} split pot` : `${winnerNames} wins $${pot} pot`}`;
+                    return [{ label: 'Pot Skins', sublabel, amount: netAmount }];
+                }
+
+                // ── Path 3: Team Per-Skin ─────────────────────────────────
+                if (isTeamSkins && !isPotMode) {
+                    const result: LineItem[] = [];
+                    let carry = 0;
+                    const myTeamArr = players.filter(p => p.team === myTeam);
+                    const oppTeamArr = players.filter(p => p.team === oppTeam);
+                    const numOpp = oppTeamArr.length;
+                    const numMine = myTeamArr.length;
+
+                    for (let h = 1; h <= 18; h++) {
+                        const hScores = scores.filter(s => s.holeNumber === h);
+                        if (hScores.length < numPlayers) continue;
+                        const par = bonusSkins ? (course?.holes?.find((hole: any) => hole.number === h)?.par ?? 4) : 4;
+
+                        // Bonus skins — individual, same as before
+                        let userBonusAmount = 0;
+                        const bonusNotes: string[] = [];
+                        if (bonusSkins) {
+                            for (const s of hScores) {
+                                const bc = bonusCount(s, par);
+                                if (bc === 0) continue;
+                                const isUser = s.playerId === user!.id;
+                                const numOpponents = isUser ? numOpp : (playerTeam(s.playerId) === myTeam ? numOpp : numMine);
+                                userBonusAmount += isUser ? bc * skinValue * numOpponents : -bc * skinValue;
+                                const pName = isUser ? 'You' : (players.find(p => p.userId === s.playerId)?.guestName ?? nameMap[s.playerId] ?? 'Player').split(' ')[0];
+                                const bl = [s.trashDots.includes('pin') ? 'Pin' : '', s.gross === par - 1 ? 'Birdie' : '', s.gross <= par - 2 ? 'Eagle' : ''].filter(Boolean).join('+');
+                                bonusNotes.push(`${pName}: ${bl}`);
+                            }
+                        }
+
+                        const holesInPot = 1 + carry;
+                        const potPerPlayer = holesInPot * skinValue;
+
+                        // Best-ball net per team
+                        const teamAScores = hScores.filter(s => playerTeam(s.playerId) === 'A');
+                        const teamBScores = hScores.filter(s => playerTeam(s.playerId) === 'B');
+                        if (teamAScores.length === 0 || teamBScores.length === 0) continue;
+                        const teamANet = Math.min(...teamAScores.map(s => s.net));
+                        const teamBNet = Math.min(...teamBScores.map(s => s.net));
+
+                        const rangeLabel = holesInPot > 1 ? `Holes ${h - holesInPot + 1}–${h}` : `Hole ${h}`;
+
+                        if (teamANet !== teamBNet) {
+                            const winTeam: 'A' | 'B' = teamANet < teamBNet ? 'A' : 'B';
+                            const loseTeam: 'A' | 'B' = winTeam === 'A' ? 'B' : 'A';
+                            const isUserWinner = winTeam === myTeam;
+                            const numWinners = players.filter(p => p.team === winTeam).length;
+                            const numLosers = players.filter(p => p.team === loseTeam).length;
+                            const baseAmount = isUserWinner ? potPerPlayer * numLosers : -potPerPlayer * numWinners;
+                            const baseSublabel = isUserWinner
+                                ? `Team ${winTeam} wins — you collect $${potPerPlayer} from each opponent`
+                                : `Team ${winTeam} wins — you pay $${potPerPlayer} to each winner`;
+                            const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
+                            result.push({ label: rangeLabel, sublabel, amount: baseAmount + userBonusAmount });
+                            carry = 0;
+                        } else {
+                            const baseSublabel = 'Tied — skin carries';
+                            const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
+                            result.push({ label: `Hole ${h}`, sublabel, amount: userBonusAmount });
+                            carry += 1;
+                        }
+                    }
+
+                    if (carry > 0) {
+                        result.push({ label: 'Final Carry', sublabel: `${carry} skin${carry > 1 ? 's' : ''} uncontested — returned`, amount: 0 });
+                    }
+                    return result;
+                }
+
+                // ── Path 4: Team Pot Skins ────────────────────────────────
+                if (isTeamSkins && isPotMode) {
+                    const pot = skinValue * numPlayers;
+                    const teamSkinCounts: Record<'A' | 'B', number> = { A: 0, B: 0 };
+                    let carry = 0;
+                    for (let h = 1; h <= 18; h++) {
+                        const hScores = scores.filter(s => s.holeNumber === h);
+                        if (hScores.length < numPlayers) continue;
+                        const holesInPot = 1 + carry;
+                        const teamAScores = hScores.filter(s => playerTeam(s.playerId) === 'A');
+                        const teamBScores = hScores.filter(s => playerTeam(s.playerId) === 'B');
+                        if (teamAScores.length === 0 || teamBScores.length === 0) continue;
+                        const teamANet = Math.min(...teamAScores.map(s => s.net));
+                        const teamBNet = Math.min(...teamBScores.map(s => s.net));
+                        if (teamANet < teamBNet) { teamSkinCounts.A += holesInPot; carry = 0; }
+                        else if (teamBNet < teamANet) { teamSkinCounts.B += holesInPot; carry = 0; }
+                        else carry += 1;
+                    }
+                    const maxSkins = Math.max(teamSkinCounts.A, teamSkinCounts.B);
+                    if (maxSkins === 0) {
+                        return [{ label: 'Team Pot Skins', sublabel: 'No skins won — pot returned', amount: 0 }];
+                    }
+                    const winTeams: ('A' | 'B')[] = (['A', 'B'] as const).filter(t => teamSkinCounts[t] === maxSkins);
+                    const isTie = winTeams.length > 1;
+                    const myTeamWins = winTeams.includes(myTeam);
+                    const myTeamSize = players.filter(p => p.team === myTeam).length;
+                    const winningTeamSize = myTeamWins ? myTeamSize : players.filter(p => p.team === winTeams[0]).length;
+                    const potToWinners = isTie ? pot / winTeams.length : pot;
+                    const netAmount = myTeamWins ? (potToWinners / (isTie ? 1 : winningTeamSize)) - skinValue : -skinValue;
+                    const userSkins = teamSkinCounts[myTeam];
+                    const oppSkins = teamSkinCounts[oppTeam];
+                    const sublabel = myTeamWins
+                        ? isTie
+                            ? `Tied — Team A:${teamSkinCounts.A} Team B:${teamSkinCounts.B} — split $${pot} pot`
+                            : `Team ${myTeam} wins ${maxSkins} skins — $${pot} pot split among ${winningTeamSize} players`
+                        : `Team ${winTeams[0]} wins ${maxSkins} skins — you: ${userSkins} vs opp: ${oppSkins}`;
+                    return [{ label: 'Team Pot Skins', sublabel, amount: netAmount }];
+                }
+
+                // ── Path 1: Individual Per-Skin (existing) ────────────────
                 const result: LineItem[] = [];
                 let carry = 0;
 
@@ -188,17 +361,14 @@ export default function LedgerPage() {
                     const bonusNotes: string[] = [];
                     if (bonusSkins) {
                         for (const s of hScores) {
-                            const pinBonus = s.trashDots.includes('pin') ? 1 : 0;
-                            const birdieBonus = s.gross === par - 1 ? 1 : 0;
-                            const eagleBonus = s.gross <= par - 2 ? 2 : 0;
-                            const bonusCount = pinBonus + birdieBonus + eagleBonus;
-                            if (bonusCount === 0) continue;
+                            const bc = bonusCount(s, par);
+                            if (bc === 0) continue;
                             const isUser = s.playerId === user!.id;
                             userBonusAmount += isUser
-                                ? bonusCount * skinValue * (numPlayers - 1)
-                                : -bonusCount * skinValue;
+                                ? bc * skinValue * (numPlayers - 1)
+                                : -bc * skinValue;
                             const pName = isUser ? 'You' : (players.find(p => p.userId === s.playerId)?.guestName ?? nameMap[s.playerId] ?? 'Player').split(' ')[0];
-                            const bonusLabel = [pinBonus > 0 ? 'Pin' : '', birdieBonus > 0 ? 'Birdie' : '', eagleBonus > 0 ? 'Eagle' : ''].filter(Boolean).join('+');
+                            const bonusLabel = [s.trashDots.includes('pin') ? 'Pin' : '', s.gross === par - 1 ? 'Birdie' : '', s.gross <= par - 2 ? 'Eagle' : ''].filter(Boolean).join('+');
                             bonusNotes.push(`${pName}: ${bonusLabel}`);
                         }
                     }

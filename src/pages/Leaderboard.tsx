@@ -117,37 +117,73 @@ function calcMatchPlay(
 }
 
 function calcSkinsStandings(
-    players: { userId: string }[],
+    players: { userId: string; team?: 'A' | 'B' }[],
     scores: { holeNumber: number; playerId: string; net: number; gross?: number; trashDots?: string[] }[],
     skinValue: number,
-    sideBets?: { bonusSkins?: boolean },
+    sideBets?: { bonusSkins?: boolean; teamSkins?: boolean; potMode?: boolean },
     course?: any
 ) {
     const numPlayers = players.length;
+    const isTeamSkins = sideBets?.teamSkins ?? false;
+    const isPotMode = sideBets?.potMode ?? false;
     let carry = 0;
     const earned: Record<string, number> = {};
     const skinsWon: Record<string, number> = {};
-    const holeResults: { hole: number; winnerId: string | null; holesInPot: number; pot: number }[] = [];
+    const holeResults: { hole: number; winnerId: string | null; winTeam?: 'A' | 'B' | null; holesInPot: number; pot: number }[] = [];
+
+    function playerTeam(playerId: string): 'A' | 'B' {
+        return players.find(p => p.userId === playerId)?.team ?? 'A';
+    }
 
     for (let h = 1; h <= 18; h++) {
         const hScores = scores.filter(s => s.holeNumber === h);
         if (hScores.length < numPlayers) continue;
         const holesInPot = 1 + carry;
         const potPerPlayer = holesInPot * skinValue;
-        const minNet = Math.min(...hScores.map(s => s.net));
-        const winners = hScores.filter(s => s.net === minNet);
-        if (winners.length === 1) {
-            const wId = winners[0].playerId;
-            earned[wId] = (earned[wId] ?? 0) + potPerPlayer * (numPlayers - 1);
-            hScores.filter(s => s.playerId !== wId).forEach(s => {
-                earned[s.playerId] = (earned[s.playerId] ?? 0) - potPerPlayer;
-            });
-            skinsWon[wId] = (skinsWon[wId] ?? 0) + holesInPot;
-            holeResults.push({ hole: h, winnerId: wId, holesInPot, pot: potPerPlayer * numPlayers });
-            carry = 0;
+
+        if (isTeamSkins) {
+            // Best-ball per team
+            const teamAScores = hScores.filter(s => playerTeam(s.playerId) === 'A');
+            const teamBScores = hScores.filter(s => playerTeam(s.playerId) === 'B');
+            if (teamAScores.length === 0 || teamBScores.length === 0) continue;
+            const teamANet = Math.min(...teamAScores.map(s => s.net));
+            const teamBNet = Math.min(...teamBScores.map(s => s.net));
+
+            if (teamANet !== teamBNet) {
+                const winTeam: 'A' | 'B' = teamANet < teamBNet ? 'A' : 'B';
+                const loseTeam: 'A' | 'B' = winTeam === 'A' ? 'B' : 'A';
+                const winPlayers = hScores.filter(s => playerTeam(s.playerId) === winTeam);
+                const losePlayers = hScores.filter(s => playerTeam(s.playerId) === loseTeam);
+                for (const w of winPlayers) {
+                    earned[w.playerId] = (earned[w.playerId] ?? 0) + potPerPlayer * losePlayers.length;
+                    skinsWon[w.playerId] = (skinsWon[w.playerId] ?? 0) + holesInPot;
+                }
+                for (const l of losePlayers) {
+                    earned[l.playerId] = (earned[l.playerId] ?? 0) - potPerPlayer * winPlayers.length;
+                }
+                holeResults.push({ hole: h, winnerId: null, winTeam, holesInPot, pot: potPerPlayer * numPlayers });
+                carry = 0;
+            } else {
+                holeResults.push({ hole: h, winnerId: null, winTeam: null, holesInPot, pot: potPerPlayer * numPlayers });
+                carry += 1;
+            }
         } else {
-            holeResults.push({ hole: h, winnerId: null, holesInPot, pot: potPerPlayer * numPlayers });
-            carry += 1;
+            // Individual skins
+            const minNet = Math.min(...hScores.map(s => s.net));
+            const winners = hScores.filter(s => s.net === minNet);
+            if (winners.length === 1) {
+                const wId = winners[0].playerId;
+                earned[wId] = (earned[wId] ?? 0) + potPerPlayer * (numPlayers - 1);
+                hScores.filter(s => s.playerId !== wId).forEach(s => {
+                    earned[s.playerId] = (earned[s.playerId] ?? 0) - potPerPlayer;
+                });
+                skinsWon[wId] = (skinsWon[wId] ?? 0) + holesInPot;
+                holeResults.push({ hole: h, winnerId: wId, holesInPot, pot: potPerPlayer * numPlayers });
+                carry = 0;
+            } else {
+                holeResults.push({ hole: h, winnerId: null, holesInPot, pot: potPerPlayer * numPlayers });
+                carry += 1;
+            }
         }
     }
 
@@ -172,7 +208,23 @@ function calcSkinsStandings(
         }
     }
 
-    return { earned, skinsWon, holeResults, currentCarry: carry, currentPot: (1 + carry) * skinValue };
+    // Pot mode: override earned with pot-based settlement
+    let potWinnerLabel: string | null = null;
+    if (isPotMode) {
+        const pot = skinValue * numPlayers;
+        const maxSkins = Math.max(0, ...Object.values(skinsWon));
+        const potWinnerIds = maxSkins > 0 ? players.filter(p => (skinsWon[p.userId] ?? 0) === maxSkins).map(p => p.userId) : [];
+        const isTie = potWinnerIds.length > 1;
+        const potShare = isTie ? pot / potWinnerIds.length : pot;
+        // Replace earned with pot-based net
+        for (const p of players) {
+            const isWinner = potWinnerIds.includes(p.userId);
+            earned[p.userId] = isWinner ? potShare - skinValue : -skinValue;
+        }
+        potWinnerLabel = potWinnerIds.length === 0 ? null : isTie ? 'Tied' : potWinnerIds[0];
+    }
+
+    return { earned, skinsWon, holeResults, currentCarry: carry, currentPot: (1 + carry) * skinValue, potWinnerLabel, isPotMode };
 }
 
 function matchLabel(holesUp: number, holesPlayed: number = 0): string {
@@ -413,12 +465,23 @@ export default function LeaderboardPage() {
     // skinDotsMap[hole][playerId] = number of dots to render on that cell
     const skinDotsMap: Record<number, Record<string, number>> = {};
     if (skinsStandings) {
-        // 1 dot per hole in the carry run for the eventual winner
+        // 1 dot per hole in the carry run for the eventual winner (individual or team)
         for (const result of skinsStandings.holeResults) {
-            if (!result.winnerId) continue;
-            for (let h = result.hole - result.holesInPot + 1; h <= result.hole; h++) {
-                if (!skinDotsMap[h]) skinDotsMap[h] = {};
-                skinDotsMap[h][result.winnerId] = (skinDotsMap[h][result.winnerId] ?? 0) + 1;
+            if (result.winnerId) {
+                // Individual skins
+                for (let h = result.hole - result.holesInPot + 1; h <= result.hole; h++) {
+                    if (!skinDotsMap[h]) skinDotsMap[h] = {};
+                    skinDotsMap[h][result.winnerId] = (skinDotsMap[h][result.winnerId] ?? 0) + 1;
+                }
+            } else if (result.winTeam) {
+                // Team skins: mark all winning team players
+                const winTeamPlayers = currentPlayers.filter(p => p.team === result.winTeam);
+                for (const p of winTeamPlayers) {
+                    for (let h = result.hole - result.holesInPot + 1; h <= result.hole; h++) {
+                        if (!skinDotsMap[h]) skinDotsMap[h] = {};
+                        skinDotsMap[h][p.userId] = (skinDotsMap[h][p.userId] ?? 0) + 1;
+                    }
+                }
             }
         }
         // Bonus skins: birdie/eagle/pin add extra dots on that specific hole
@@ -476,21 +539,32 @@ export default function LeaderboardPage() {
     // 1b. Skin win events (skins only)
     if (isSkins && skinsStandings) {
         for (const result of skinsStandings.holeResults) {
-            if (!result.winnerId) continue;
-            const player = currentPlayers.find(p => p.userId === result.winnerId);
-            const pName = player?.guestName ?? playerProfiles[result.winnerId]?.fullName.split(' ')[0] ?? 'Player';
             const rangeLabel = result.holesInPot > 1
                 ? `Holes ${result.hole - result.holesInPot + 1}–${result.hole}`
                 : `Hole ${result.hole}`;
-            activityEvents.push({
-                id: `skin-${result.hole}`,
-                message: (
-                    <>
-                        <strong className="text-white">{pName}</strong> won <strong className="text-neonGreen">{rangeLabel}</strong> — ${result.pot}
-                    </>
-                ),
-                color: 'bg-neonGreen/80',
-            });
+            if (result.winnerId) {
+                const player = currentPlayers.find(p => p.userId === result.winnerId);
+                const pName = player?.guestName ?? playerProfiles[result.winnerId]?.fullName.split(' ')[0] ?? 'Player';
+                activityEvents.push({
+                    id: `skin-${result.hole}`,
+                    message: (
+                        <>
+                            <strong className="text-white">{pName}</strong> won <strong className="text-neonGreen">{rangeLabel}</strong> — ${result.pot}
+                        </>
+                    ),
+                    color: 'bg-neonGreen/80',
+                });
+            } else if (result.winTeam) {
+                activityEvents.push({
+                    id: `skin-${result.hole}`,
+                    message: (
+                        <>
+                            <strong className="text-white">Team {result.winTeam}</strong> won <strong className="text-neonGreen">{rangeLabel}</strong> — ${result.pot}
+                        </>
+                    ),
+                    color: 'bg-neonGreen/80',
+                });
+            }
         }
     }
 
@@ -768,8 +842,21 @@ export default function LeaderboardPage() {
                                     <p className="text-center text-secondaryText/40 text-sm py-2">No scores yet</p>
                                 )}
                             </div>
-                            {/* Carry pot chip */}
-                            {skinsStandings && skinsStandings.currentCarry > 0 && (
+                            {/* Pot mode chip */}
+                            {skinsStandings?.isPotMode && (
+                                <div className="mt-4 flex items-center justify-center gap-2 px-3 py-2 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Total Pot</span>
+                                    <span className="text-sm font-black text-white">${currentMatch?.wagerAmount ? currentMatch.wagerAmount * currentPlayers.length : 0}</span>
+                                    {skinsStandings.potWinnerLabel && skinsStandings.potWinnerLabel !== 'Tied' && (
+                                        <span className="text-[10px] text-neonGreen font-black uppercase">— Leading</span>
+                                    )}
+                                    {skinsStandings.potWinnerLabel === 'Tied' && (
+                                        <span className="text-[10px] text-secondaryText/60 font-black uppercase">— Tied</span>
+                                    )}
+                                </div>
+                            )}
+                            {/* Carry pot chip (non-pot mode) */}
+                            {skinsStandings && !skinsStandings.isPotMode && skinsStandings.currentCarry > 0 && (
                                 <div className="mt-4 flex items-center justify-center gap-2 px-3 py-2 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Carried Pot</span>
                                     <span className="text-sm font-black text-white">${skinsStandings.currentPot}</span>

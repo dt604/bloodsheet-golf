@@ -444,15 +444,25 @@ export default function LiveScorecardPage() {
     // ── Skins: current accumulated pot value ──────────────────
     const currentSkinPot = useMemo(() => {
         if (match?.format !== 'skins') return 0;
+        if (match.sideBets?.potMode) return match.wagerAmount * players.length; // fixed pot
         const skinValue = match.wagerAmount;
+        const isTeamSkins = match.sideBets?.teamSkins ?? false;
         let carry = 0;
         for (let h = 1; h < currentHole; h++) {
             const hScores = scores.filter(s => s.holeNumber === h);
             if (hScores.length < players.length) break;
-            const minNet = Math.min(...hScores.map(s => s.net));
-            const winners = hScores.filter(s => s.net === minNet);
-            if (winners.length === 1) carry = 0;
-            else carry += 1;
+            if (isTeamSkins) {
+                // Best ball per team
+                const teamANet = Math.min(...hScores.filter(s => players.find(p => p.userId === s.playerId)?.team === 'A').map(s => s.net));
+                const teamBNet = Math.min(...hScores.filter(s => players.find(p => p.userId === s.playerId)?.team === 'B').map(s => s.net));
+                if (teamANet !== teamBNet) carry = 0;
+                else carry += 1;
+            } else {
+                const minNet = Math.min(...hScores.map(s => s.net));
+                const winners = hScores.filter(s => s.net === minNet);
+                if (winners.length === 1) carry = 0;
+                else carry += 1;
+            }
         }
         return (1 + carry) * skinValue;
     }, [match, scores, players, currentHole]);
@@ -588,8 +598,14 @@ export default function LiveScorecardPage() {
                     </div>
                 </div>
 
-                {/* Skin Pot Chip — shown in skins mode when a carryover is active */}
-                {match.format === 'skins' && currentSkinPot > match.wagerAmount && (
+                {/* Skin Pot Chip — pot mode shows fixed pot; carryover mode shows when skin carries */}
+                {match.format === 'skins' && match.sideBets?.potMode && (
+                    <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Total Pot</span>
+                        <span className="text-sm font-black text-white">${currentSkinPot}</span>
+                    </div>
+                )}
+                {match.format === 'skins' && !match.sideBets?.potMode && currentSkinPot > match.wagerAmount && (
                     <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Carried Skin Pot</span>
                         <span className="text-sm font-black text-white">${currentSkinPot}</span>
@@ -671,7 +687,7 @@ export default function LiveScorecardPage() {
                                             <div>
                                                 <span className="font-bold block text-sm">{displayName}{isMe ? ' (You)' : ''}</span>
                                                 <span className={`text-[10px] uppercase tracking-widest font-bold ${player.team === 'B' ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                    {match.format !== 'skins' && `Team ${player.team} • `}HCP {(playerProfiles[player.userId]?.handicap ?? player.initialHandicap).toFixed(1)}
+                                                    {(match.format !== 'skins' || match.sideBets?.teamSkins) && `Team ${player.team} • `}HCP {(playerProfiles[player.userId]?.handicap ?? player.initialHandicap).toFixed(1)}
                                                 </span>
                                             </div>
                                         </div>

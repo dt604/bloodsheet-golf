@@ -426,8 +426,14 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
 
   // ── Create a single skins match with 2-4 individual players ─
   async createSkinsMatch(sharedData, course, createdBy, creatorHcp) {
-    const { poolPlayers } = get();
-    if (poolPlayers.length < 1) throw new Error('Add at least one other player');
+    const { poolPlayers, stagedPlayers } = get();
+    const isTeamSkins = sharedData.sideBets?.teamSkins ?? false;
+
+    if (isTeamSkins) {
+      if (stagedPlayers.filter(p => p.team === 'B').length < 1) throw new Error('Add at least one player to Team B');
+    } else {
+      if (poolPlayers.length < 1) throw new Error('Add at least one other player');
+    }
 
     set({ loading: true, error: null });
 
@@ -461,7 +467,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     const match = dbToMatch(data as Record<string, unknown>);
     localStorage.setItem('activeMatchId', match.id);
 
-    // Creator — team 'A' (all skins players share team 'A' to satisfy DB constraint)
+    // Creator — always team 'A'
     await supabase.from('match_players').insert({
       match_id: match.id,
       user_id: createdBy,
@@ -475,23 +481,44 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       initialHandicap: creatorHcp,
     }];
 
-    // Remaining players from pool
-    for (const p of poolPlayers) {
-      await supabase.from('match_players').insert({
-        match_id: match.id,
-        user_id: p.userId,
-        team: 'A',
-        initial_handicap: p.handicap,
-        guest_name: p.isGuest ? p.fullName : null,
-        avatar_url: p.avatarUrl ?? null,
-      });
-      allPlayers.push({
-        userId: p.userId,
-        team: 'A',
-        initialHandicap: p.handicap,
-        ...(p.isGuest ? { guestName: p.fullName } : {}),
-        ...(p.avatarUrl ? { avatarUrl: p.avatarUrl } : {}),
-      });
+    if (isTeamSkins) {
+      // Team skins: use stagedPlayers with their assigned A/B teams
+      for (const p of stagedPlayers) {
+        await supabase.from('match_players').insert({
+          match_id: match.id,
+          user_id: p.userId,
+          team: p.team,
+          initial_handicap: p.handicap,
+          guest_name: p.isGuest ? p.fullName : null,
+          avatar_url: p.avatarUrl ?? null,
+        });
+        allPlayers.push({
+          userId: p.userId,
+          team: p.team,
+          initialHandicap: p.handicap,
+          ...(p.isGuest ? { guestName: p.fullName } : {}),
+          ...(p.avatarUrl ? { avatarUrl: p.avatarUrl } : {}),
+        });
+      }
+    } else {
+      // Individual skins: all players on team 'A'
+      for (const p of poolPlayers) {
+        await supabase.from('match_players').insert({
+          match_id: match.id,
+          user_id: p.userId,
+          team: 'A',
+          initial_handicap: p.handicap,
+          guest_name: p.isGuest ? p.fullName : null,
+          avatar_url: p.avatarUrl ?? null,
+        });
+        allPlayers.push({
+          userId: p.userId,
+          team: 'A',
+          initialHandicap: p.handicap,
+          ...(p.isGuest ? { guestName: p.fullName } : {}),
+          ...(p.avatarUrl ? { avatarUrl: p.avatarUrl } : {}),
+        });
+      }
     }
 
     set({
@@ -504,6 +531,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       activeMatchIds: [match.id],
       groupState: null,
       poolPlayers: [],
+      stagedPlayers: [],
       loading: false,
     });
 
