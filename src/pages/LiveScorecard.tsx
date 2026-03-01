@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Pencil, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Pencil, Check, Settings } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
@@ -96,10 +96,21 @@ export default function LiveScorecardPage() {
     const currentHole = parseInt(hole || '1', 10);
 
     const { user, profile } = useAuth();
-    const { matchId, match, course, players, scores, lastScoreUpdate, saveScore, initiatePress, loadMatch, refreshScores, refreshGroupScores, clearMatch, deleteMatch, groupState, activeMatchIds } = useMatchStore();
+    const { matchId, match, course, players, scores, lastScoreUpdate, saveScore, initiatePress, loadMatch, refreshScores, refreshGroupScores, clearMatch, deleteMatch, updateMatchSettings, groupState, activeMatchIds } = useMatchStore();
     const [saving, setSaving] = useState(false);
     const [codeCopied, setCodeCopied] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+    const [showEditSettings, setShowEditSettings] = useState(false);
+    const [editWager, setEditWager] = useState(0);
+    const [editWagerType, setEditWagerType] = useState<'PER_HOLE' | 'NASSAU'>('NASSAU');
+    const [editGreenies, setEditGreenies] = useState(false);
+    const [editSandies, setEditSandies] = useState(false);
+    const [editSnake, setEditSnake] = useState(false);
+    const [editAutoPress, setEditAutoPress] = useState(false);
+    const [editBirdiesDouble, setEditBirdiesDouble] = useState(false);
+    const [editTrashValue, setEditTrashValue] = useState(5);
+    const [editBonusSkins, setEditBonusSkins] = useState(false);
+    const [settingsSaving, setSettingsSaving] = useState(false);
     const [editingStrokeIdx, setEditingStrokeIdx] = useState(false);
     const [strokeIdxInput, setStrokeIdxInput] = useState(1);
     const [pingMessage, setPingMessage] = useState<{ message: string; timestamp: number } | null>(null);
@@ -547,6 +558,20 @@ export default function LiveScorecardPage() {
                             </span>
                         )}
                     </button>
+                    <button onClick={() => {
+                        setEditWager(match?.wagerAmount ?? 0);
+                        setEditWagerType(match?.wagerType ?? 'NASSAU');
+                        setEditGreenies(match?.sideBets?.greenies ?? false);
+                        setEditSandies(match?.sideBets?.sandies ?? false);
+                        setEditSnake(match?.sideBets?.snake ?? false);
+                        setEditAutoPress(match?.sideBets?.autoPress ?? false);
+                        setEditBirdiesDouble(match?.sideBets?.birdiesDouble ?? false);
+                        setEditTrashValue(match?.sideBets?.trashValue ?? 5);
+                        setEditBonusSkins(match?.sideBets?.bonusSkins ?? false);
+                        setShowEditSettings(true);
+                    }} className="p-2 text-secondaryText hover:text-white transition-colors">
+                        <Settings className="w-5 h-5" />
+                    </button>
                     <button onClick={() => setShowQuitConfirm(true)} className="p-2 -mr-2 text-secondaryText hover:text-bloodRed transition-colors">
                         <X className="w-5 h-5" />
                     </button>
@@ -810,6 +835,109 @@ export default function LiveScorecardPage() {
                     })}
                 </div>
             </main>
+
+            {/* Edit Match Settings */}
+            {showEditSettings && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
+                    <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-5 border-b border-borderColor shrink-0">
+                            <h3 className="text-lg font-black uppercase italic">Match Settings</h3>
+                            <button onClick={() => setShowEditSettings(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                        </div>
+                        {/* Scrollable body */}
+                        <div className="overflow-y-auto flex-1 p-5 space-y-6">
+                            {/* Wager */}
+                            <div className="space-y-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText">Wager</p>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-bold text-white">Amount</span>
+                                    <div className="flex items-center gap-3">
+                                        <button onClick={() => setEditWager(v => Math.max(0, v - 5))} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
+                                        <span className="text-base font-black w-10 text-center tabular-nums">${editWager}</span>
+                                        <button onClick={() => setEditWager(v => v + 5)} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
+                                    </div>
+                                </div>
+                                {match?.format !== 'skins' && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-bold text-white">Type</span>
+                                        <div className="flex gap-2">
+                                            {(['NASSAU', 'PER_HOLE'] as const).map(t => (
+                                                <button key={t} onClick={() => setEditWagerType(t)} className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border transition-colors ${editWagerType === t ? 'bg-bloodRed border-bloodRed text-white' : 'border-borderColor text-secondaryText'}`}>
+                                                    {t === 'NASSAU' ? 'Nassau' : 'Per Hole'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            {/* Side Bets */}
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText mb-2">Side Bets</p>
+                                {[
+                                    { label: 'Greenies', sub: 'Closest to pin on par 3', val: editGreenies, set: setEditGreenies },
+                                    { label: 'Sandies', sub: 'Par+ from bunker', val: editSandies, set: setEditSandies },
+                                    { label: 'Snake', sub: '3-putt penalty', val: editSnake, set: setEditSnake },
+                                    ...( match?.format !== 'skins' ? [
+                                        { label: 'Auto Press', sub: 'Press when 2 down', val: editAutoPress, set: setEditAutoPress },
+                                        { label: 'Birdies Double', sub: 'Net birdie = 2 pts', val: editBirdiesDouble, set: setEditBirdiesDouble },
+                                    ] : []),
+                                    ...( match?.format === 'skins' ? [
+                                        { label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', val: editBonusSkins, set: setEditBonusSkins },
+                                    ] : []),
+                                ].map(({ label, sub, val, set }) => (
+                                    <div key={label} className="flex items-center justify-between py-2.5 border-b border-borderColor/50">
+                                        <div>
+                                            <p className="text-sm font-bold text-white">{label}</p>
+                                            <p className="text-[10px] text-secondaryText">{sub}</p>
+                                        </div>
+                                        <button onClick={() => set(!val)} className={`w-11 h-6 rounded-full border transition-colors relative ${val ? 'bg-bloodRed border-bloodRed' : 'bg-surfaceHover border-borderColor'}`}>
+                                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${val ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                        </button>
+                                    </div>
+                                ))}
+                                {/* Trash Value */}
+                                <div className="flex items-center justify-between py-2.5">
+                                    <div>
+                                        <p className="text-sm font-bold text-white">Trash Value</p>
+                                        <p className="text-[10px] text-secondaryText">Payout per dot</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => setEditTrashValue(v => Math.max(0, v - 5))} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
+                                        <span className="text-sm font-black w-8 text-center tabular-nums">${editTrashValue}</span>
+                                        <button onClick={() => setEditTrashValue(v => v + 5)} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Save */}
+                        <div className="p-5 border-t border-borderColor shrink-0">
+                            <Button size="lg" className="w-full" disabled={settingsSaving} onClick={async () => {
+                                if (!matchId) return;
+                                setSettingsSaving(true);
+                                await updateMatchSettings(matchId, {
+                                    wagerAmount: editWager,
+                                    wagerType: editWagerType,
+                                    sideBets: {
+                                        ...(match?.sideBets ?? {}),
+                                        greenies: editGreenies,
+                                        sandies: editSandies,
+                                        snake: editSnake,
+                                        autoPress: editAutoPress,
+                                        birdiesDouble: editBirdiesDouble,
+                                        trashValue: editTrashValue,
+                                        bonusSkins: editBonusSkins,
+                                    },
+                                });
+                                setSettingsSaving(false);
+                                setShowEditSettings(false);
+                            }}>
+                                {settingsSaving ? <Loader className="w-4 h-4 animate-spin" /> : 'Save Changes'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Quit Confirmation Dialog */}
             {showQuitConfirm && (

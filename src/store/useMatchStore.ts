@@ -161,6 +161,8 @@ interface MatchStoreState {
 
   deleteMatch: (matchId: string) => Promise<void>;
 
+  updateMatchSettings: (matchId: string, updates: { wagerAmount?: number; wagerType?: 'PER_HOLE' | 'NASSAU'; sideBets?: Match['sideBets'] }) => Promise<void>;
+
   // Refresh only scores + presses — does NOT touch the subscription channel
   refreshScores: (matchId: string) => Promise<void>;
 
@@ -961,6 +963,18 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   // ── Permanently delete a match and all related data ─────────
   async deleteMatch(matchId) {
     await supabase.from('matches').delete().eq('id', matchId);
+  },
+
+  // ── Update wager / side-bet settings on a live match ─────────
+  async updateMatchSettings(matchId, updates) {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.wagerAmount !== undefined) dbUpdates.wager_amount = updates.wagerAmount;
+    if (updates.wagerType !== undefined) dbUpdates.wager_type = updates.wagerType;
+    if (updates.sideBets !== undefined) dbUpdates.side_bets = updates.sideBets;
+    await supabase.from('matches').update(dbUpdates).eq('id', matchId);
+    set((state) => ({
+      match: state.match ? { ...state.match, ...updates } : null,
+    }));
   },
 
   // ── Refresh scores + presses only (no subscription teardown) ─
