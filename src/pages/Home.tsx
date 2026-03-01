@@ -192,6 +192,23 @@ export default function Home() {
                     </div>
                 </section>
 
+                {/* Money Leaders */}
+                <section className="px-4">
+                    <Link to="/money-leaders" className="block group">
+                        <div className="relative overflow-hidden rounded-[2rem] bg-[#1a1a1c] border border-white/5 p-5 transition-all duration-300 group-hover:border-yellow-500/40 group-hover:-translate-y-1 group-hover:shadow-[0_20px_40px_-15px_rgba(234,179,8,0.2)] shadow-xl flex items-center gap-4">
+                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-yellow-500/5 rounded-full blur-2xl group-hover:bg-yellow-500/10 transition-colors" />
+                            <div className="w-14 h-14 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-400 shrink-0 transition-transform group-hover:scale-110 duration-500 text-2xl font-black">
+                                🏆
+                            </div>
+                            <div className="flex-1 relative z-10">
+                                <span className="block text-white font-black text-lg uppercase leading-none italic group-hover:text-yellow-400 transition-colors">Money Leaders</span>
+                                <span className="text-[9px] text-secondaryText font-black uppercase tracking-widest mt-1 opacity-60">See Who's Cashing In</span>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-secondaryText group-hover:text-yellow-400 group-hover:translate-x-1 transition-all shrink-0 relative z-10" />
+                        </div>
+                    </Link>
+                </section>
+
                 {/* Recent Activity Feed */}
                 <section className="px-4">
                     <div className="flex items-center justify-between mb-4 ml-1">
