@@ -12,12 +12,17 @@ export default function Home() {
     const navigate = useNavigate();
     const { loadMatch } = useMatchStore();
     const [activeMatch, setActiveMatch] = useState<any>(null);
+    const [recentMatches, setRecentMatches] = useState<any[]>([]);
+    const [loadingMatches, setLoadingMatches] = useState(true);
 
     useEffect(() => {
         if (!profile) return;
 
-        async function checkActiveMatch() {
-            const { data } = await supabase
+        async function fetchData() {
+            setLoadingMatches(true);
+
+            // 1. Check for Active Match
+            const { data: activeJoin } = await supabase
                 .from('match_players')
                 .select('match_id, matches!inner(id, status, created_at, courses(name))')
                 .eq('user_id', profile?.id)
@@ -25,12 +30,26 @@ export default function Home() {
                 .order('matches(created_at)', { ascending: false })
                 .limit(1);
 
-            if (data && data.length > 0) {
-                setActiveMatch((data[0] as any).matches);
+            if (activeJoin && activeJoin.length > 0) {
+                setActiveMatch((activeJoin[0] as any).matches);
             }
+
+            // 2. Fetch Recent Matches (History)
+            const { data: historyJoin } = await supabase
+                .from('match_players')
+                .select('match_id, matches!inner(id, status, created_at, format, wager_type, courses(name))')
+                .eq('user_id', profile?.id)
+                .order('matches(created_at)', { ascending: false })
+                .limit(3);
+
+            if (historyJoin) {
+                setRecentMatches(historyJoin.map((h: any) => h.matches));
+            }
+
+            setLoadingMatches(false);
         }
 
-        checkActiveMatch();
+        fetchData();
     }, [profile]);
 
     const handleResume = async () => {
@@ -39,12 +58,6 @@ export default function Home() {
         await loadMatch(activeMatch.id);
         navigate('/play/1');
     };
-
-    const recentActivity = [
-        { id: '1', user: 'Mike D.', action: 'finished', score: '-2', course: 'Pebble Beach', time: '2h ago' },
-        { id: '2', user: 'Chris P.', action: 'won', amount: '$45', course: 'Spyglass Hill', time: '5h ago' },
-        { id: '3', user: 'You', action: 'posted', score: '+4', course: 'Spanish Bay', time: 'Yesterday' }
-    ];
 
     const initials = profile?.fullName
         ? profile.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -112,9 +125,9 @@ export default function Home() {
             <section className="px-4">
                 <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest mb-4 ml-1">Player Actions</h3>
                 <div className="grid grid-cols-2 gap-4">
-                    <Link to="/dashboard">
-                        <Card className="p-5 bg-surface hover:border-bloodRed/50 transition-all group flex flex-col gap-4 border-white/5">
-                            <div className="w-12 h-12 rounded-2xl bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner overflow-hidden relative">
+                    <Link to="/dashboard" className="block h-full">
+                        <Card className="p-5 bg-surface hover:border-bloodRed/50 transition-all group flex flex-col items-start gap-4 border-white/5 h-full">
+                            <div className="w-12 h-12 rounded-2xl bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner overflow-hidden relative shrink-0">
                                 {profile?.avatarUrl ? (
                                     <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                                 ) : (
@@ -122,20 +135,20 @@ export default function Home() {
                                 )}
                                 <div className="absolute inset-x-0 bottom-0 h-1 bg-bloodRed/30" />
                             </div>
-                            <div>
-                                <span className="block text-white font-black text-sm uppercase">HCP {profile?.handicap?.toFixed(1) || '0.0'}</span>
-                                <span className="text-[10px] text-secondaryText font-bold uppercase truncate max-w-full block">View Profile</span>
+                            <div className="flex-1 flex flex-col justify-center">
+                                <span className="block text-white font-black text-sm uppercase leading-tight">HCP {profile?.handicap?.toFixed(1) || '0.0'}</span>
+                                <span className="text-[10px] text-secondaryText font-bold uppercase truncate max-w-full block mt-0.5">View Profile</span>
                             </div>
                         </Card>
                     </Link>
-                    <Link to="/setup">
-                        <Card className="p-5 bg-surface hover:border-neonGreen/50 transition-all group flex flex-col gap-4 border-white/5 shadow-lg">
-                            <div className="w-12 h-12 rounded-2xl bg-neonGreen/10 flex items-center justify-center text-neonGreen group-hover:scale-110 transition-transform">
+                    <Link to="/setup" className="block h-full">
+                        <Card className="p-5 bg-surface hover:border-neonGreen/50 transition-all group flex flex-col items-start gap-4 border-white/5 shadow-lg h-full">
+                            <div className="w-12 h-12 rounded-2xl bg-neonGreen/10 flex items-center justify-center text-neonGreen group-hover:scale-110 transition-transform shrink-0">
                                 <Plus className="w-7 h-7" />
                             </div>
-                            <div>
-                                <span className="block text-white font-black text-sm uppercase">Start Match</span>
-                                <span className="text-[10px] text-secondaryText font-bold uppercase">Setup Rounds</span>
+                            <div className="flex-1 flex flex-col justify-center">
+                                <span className="block text-white font-black text-sm uppercase leading-tight">Start Match</span>
+                                <span className="text-[10px] text-secondaryText font-bold uppercase truncate max-w-full block mt-0.5">Setup Rounds</span>
                             </div>
                         </Card>
                     </Link>
@@ -146,30 +159,53 @@ export default function Home() {
             <section className="px-4">
                 <div className="flex items-center justify-between mb-4 ml-1">
                     <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Recent Activity</h3>
-                    <Link to="/activity" className="text-[10px] text-bloodRed font-black uppercase tracking-widest hover:underline">See All</Link>
+                    <Link to="/dashboard" className="text-[10px] text-bloodRed font-black uppercase tracking-widest hover:underline">See All</Link>
                 </div>
                 <div className="space-y-3">
-                    {recentActivity.map((act) => (
-                        <Card key={act.id} className="p-4 bg-surface border-borderColor flex items-center justify-between group">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold text-bloodRed">
-                                    {act.user.charAt(0)}
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-black text-white text-xs">{act.user}</span>
-                                        <span className="text-[10px] text-secondaryText font-bold uppercase">{act.action}</span>
+                    {loadingMatches ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="w-6 h-6 border-2 border-bloodRed border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    ) : recentMatches.length > 0 ? (
+                        recentMatches.map((match) => (
+                            <Card
+                                key={match.id}
+                                className="p-4 bg-surface border-white/5 flex items-center justify-between group hover:border-bloodRed/30 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+                                onClick={() => navigate(match.status === 'completed' ? `/past-match/${match.id}` : `/play/1`)}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold text-bloodRed shrink-0 overflow-hidden">
+                                        {profile?.avatarUrl ? (
+                                            <img src={profile.avatarUrl} alt="Me" className="w-full h-full object-cover grayscale" />
+                                        ) : (
+                                            initials
+                                        )}
                                     </div>
-                                    <span className="text-[10px] font-black italic text-bloodRed uppercase tracking-tight">{act.course}</span>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-black text-white text-[10px] uppercase tracking-wider">{match.format || 'Match'}</span>
+                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${match.status === 'completed' ? 'bg-neonGreen/10 text-neonGreen' : 'bg-bloodRed/10 text-bloodRed animate-pulse'}`}>
+                                                {match.status === 'completed' ? 'Finished' : 'Live'}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs font-black italic text-white uppercase tracking-tight truncate block">
+                                            {match.courses?.name || 'Unknown Course'}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="text-right">
-                                {act.score && <span className="block font-black text-white text-sm">{act.score}</span>}
-                                {act.amount && <span className="block font-black text-neonGreen text-sm">{act.amount}</span>}
-                                <span className="text-[8px] text-secondaryText uppercase font-black">{act.time}</span>
-                            </div>
-                        </Card>
-                    ))}
+                                <div className="text-right shrink-0">
+                                    <span className="block text-[8px] text-secondaryText uppercase font-black">
+                                        {new Date(match.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                    </span>
+                                    <ChevronRight className="w-4 h-4 text-secondaryText group-hover:text-bloodRed transition-colors ml-auto mt-1" />
+                                </div>
+                            </Card>
+                        ))
+                    ) : (
+                        <div className="text-center py-10 bg-surface/50 rounded-3xl border border-dashed border-borderColor">
+                            <p className="text-[10px] text-secondaryText font-black uppercase tracking-[0.2em]">No Recent Activity</p>
+                        </div>
+                    )}
                 </div>
             </section>
 
