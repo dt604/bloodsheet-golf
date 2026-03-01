@@ -7,6 +7,7 @@ interface Profile {
   fullName: string;
   avatarUrl?: string;
   handicap: number;
+  is_admin: boolean;
   createdAt: string;
 }
 
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fullName: data.full_name,
         avatarUrl: data.avatar_url ?? undefined,
         handicap: data.handicap,
+        is_admin: data.is_admin ?? false,
         createdAt: data.created_at,
       });
     }

@@ -22,6 +22,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import MatchManagement from './pages/admin/MatchManagement';
 import CourseManagement from './pages/admin/CourseManagement';
+import { AdminRoute } from './components/admin/AdminRoute';
 
 // Full auth required — guests are redirected to welcome
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -60,7 +61,7 @@ function AppRoutes() {
       <Route path="/player/:userId" element={<ProtectedRoute><PlayerProfilePage /></ProtectedRoute>} />
 
       {/* Admin Routes */}
-      <Route path="/admin" element={<AdminLayout />}>
+      <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<UserManagement />} />
         <Route path="matches" element={<MatchManagement />} />

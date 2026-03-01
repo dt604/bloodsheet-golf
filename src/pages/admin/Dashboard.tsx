@@ -1,16 +1,52 @@
+import { useEffect, useState } from 'react';
 import { Card } from '../../components/ui/Card';
 import { StatBox } from '../../components/ui/StatBox';
+import { supabase } from '../../lib/supabase';
 
 export default function AdminDashboard() {
+    const [stats, setStats] = useState({
+        totalUsers: 0,
+        liveMatches: 0,
+        totalMatches: 0,
+        cachedCourses: 0,
+        loading: true
+    });
+
+    useEffect(() => {
+        async function fetchStats() {
+            const [
+                { count: userCount },
+                { count: liveCount },
+                { count: totalMatchCount },
+                { count: courseCount }
+            ] = await Promise.all([
+                supabase.from('profiles').select('*', { count: 'exact', head: true }),
+                supabase.from('matches').select('*', { count: 'exact', head: true }).eq('status', 'in_progress'),
+                supabase.from('matches').select('*', { count: 'exact', head: true }),
+                supabase.from('courses').select('*', { count: 'exact', head: true })
+            ]);
+
+            setStats({
+                totalUsers: userCount || 0,
+                liveMatches: liveCount || 0,
+                totalMatches: totalMatchCount || 0,
+                cachedCourses: courseCount || 0,
+                loading: false
+            });
+        }
+
+        fetchStats();
+    }, []);
+
     return (
         <div className="space-y-6">
             <section>
                 <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText mb-4 px-2">System Overview</h3>
                 <div className="grid grid-cols-2 gap-3">
-                    <StatBox label="Total Users" value="24" />
-                    <StatBox label="Live Matches" value="3" valueColor="neonGreen" />
-                    <StatBox label="Total Rounds" value="142" />
-                    <StatBox label="Cached Courses" value="27" />
+                    <StatBox label="Total Users" value={stats.loading ? "..." : stats.totalUsers.toString()} />
+                    <StatBox label="Live Matches" value={stats.loading ? "..." : stats.liveMatches.toString()} valueColor="neonGreen" />
+                    <StatBox label="Total Rounds" value={stats.loading ? "..." : stats.totalMatches.toString()} />
+                    <StatBox label="Cached Courses" value={stats.loading ? "..." : stats.cachedCourses.toString()} />
                 </div>
             </section>
 
