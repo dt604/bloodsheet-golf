@@ -36,6 +36,8 @@ export default function MatchSetupPage() {
     const setFormat = useMatchStore((s) => s.setPendingFormat);
     const currentStep = useMatchStore((s) => s.currentStep);
     const setCurrentStep = useMatchStore((s) => s.setCurrentStep);
+    const teamSkins = useMatchStore((s) => s.pendingTeamSkins);
+    const setPendingTeamSkins = useMatchStore((s) => s.setPendingTeamSkins);
 
     const [wager, setWager] = useState(10);
     const [creatorHcp, setCreatorHcp] = useState<number>(0);
@@ -64,7 +66,6 @@ export default function MatchSetupPage() {
     const [par5Contest, setPar5Contest] = useState(false);
     const [par5Pot, setPar5Pot] = useState(5);
     const [bonusSkins, setBonusSkins] = useState(false);
-    const [teamSkins, setTeamSkins] = useState(false);
     const [potMode, setPotMode] = useState(false);
 
     // When toggling team skins mode, clear the conflicting player list
@@ -74,7 +75,7 @@ export default function MatchSetupPage() {
         } else {
             [...stagedPlayers].forEach(p => removeStagedPlayer(p.userId));
         }
-        setTeamSkins(enabled);
+        setPendingTeamSkins(enabled);
     }
 
     const [creating, setCreating] = useState(false);

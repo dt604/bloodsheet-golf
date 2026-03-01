@@ -87,11 +87,13 @@ interface MatchStoreState {
   // Persisted setup state (survives navigate-away to AddPlayer and back)
   pendingFormat: '1v1' | '2v2' | 'skins';
   currentStep: number;
+  pendingTeamSkins: boolean;
   lastScoreUpdate: { playerId: string; holeNumber: number; timestamp: number } | null;
 
   // Actions
   setPendingFormat: (fmt: '1v1' | '2v2' | 'skins') => void;
   setCurrentStep: (step: number) => void;
+  setPendingTeamSkins: (enabled: boolean) => void;
 
   // Staged before match is created — set by AddPlayer, flushed in createMatch (2v2)
   stagedPlayers: StagedPlayer[];
@@ -181,6 +183,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   error: null,
   _channel: null,
   pendingFormat: '1v1',
+  pendingTeamSkins: false,
   lastScoreUpdate: null,
   stagedPlayers: [],
   poolPlayers: [],
@@ -192,6 +195,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   setPendingFormat: (fmt) => set({
     pendingFormat: fmt,
     currentStep: 2, // Auto-advance to Players step after format selection
+    pendingTeamSkins: false, // Reset team skins when switching formats
     // Clear opposing-mode staging when switching formats
     ...(fmt === '2v2'
       ? { poolPlayers: [], matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }] }
@@ -200,6 +204,8 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   }),
 
   setCurrentStep: (step) => set({ currentStep: step }),
+
+  setPendingTeamSkins: (enabled) => set({ pendingTeamSkins: enabled }),
 
   stagePlayer(player) {
     set((state) => {
