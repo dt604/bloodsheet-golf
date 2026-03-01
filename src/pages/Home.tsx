@@ -55,7 +55,7 @@ export default function Home() {
                                 <p className="text-white/80 text-xs font-bold uppercase tracking-wider">Hole 14 • 2v2 Skins</p>
                             </div>
 
-                            <Link to="/scorecard" className="w-full">
+                            <Link to="/play/1" className="w-full">
                                 <Button className="w-full bg-white text-bloodRed hover:bg-white/90 font-black shadow-lg flex items-center justify-center gap-2 py-6 rounded-2xl group/btn">
                                     RESUME MATCH
                                     <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -70,7 +70,7 @@ export default function Home() {
             <section className="px-4">
                 <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest mb-4 ml-1">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-4">
-                    <Link to="/match/setup">
+                    <Link to="/setup">
                         <Card className="p-5 bg-surface hover:border-neonGreen/50 transition-all group flex flex-col gap-4">
                             <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center text-neonGreen group-hover:scale-110 transition-transform">
                                 <Plus className="w-6 h-6" />
