@@ -368,9 +368,9 @@ export default function LiveScorecardPage() {
             navigate(`/play/${currentHole === 18 ? 1 : currentHole + 1}`);
         } else {
             if (isGroupMode) {
-                await Promise.all(activeMatchIds.map((id) => useMatchStore.getState().completeMatch(id)));
+                await Promise.all(activeMatchIds.map((id) => useMatchStore.getState().submitForAttestation(id)));
             } else {
-                await useMatchStore.getState().completeMatch(matchId!);
+                await useMatchStore.getState().submitForAttestation(matchId!);
             }
             navigate('/ledger');
         }

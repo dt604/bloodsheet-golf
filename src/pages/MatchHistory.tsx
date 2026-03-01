@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, History } from 'lucide-react';
+import { ArrowLeft, History, Home } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -188,14 +188,19 @@ export default function MatchHistoryPage() {
 
     return (
         <div className="flex flex-col h-full bg-background font-sans">
-            <header className="flex items-center p-4 border-b border-borderColor bg-surface/90 backdrop-blur sticky top-0 z-30">
-                <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div className="flex items-center gap-2 ml-2">
-                    <History className="w-5 h-5 text-secondaryText" />
-                    <h2 className="text-xl font-black text-white tracking-tighter">Match History</h2>
+            <header className="flex items-center justify-between p-4 border-b border-borderColor bg-surface/90 backdrop-blur sticky top-0 z-30">
+                <div className="flex items-center gap-2">
+                    <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div className="flex items-center gap-2 ml-1">
+                        <History className="w-4 h-4 text-secondaryText" />
+                        <h2 className="text-xl font-black text-white tracking-tighter pt-0.5">Match History</h2>
+                    </div>
                 </div>
+                <button onClick={() => navigate('/home')} className="p-2 text-secondaryText hover:text-white transition-colors" title="Home Hub">
+                    <Home className="w-5 h-5" />
+                </button>
             </header>
 
             <main className="flex-1 overflow-y-auto momentum-scroll p-4 pb-8">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Share2, Receipt } from 'lucide-react';
+import { ChevronLeft, Share2, Receipt, CheckCircle2, Clock, Bell } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useMatchStore } from '../store/useMatchStore';
@@ -25,11 +25,15 @@ interface Settlement {
 export default function LedgerPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { matchId, match, players, scores, presses, course, loadMatch, refreshScores, groupState, activeMatchIds } = useMatchStore();
+    const { matchId, match, players, scores, presses, course, loadMatch, refreshScores, groupState, activeMatchIds, attestations, loadAttestations, attestMatch, sendReminder } = useMatchStore();
 
     const [settlement, setSettlement] = useState<Settlement | null>(null);
     const [groupSettlements, setGroupSettlements] = useState<Settlement[]>([]);
+    const [attestPlayerNames, setAttestPlayerNames] = useState<Record<string, string>>({});
+    const [attesting, setAttesting] = useState(false);
+    const [reminderSent, setReminderSent] = useState<Set<string>>(new Set());
     const isGroupMode = activeMatchIds.length > 1;
+    const isPendingAttestation = match?.status === 'pending_attestation';
 
     // On mount: full load if store is empty, otherwise refresh scores only
     useEffect(() => {
@@ -37,6 +41,32 @@ export default function LedgerPage() {
         if (!match) loadMatch(matchId);
         else refreshScores(matchId);
     }, [matchId]);
+
+    // Load attestations and player names when match is pending attestation
+    useEffect(() => {
+        if (!matchId || !match || match.status !== 'pending_attestation') return;
+
+        loadAttestations(matchId);
+
+        // Also load for group matches
+        if (isGroupMode && groupState) {
+            groupState.matches.forEach((entry) => {
+                if (entry.matchId !== matchId) loadAttestations(entry.matchId);
+            });
+        }
+
+        // Fetch names for the attestation banner
+        const nonGuestIds = players.filter((p) => !p.guestName).map((p) => p.userId);
+        if (nonGuestIds.length > 0) {
+            supabase.from('profiles').select('id, full_name').in('id', nonGuestIds).then(({ data }) => {
+                const map: Record<string, string> = {};
+                for (const row of (data ?? []) as { id: string; full_name: string }[]) {
+                    map[row.id] = row.full_name;
+                }
+                setAttestPlayerNames(map);
+            });
+        }
+    }, [matchId, match?.status]);
 
     useEffect(() => {
         if (!match || !user) return;
@@ -634,6 +664,70 @@ export default function LedgerPage() {
                         }
                     </p>
                 </section>
+
+                {/* ── Attestation Banner ────────────────────────── */}
+                {isPendingAttestation && (
+                    <section className="animate-in slide-in-from-top-4 fade-in duration-500">
+                        <Card className="p-4 border-borderColor bg-surface space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-yellow-400 shrink-0" />
+                                <span className="font-bold text-white text-sm uppercase tracking-wider">Awaiting Attestation</span>
+                                <span className="ml-auto text-xs text-secondaryText">1 player needed</span>
+                            </div>
+                            <div className="space-y-2">
+                                {players.filter((p) => !p.guestName).map((p) => {
+                                    const hasAttested = attestations.some((a) => a.userId === p.userId);
+                                    const isScorekeeper = p.userId === match?.createdBy;
+                                    const name = p.guestName ?? attestPlayerNames[p.userId] ?? 'Player';
+                                    const firstName = name.split(' ')[0];
+                                    const isMe = p.userId === user?.id;
+                                    return (
+                                        <div key={p.userId} className="flex items-center gap-3">
+                                            {hasAttested || isScorekeeper
+                                                ? <CheckCircle2 className="w-4 h-4 text-neonGreen shrink-0" />
+                                                : <Clock className="w-4 h-4 text-secondaryText shrink-0" />
+                                            }
+                                            <span className="text-sm text-white flex-1">
+                                                {firstName}
+                                                {isScorekeeper && <span className="text-secondaryText text-xs ml-1">(scorekeeper)</span>}
+                                                {hasAttested && !isScorekeeper && <span className="text-neonGreen text-xs ml-1">attested</span>}
+                                            </span>
+                                            {/* Remind button: visible to scorekeeper for un-attested players */}
+                                            {!hasAttested && !isScorekeeper && user?.id === match?.createdBy && (
+                                                <button
+                                                    onClick={() => {
+                                                        sendReminder(matchId!, p.userId);
+                                                        setReminderSent((prev) => new Set(prev).add(p.userId));
+                                                    }}
+                                                    className="flex items-center gap-1 text-xs text-secondaryText hover:text-white transition-colors"
+                                                >
+                                                    <Bell className="w-3 h-3" />
+                                                    {reminderSent.has(p.userId) ? 'Sent!' : 'Remind'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {/* Attest button: visible to non-scorekeeper who hasn't attested */}
+                            {user?.id !== match?.createdBy &&
+                             !attestations.some((a) => a.userId === user?.id) && (
+                                <Button
+                                    size="sm"
+                                    className="w-full mt-1"
+                                    disabled={attesting}
+                                    onClick={async () => {
+                                        setAttesting(true);
+                                        await attestMatch(matchId!);
+                                        setAttesting(false);
+                                    }}
+                                >
+                                    {attesting ? 'Attesting…' : 'Attest Scores'}
+                                </Button>
+                            )}
+                        </Card>
+                    </section>
+                )}
 
                 {/* ── Group Mode: per-match breakdown + net total ── */}
                 {isGroupMode && groupSettlements.length > 0 && (

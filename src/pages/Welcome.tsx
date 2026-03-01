@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,6 +28,14 @@ export default function WelcomePage() {
     const [fullName, setFullName] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    const { user, profile } = useAuth();
+
+    useEffect(() => {
+        if (user && profile) {
+            navigate('/home');
+        }
+    }, [user, profile, navigate]);
 
     const [grintSearch, setGrintSearch] = useState('');
     const [searchingGrint, setSearchingGrint] = useState(false);

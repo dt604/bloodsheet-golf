@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, History, Users, Camera, Loader, ShieldCheck } from 'lucide-react';
+import { Settings, History, Users, Camera, Loader, ShieldCheck, Home } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
@@ -413,7 +413,12 @@ export default function DashboardPage() {
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
             {/* Header - Stationary */}
             <header className="flex items-center justify-between p-4 px-6 border-b border-borderColor bg-background/95 backdrop-blur z-20 shrink-0">
-                <span className="text-secondaryText text-sm font-bold uppercase tracking-widest pl-2">PLAYER PROFILE</span>
+                <div className="flex items-center gap-3">
+                    <button onClick={() => navigate('/home')} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors" title="Home Hub">
+                        <Home className="w-5 h-5" />
+                    </button>
+                    <span className="text-secondaryText text-[10px] font-black uppercase tracking-widest pt-0.5">PLAYER PROFILE</span>
+                </div>
                 <div className="flex items-center gap-2 -mr-2">
                     {profile?.is_admin && (
                         <button onClick={() => navigate('/admin')} className="p-2 text-bloodRed hover:text-white transition-colors" title="Admin Dashboard">

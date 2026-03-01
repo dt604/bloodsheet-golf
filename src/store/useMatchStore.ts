@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { Match, MatchPlayer, HoleScore, Press, Course, PoolPlayer, MatchSlot, GroupMatchEntry, GroupState } from '../types';
+import { Match, MatchAttestation, MatchPlayer, HoleScore, Press, Course, PoolPlayer, MatchSlot, GroupMatchEntry, GroupState } from '../types';
 
 // ─── helpers: snake_case DB ↔ camelCase TS ────────────────────
 
@@ -79,6 +79,7 @@ interface MatchStoreState {
   players: MatchPlayer[];
   scores: HoleScore[];
   presses: Press[];
+  attestations: MatchAttestation[];
   loading: boolean;
   error: string | null;
   _channel: any | null; // Keep a ref to the real-time channel
@@ -149,6 +150,13 @@ interface MatchStoreState {
 
   completeMatch: (matchId: string) => Promise<void>;
 
+  // ── Attestation actions ───────────────────────────────────────
+  submitForAttestation: (matchId: string) => Promise<void>;
+  attestMatch: (matchId: string) => Promise<void>;
+  loadAttestations: (matchId: string) => Promise<void>;
+  sendReminder: (matchId: string, targetUserId: string) => void;
+  // ─────────────────────────────────────────────────────────────
+
   deleteMatch: (matchId: string) => Promise<void>;
 
   // Refresh only scores + presses — does NOT touch the subscription channel
@@ -168,6 +176,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   players: [],
   scores: [],
   presses: [],
+  attestations: [],
   loading: false,
   error: null,
   _channel: null,
@@ -848,6 +857,67 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     localStorage.removeItem('activeMatchId');
   },
 
+  // ── Transition match to pending_attestation + fire emails ────
+  async submitForAttestation(matchId) {
+    await supabase.from('matches').update({ status: 'pending_attestation' }).eq('id', matchId);
+    set((state) => ({
+      match: state.match?.id === matchId
+        ? { ...state.match, status: 'pending_attestation' }
+        : state.match,
+    }));
+    // Fire-and-forget: send attestation request emails
+    supabase.functions.invoke('request-attest', {
+      body: { matchId, appUrl: window.location.origin },
+    }).catch((err) => console.error('[attest] Email send failed:', err));
+  },
+
+  // ── Record current user's attestation ───────────────────────
+  async attestMatch(matchId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const attestation: MatchAttestation = {
+      matchId,
+      userId: user.id,
+      attestedAt: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('match_attestations').insert({
+      match_id: matchId,
+      user_id: user.id,
+    });
+    if (!error) {
+      set((state) => ({
+        attestations: state.attestations.some(
+          (a) => a.matchId === matchId && a.userId === user.id
+        )
+          ? state.attestations
+          : [...state.attestations, attestation],
+      }));
+    }
+    // DB trigger auto-completes the match; realtime will update status
+  },
+
+  // ── Load attestations for a match ───────────────────────────
+  async loadAttestations(matchId) {
+    const { data } = await supabase
+      .from('match_attestations')
+      .select('*')
+      .eq('match_id', matchId);
+    set({
+      attestations: (data ?? []).map((row: Record<string, unknown>) => ({
+        matchId: row.match_id as string,
+        userId: row.user_id as string,
+        attestedAt: row.attested_at as string,
+      })),
+    });
+  },
+
+  // ── Send reminder email to a specific player ─────────────────
+  sendReminder(matchId, targetUserId) {
+    supabase.functions.invoke('request-attest', {
+      body: { matchId, targetUserId, appUrl: window.location.origin },
+    }).catch((err) => console.error('[attest] Reminder send failed:', err));
+  },
+
   // ── Permanently delete a match and all related data ─────────
   async deleteMatch(matchId) {
     await supabase.from('matches').delete().eq('id', matchId);
@@ -940,6 +1010,11 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
           { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${mId}` },
           (payload) => {
             const updatedMatch = dbToMatch(payload.new as Record<string, unknown>);
+            // Clear localStorage when match completes (covers non-scorekeeper devices)
+            if (updatedMatch.status === 'completed' &&
+                localStorage.getItem('activeMatchId') === updatedMatch.id) {
+              localStorage.removeItem('activeMatchId');
+            }
             set((state) => {
               // Update primary match if it matches
               const updates: Partial<MatchStoreState> = {};
@@ -956,6 +1031,25 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
               }
               return updates;
             });
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'match_attestations', filter: `match_id=eq.${mId}` },
+          (payload) => {
+            const row = payload.new as Record<string, unknown>;
+            const attestation: MatchAttestation = {
+              matchId: row.match_id as string,
+              userId: row.user_id as string,
+              attestedAt: row.attested_at as string,
+            };
+            set((state) => ({
+              attestations: state.attestations.some(
+                (a) => a.matchId === attestation.matchId && a.userId === attestation.userId
+              )
+                ? state.attestations
+                : [...state.attestations, attestation],
+            }));
           }
         );
     });
@@ -995,6 +1089,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       players: [],
       scores: [],
       presses: [],
+      attestations: [],
       error: null,
       _channel: null,
       stagedPlayers: [],

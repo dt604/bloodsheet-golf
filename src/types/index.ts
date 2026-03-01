@@ -74,6 +74,12 @@ export interface Course {
   }>;
 }
 
+export interface MatchAttestation {
+  matchId: string;
+  userId: string;
+  attestedAt: string;
+}
+
 export interface Match {
   id: string;
   joinCode?: string;
@@ -82,7 +88,7 @@ export interface Match {
   format: MatchFormat;
   wagerAmount: number;
   wagerType: WagerType;
-  status: 'setup' | 'in_progress' | 'completed';
+  status: 'setup' | 'in_progress' | 'pending_attestation' | 'completed';
   sideBets: {
     greenies: boolean;
     sandies: boolean;
