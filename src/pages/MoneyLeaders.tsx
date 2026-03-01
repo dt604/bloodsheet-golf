@@ -41,60 +41,147 @@ export default function MoneyLeaders() {
                 const matchId = match.id as string;
                 const wager = match.wager_amount as number;
                 const format = match.format as string;
+                const sideBets = match.side_bets as any;
 
                 const matchPlayers = (allPlayers ?? []).filter((p: any) => p.match_id === matchId);
                 const matchScores = (allScores ?? []).filter((s: any) => s.match_id === matchId);
+                if (!matchPlayers.length) continue;
 
-                const teamA = matchPlayers.filter((p: any) => p.team === 'A');
-                const teamB = matchPlayers.filter((p: any) => p.team === 'B');
-                if (!teamA.length || !teamB.length) continue;
-
-                function holePoints(hole: number): { a: number; b: number } {
-                    const aScores = teamA.map((p: any) => matchScores.find((s: any) => s.hole_number === hole && s.player_id === p.user_id)).filter(Boolean);
-                    const bScores = teamB.map((p: any) => matchScores.find((s: any) => s.hole_number === hole && s.player_id === p.user_id)).filter(Boolean);
-                    if (!aScores.length || !bScores.length) return { a: 0, b: 0 };
-                    const aNets = aScores.map((s: any) => s.net as number);
-                    const bNets = bScores.map((s: any) => s.net as number);
-                    if (format === '2v2') {
-                        let a = 0, b = 0;
-                        const aLow = Math.min(...aNets), bLow = Math.min(...bNets);
-                        if (aLow < bLow) a++; else if (bLow < aLow) b++;
-                        const aSum = aNets.reduce((x: number, y: number) => x + y, 0);
-                        const bSum = bNets.reduce((x: number, y: number) => x + y, 0);
-                        if (aSum < bSum) a++; else if (bSum < aSum) b++;
-                        return { a, b };
-                    }
-                    if (aNets[0] < bNets[0]) return { a: 1, b: 0 };
-                    if (bNets[0] < aNets[0]) return { a: 0, b: 1 };
-                    return { a: 0, b: 0 };
+                function hScoresForHole(h: number) {
+                    return matchScores
+                        .filter((s: any) => s.hole_number === h)
+                        .map((s: any) => ({
+                            playerId: s.player_id as string,
+                            net: s.net as number,
+                            team: (matchPlayers.find((p: any) => p.user_id === s.player_id) as any)?.team ?? 'A',
+                        }));
                 }
 
-                function nassauResult(holes: number[]): number {
-                    let aPts = 0, bPts = 0;
-                    for (const h of holes) { const { a, b } = holePoints(h); aPts += a; bPts += b; }
-                    if (aPts > bPts) return wager;
-                    if (bPts > aPts) return -wager;
-                    return 0;
-                }
-
-                const holesPlayed = [...new Set(matchScores.map((s: any) => s.hole_number as number))].sort((a, b) => (a as number) - (b as number)) as number[];
-                const front = holesPlayed.filter((h) => h <= 9);
-                const back = holesPlayed.filter((h) => h > 9);
-
-                // Overall result from Team A's perspective
-                const matchResult =
-                    (front.length >= 9 ? nassauResult(front) : 0) +
-                    (back.length >= 9 ? nassauResult(back) : 0) +
-                    (holesPlayed.length >= 18 ? nassauResult(holesPlayed) : 0);
-
-                for (const p of matchPlayers as any[]) {
-                    const userId = p.user_id as string;
-                    const earnings = p.team === 'A' ? matchResult : -matchResult;
+                function attributeEarnings(userId: string, earnings: number) {
                     if (!earningsMap[userId]) earningsMap[userId] = { earnings: 0, wins: 0, losses: 0, pushes: 0 };
                     earningsMap[userId].earnings += earnings;
                     if (earnings > 0) earningsMap[userId].wins++;
                     else if (earnings < 0) earningsMap[userId].losses++;
                     else earningsMap[userId].pushes++;
+                }
+
+                if (format === 'skins') {
+                    const numPlayers = matchPlayers.length;
+                    const isTeamSkins = sideBets?.teamSkins ?? false;
+                    const isPotMode = sideBets?.potMode ?? false;
+
+                    // Pre-compute hole outcomes (winner/winTeam + potVal) in one pass
+                    const holeOutcomes: { hole: number; winner: string | null; winTeam: string | null; potVal: number }[] = [];
+                    let carry = 0;
+                    for (let h = 1; h <= 18; h++) {
+                        const hScores = hScoresForHole(h);
+                        if (hScores.length < numPlayers) continue;
+                        const holesInPot = 1 + carry;
+                        const potVal = holesInPot * wager;
+                        if (isTeamSkins) {
+                            const aNet = Math.min(...hScores.filter(s => s.team === 'A').map(s => s.net));
+                            const bNet = Math.min(...hScores.filter(s => s.team === 'B').map(s => s.net));
+                            if (aNet !== bNet) {
+                                holeOutcomes.push({ hole: h, winner: null, winTeam: aNet < bNet ? 'A' : 'B', potVal });
+                                carry = 0;
+                            } else carry++;
+                        } else {
+                            const minNet = Math.min(...hScores.map(s => s.net));
+                            const winners = hScores.filter(s => s.net === minNet);
+                            if (winners.length === 1) {
+                                holeOutcomes.push({ hole: h, winner: winners[0].playerId, winTeam: null, potVal });
+                                carry = 0;
+                            } else carry++;
+                        }
+                    }
+
+                    if (isPotMode) {
+                        const pot = wager * numPlayers;
+                        const skinCounts: Record<string, number> = {};
+                        for (const o of holeOutcomes) {
+                            const hScores = hScoresForHole(o.hole);
+                            if (o.winTeam) {
+                                hScores.filter(s => s.team === o.winTeam).forEach(s => {
+                                    skinCounts[s.playerId] = (skinCounts[s.playerId] ?? 0) + (o.potVal / wager);
+                                });
+                            } else if (o.winner) {
+                                skinCounts[o.winner] = (skinCounts[o.winner] ?? 0) + (o.potVal / wager);
+                            }
+                        }
+                        const maxSkins = Math.max(0, ...Object.values(skinCounts));
+                        const potWinners = maxSkins > 0 ? Object.keys(skinCounts).filter(id => skinCounts[id] === maxSkins) : [];
+                        const potShare = potWinners.length > 1 ? pot / potWinners.length : pot;
+                        for (const p of matchPlayers as any[]) {
+                            const userId = p.user_id as string;
+                            attributeEarnings(userId, potWinners.includes(userId) ? potShare - wager : -wager);
+                        }
+                    } else {
+                        // Per-skin payout — compute per player from pre-built outcomes
+                        for (const p of matchPlayers as any[]) {
+                            const userId = p.user_id as string;
+                            let skinsPayout = 0;
+                            for (const o of holeOutcomes) {
+                                const hScores = hScoresForHole(o.hole);
+                                if (isTeamSkins && o.winTeam) {
+                                    const myScore = hScores.find(s => s.playerId === userId);
+                                    const numOpp = hScores.filter(s => s.team !== o.winTeam).length;
+                                    const numWin = hScores.filter(s => s.team === o.winTeam).length;
+                                    if (myScore?.team === o.winTeam) skinsPayout += o.potVal * numOpp;
+                                    else skinsPayout -= o.potVal * numWin;
+                                } else if (o.winner) {
+                                    if (o.winner === userId) skinsPayout += o.potVal * (numPlayers - 1);
+                                    else skinsPayout -= o.potVal;
+                                }
+                            }
+                            attributeEarnings(userId, skinsPayout);
+                        }
+                    }
+                } else {
+                    // Nassau (1v1 or 2v2)
+                    const teamA = matchPlayers.filter((p: any) => p.team === 'A');
+                    const teamB = matchPlayers.filter((p: any) => p.team === 'B');
+                    if (!teamA.length || !teamB.length) continue;
+
+                    function holePoints(hole: number): { a: number; b: number } {
+                        const aScores = teamA.map((p: any) => matchScores.find((s: any) => s.hole_number === hole && s.player_id === p.user_id)).filter(Boolean);
+                        const bScores = teamB.map((p: any) => matchScores.find((s: any) => s.hole_number === hole && s.player_id === p.user_id)).filter(Boolean);
+                        if (!aScores.length || !bScores.length) return { a: 0, b: 0 };
+                        const aNets = aScores.map((s: any) => s.net as number);
+                        const bNets = bScores.map((s: any) => s.net as number);
+                        if (format === '2v2') {
+                            let a = 0, b = 0;
+                            const aLow = Math.min(...aNets), bLow = Math.min(...bNets);
+                            if (aLow < bLow) a++; else if (bLow < aLow) b++;
+                            const aSum = aNets.reduce((x: number, y: number) => x + y, 0);
+                            const bSum = bNets.reduce((x: number, y: number) => x + y, 0);
+                            if (aSum < bSum) a++; else if (bSum < aSum) b++;
+                            return { a, b };
+                        }
+                        if (aNets[0] < bNets[0]) return { a: 1, b: 0 };
+                        if (bNets[0] < aNets[0]) return { a: 0, b: 1 };
+                        return { a: 0, b: 0 };
+                    }
+
+                    function nassauResult(holes: number[]): number {
+                        let aPts = 0, bPts = 0;
+                        for (const h of holes) { const { a, b } = holePoints(h); aPts += a; bPts += b; }
+                        if (aPts > bPts) return wager;
+                        if (bPts > aPts) return -wager;
+                        return 0;
+                    }
+
+                    const holesPlayed = [...new Set(matchScores.map((s: any) => s.hole_number as number))].sort((a, b) => (a as number) - (b as number)) as number[];
+                    const front = holesPlayed.filter((h) => h <= 9);
+                    const back = holesPlayed.filter((h) => h > 9);
+                    const matchResult =
+                        (front.length >= 9 ? nassauResult(front) : 0) +
+                        (back.length >= 9 ? nassauResult(back) : 0) +
+                        (holesPlayed.length >= 18 ? nassauResult(holesPlayed) : 0);
+
+                    for (const p of matchPlayers as any[]) {
+                        const userId = p.user_id as string;
+                        attributeEarnings(userId, p.team === 'A' ? matchResult : -matchResult);
+                    }
                 }
             }
 
