@@ -17,6 +17,7 @@ import FriendsPage from './pages/Friends';
 import PlayerProfilePage from './pages/PlayerProfile';
 import MoneyLeadersPage from './pages/MoneyLeaders';
 import QRPage from './pages/QRPage';
+import AddFriendQR from './pages/AddFriendQR';
 import ResetPasswordPage from './pages/ResetPassword';
 import AuthCallbackPage from './pages/AuthCallback';
 import OnboardingPage from './pages/Onboarding';
@@ -69,6 +70,7 @@ function AppRoutes() {
       <Route path="/join" element={<ViewerRoute><JoinMatchPage /></ViewerRoute>} />
       <Route path="/money-leaders" element={<ProtectedRoute><MoneyLeadersPage /></ProtectedRoute>} />
       <Route path="/qr" element={<ProtectedRoute><QRPage /></ProtectedRoute>} />
+      <Route path="/add-friend/:userId" element={<ProtectedRoute><AddFriendQR /></ProtectedRoute>} />
       <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><MatchHistoryPage /></ProtectedRoute>} />
       <Route path="/history/:matchId" element={<ProtectedRoute><PastMatchScorecardPage /></ProtectedRoute>} />

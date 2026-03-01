@@ -22,7 +22,7 @@ export default function QRPage() {
     const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
     const [detected, setDetected] = useState<string | null>(null);
 
-    const profileUrl = `${window.location.origin}/player/${user?.id}`;
+    const profileUrl = `${window.location.origin}/add-friend/${user?.id}`;
 
     // Start camera when scan tab is active
     useEffect(() => {
@@ -88,7 +88,7 @@ export default function QRPage() {
         // If it's a /player/:id URL from this app, navigate there
         try {
             const url = new URL(data);
-            if (url.pathname.startsWith('/player/')) {
+            if (url.pathname.startsWith('/add-friend/')) {
                 navigate(url.pathname);
                 return;
             }
