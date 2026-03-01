@@ -28,8 +28,6 @@ interface PendingAttestItem {
 interface Stats {
     totalMatches: number;
     wins: number;
-    greenies: number;
-    snakesAvoided: number;
     lifetimePayout: number;
 }
 
@@ -44,8 +42,6 @@ export default function DashboardPage() {
     const [stats, setStats] = useState<Stats>({
         totalMatches: 0,
         wins: 0,
-        greenies: 0,
-        snakesAvoided: 0,
         lifetimePayout: 0,
     });
 
@@ -239,7 +235,6 @@ export default function DashboardPage() {
 
                 let wins = 0;
                 let lifetimePayout = 0;
-                let snakesAvoided = 0;
                 const payoutMap: Record<string, { payout: number; holesUp: number }> = {};
 
                 for (const matchRow of completedMatches as Record<string, unknown>[]) {
@@ -433,42 +428,17 @@ export default function DashboardPage() {
                         if (matchPayout > 0) wins++;
                     }
 
-                    // Snake avoided: snake was enabled and user's team never picked up a snake dot
-                    if (sideBets?.snake) {
-                        const mySnakeDots = matchScores.filter((s) => {
-                            const sc = s as Record<string, unknown>;
-                            const onMyTeam = myTeamPlayers.find(
-                                (p) => (p as Record<string, unknown>).user_id === sc.player_id
-                            );
-                            return onMyTeam && (sc.trash_dots as string[]).includes('snake');
-                        }).length;
-                        if (mySnakeDots === 0) snakesAvoided++;
-                    }
                 }
-
-                setStats((prev) => ({ ...prev, wins, lifetimePayout, snakesAvoided }));
-
-                // Back-fill payout/holesUp into history items
-                setHistory((prev) => prev.map((item) => ({
-                    ...item,
-                    payout: payoutMap[item.id]?.payout ?? 0,
-                    holesUp: payoutMap[item.id]?.holesUp ?? 0,
-                })));
             }
 
-            // 4. Greenies count — completed matches only
-            const { count: greeniesCount } = completedIds.length > 0
-                ? await supabase
-                    .from('hole_scores')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('player_id', userId)
-                    .contains('trash_dots', ['greenie'])
-                    .in('match_id', completedIds)
-                : { count: 0 };
+            setStats((prev) => ({ ...prev, wins, lifetimePayout }));
 
-            if (greeniesCount !== null) {
-                setStats((prev) => ({ ...prev, greenies: greeniesCount }));
-            }
+            // Back-fill payout/holesUp into history items
+            setHistory((prev) => prev.map((item) => ({
+                ...item,
+                payout: payoutMap[item.id]?.payout ?? 0,
+                holesUp: payoutMap[item.id]?.holesUp ?? 0,
+            })));
         }
 
         load();
@@ -562,8 +532,6 @@ export default function DashboardPage() {
                 <section className="grid grid-cols-2 gap-2 sm:gap-3">
                     <StatBox label="Total Matches" value={String(stats.totalMatches)} className="px-1" />
                     <StatBox label="Win Rate" value={winRate} className="px-1" />
-                    <StatBox label="Greenies" value={String(stats.greenies)} valueColor="bloodRed" className="px-1" />
-                    <StatBox label="Snakes Avoided" value={String(stats.snakesAvoided)} valueColor="neonGreen" className="px-1" />
                 </section>
 
                 {/* Action Required — matches needing the current user's attestation */}

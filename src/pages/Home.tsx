@@ -192,6 +192,26 @@ export default function Home() {
                     </div>
                 </section>
 
+                {/* QR Code */}
+                <section className="px-4">
+                    <Link to="/qr" className="block group">
+                        <div className="relative overflow-hidden rounded-[2rem] bg-[#1a1a1c] border border-white/5 p-5 transition-all duration-300 group-hover:border-white/20 group-hover:-translate-y-1 group-hover:shadow-[0_20px_40px_-15px_rgba(255,255,255,0.08)] shadow-xl flex items-center gap-4">
+                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/3 rounded-full blur-2xl group-hover:bg-white/5 transition-colors" />
+                            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white shrink-0 transition-transform group-hover:scale-110 duration-500">
+                                <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                                    <rect x="14" y="14" width="3" height="3" rx="0.5"/><rect x="18" y="14" width="3" height="3" rx="0.5"/><rect x="14" y="18" width="3" height="3" rx="0.5"/><rect x="18" y="18" width="3" height="3" rx="0.5"/>
+                                </svg>
+                            </div>
+                            <div className="flex-1 relative z-10">
+                                <span className="block text-white font-black text-lg uppercase leading-none italic group-hover:text-white/80 transition-colors">Scan QR Code</span>
+                                <span className="text-[9px] text-secondaryText font-black uppercase tracking-widest mt-1 opacity-60">Share Profile · Add Friends</span>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-secondaryText group-hover:text-white group-hover:translate-x-1 transition-all shrink-0 relative z-10" />
+                        </div>
+                    </Link>
+                </section>
+
                 {/* Money Leaders */}
                 <section className="px-4">
                     <Link to="/money-leaders" className="block group">
