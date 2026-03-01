@@ -107,10 +107,9 @@ export default function Home() {
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(255,0,63,0.15),transparent_50%)]" />
                         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-bloodRed/10 rounded-full blur-[80px]" />
 
-                        <div className="relative z-10 text-center sm:text-left space-y-2 order-2 sm:order-1 mt-6 sm:mt-0">
-                            <h2 className="text-4xl sm:text-5xl font-black text-white italic tracking-tighter leading-none flex flex-col">
-                                <span className="text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.3)]">READY TO</span>
-                                <span>GOLF?</span>
+                        <div className="relative z-10 text-center sm:text-left space-y-4 order-2 sm:order-1 mt-6 sm:mt-0">
+                            <h2 className="text-3xl sm:text-5xl font-black text-white italic tracking-tighter leading-none whitespace-nowrap">
+                                <span className="text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.3)]">READY</span> TO GOLF?
                             </h2>
                             <div className="h-1.5 w-16 bg-bloodRed rounded-full mx-auto sm:mx-0 shadow-[0_0_10px_rgba(255,0,63,0.5)]" />
                         </div>
