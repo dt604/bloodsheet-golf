@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import {
-    Plus,
-    Users,
-    ChevronRight,
-    Zap
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Plus, Users, ChevronRight, Zap } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useMatchStore } from '../store/useMatchStore';
 
 export default function Home() {
     const { profile } = useAuth();
+    const navigate = useNavigate();
+    const { loadMatch } = useMatchStore();
     const [activeMatch, setActiveMatch] = useState<any>(null);
 
     useEffect(() => {
@@ -34,6 +32,13 @@ export default function Home() {
 
         checkActiveMatch();
     }, [profile]);
+
+    const handleResume = async () => {
+        if (!activeMatch) return;
+        localStorage.setItem('activeMatchId', activeMatch.id);
+        await loadMatch(activeMatch.id);
+        navigate('/play/1');
+    };
 
     const recentActivity = [
         { id: '1', user: 'Mike D.', action: 'finished', score: '-2', course: 'Pebble Beach', time: '2h ago' },
@@ -83,12 +88,13 @@ export default function Home() {
                                 <p className="text-white/80 text-xs font-bold uppercase tracking-wider">Hole 1 • Skins & Trash</p>
                             </div>
 
-                            <Link to={`/play/1`} className="w-full">
-                                <Button className="w-full bg-white text-bloodRed hover:bg-white/90 font-black shadow-lg flex items-center justify-center gap-2 py-6 rounded-2xl group/btn">
-                                    RESUME MATCH
-                                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                </Button>
-                            </Link>
+                            <Button
+                                onClick={handleResume}
+                                className="w-full bg-white text-bloodRed hover:bg-white/90 font-black shadow-lg flex items-center justify-center gap-2 py-6 rounded-2xl group/btn"
+                            >
+                                RESUME MATCH
+                                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            </Button>
                         </div>
                     </div>
                 ) : (
