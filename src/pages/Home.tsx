@@ -54,22 +54,33 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto momentum-scroll space-y-8 pb-32">
             {/* Header Area */}
             <header className="px-4 pt-4 flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-black text-white tracking-tighter italic uppercase">
-                        Blood<span className="text-bloodRed">Sheet</span>
-                    </h1>
-                    <p className="text-[10px] text-secondaryText font-black uppercase tracking-[0.2em] mt-1">
-                        Golf Social Hub
-                    </p>
+                <div className="flex items-center gap-3">
+                    <img
+                        src="/logo-final.png"
+                        alt="BloodSheet"
+                        className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(255,0,63,0.5)]"
+                    />
+                    <div>
+                        <h1 className="text-xl font-black text-white tracking-tighter italic uppercase leading-none">
+                            Blood<span className="text-bloodRed">Sheet</span>
+                        </h1>
+                        <p className="text-[8px] text-secondaryText font-black uppercase tracking-[0.2em] mt-0.5">
+                            Social Hub
+                        </p>
+                    </div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner">
-                    {initials}
+                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner overflow-hidden">
+                    {profile?.avatarUrl ? (
+                        <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                        initials
+                    )}
                 </div>
             </header>
 
             {/* Dynamic Top Banner */}
             <div className="px-4">
-                {activeMatch ? (
+                {activeMatch && (
                     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bloodRed to-[#C4002F] p-6 shadow-[0_0_30px_rgba(255,0,63,0.3)] border border-white/20 group">
                         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
                             <Zap className="w-32 h-32 text-white" />
@@ -95,27 +106,6 @@ export default function Home() {
                                 RESUME MATCH
                                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </Button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="relative overflow-hidden rounded-3xl bg-surface border border-borderColor p-8 flex flex-col items-center text-center group shadow-xl">
-                        <div className="absolute inset-0 bg-gradient-to-br from-bloodRed/10 via-transparent to-transparent opacity-50" />
-
-                        <div className="relative z-10 w-24 h-24 mb-6 group-hover:scale-110 transition-transform duration-500">
-                            <img
-                                src="/logo-final.png"
-                                alt="BloodSheet Golf"
-                                className="w-full h-full object-contain filter drop-shadow-[0_0_20px_rgba(255,0,63,0.4)]"
-                            />
-                        </div>
-
-                        <div className="relative z-10">
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2 italic">
-                                Ready to <span className="text-bloodRed">Tee Off?</span>
-                            </h2>
-                            <p className="max-w-[180px] mx-auto text-secondaryText text-[10px] font-bold uppercase tracking-[0.2em] leading-relaxed opacity-80">
-                                Start a new match or join an active group code.
-                            </p>
                         </div>
                     </div>
                 )}
