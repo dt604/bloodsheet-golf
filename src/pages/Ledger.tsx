@@ -680,7 +680,6 @@ export default function LedgerPage() {
                                     const isScorekeeper = p.userId === match?.createdBy;
                                     const name = p.guestName ?? attestPlayerNames[p.userId] ?? 'Player';
                                     const firstName = name.split(' ')[0];
-                                    const isMe = p.userId === user?.id;
                                     return (
                                         <div key={p.userId} className="flex items-center gap-3">
                                             {hasAttested || isScorekeeper
@@ -711,20 +710,20 @@ export default function LedgerPage() {
                             </div>
                             {/* Attest button: visible to non-scorekeeper who hasn't attested */}
                             {user?.id !== match?.createdBy &&
-                             !attestations.some((a) => a.userId === user?.id) && (
-                                <Button
-                                    size="sm"
-                                    className="w-full mt-1"
-                                    disabled={attesting}
-                                    onClick={async () => {
-                                        setAttesting(true);
-                                        await attestMatch(matchId!);
-                                        setAttesting(false);
-                                    }}
-                                >
-                                    {attesting ? 'Attesting…' : 'Attest Scores'}
-                                </Button>
-                            )}
+                                !attestations.some((a) => a.userId === user?.id) && (
+                                    <Button
+                                        size="sm"
+                                        className="w-full mt-1"
+                                        disabled={attesting}
+                                        onClick={async () => {
+                                            setAttesting(true);
+                                            await attestMatch(matchId!);
+                                            setAttesting(false);
+                                        }}
+                                    >
+                                        {attesting ? 'Attesting…' : 'Attest Scores'}
+                                    </Button>
+                                )}
                         </Card>
                     </section>
                 )}
