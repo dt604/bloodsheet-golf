@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../../components/ui/Card';
-import { Search, UserCog, Shield, ShieldOff, Loader2, Trash2 } from 'lucide-react';
+import { Search, UserCog, Shield, ShieldOff, Loader2, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
 
@@ -18,6 +18,7 @@ export default function UserManagement() {
     const [loading, setLoading] = useState(true);
     const [editingUser, setEditingUser] = useState<AdminProfile | null>(null);
     const [newHandicap, setNewHandicap] = useState('');
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         fetchUsers();
@@ -65,12 +66,12 @@ export default function UserManagement() {
             .eq('id', user.id);
 
         if (!error) {
-            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_admin: !user.is_admin } : u));
+            setUsers(prev => prev.filter(u => u.id !== user.id));
         }
     }
 
     async function deleteUser(user: AdminProfile) {
-        if (!window.confirm(`⚠️ DANGER: Are you sure you want to PERMANENTLY delete ${user.full_name}? This will remove their account and all associated match data. This cannot be undone.`)) return;
+        if (!window.confirm(`⚠️ DANGER: Are you sure you want to PERMANENTLY delete ${user.full_name}? This cannot be undone.`)) return;
 
         const { error } = await supabase.rpc('delete_user', { target_user_id: user.id });
 
@@ -82,11 +83,53 @@ export default function UserManagement() {
         }
     }
 
+    async function handleBulkDelete() {
+        if (selectedIds.size === 0) return;
+        const count = selectedIds.size;
+        if (!window.confirm(`⚠️ DANGER: Are you sure you want to PERMANENTLY delete these ${count} users? This cannot be undone.`)) return;
+
+        const idsArray = Array.from(selectedIds);
+        const { error } = await supabase.rpc('delete_users_bulk', { target_user_ids: idsArray });
+
+        if (error) {
+            console.error('Error bulk deleting users:', error);
+            alert('Failed to delete users: ' + error.message);
+        } else {
+            setUsers(prev => prev.filter(u => !selectedIds.has(u.id)));
+            setSelectedIds(new Set());
+        }
+    }
+
+    function toggleSelect(id: string) {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedIds(next);
+    }
+
+    function toggleSelectAll() {
+        if (selectedIds.size === filteredUsers.length && filteredUsers.length > 0) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredUsers.map(u => u.id)));
+        }
+    }
+
     return (
         <div className="space-y-6">
-            <header className="px-2">
-                <h2 className="text-2xl font-black text-white tracking-tight">User Management</h2>
-                <p className="text-xs text-secondaryText font-bold uppercase tracking-wider">Manage player indices and permissions</p>
+            <header className="px-2 flex items-end justify-between">
+                <div>
+                    <h2 className="text-2xl font-black text-white tracking-tight">User Management</h2>
+                    <p className="text-xs text-secondaryText font-bold uppercase tracking-wider">Manage player indices and permissions</p>
+                </div>
+                {filteredUsers.length > 0 && (
+                    <button
+                        onClick={toggleSelectAll}
+                        className="text-[10px] font-black uppercase tracking-widest text-bloodRed hover:text-white transition-colors px-2 py-1"
+                    >
+                        {selectedIds.size === filteredUsers.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                )}
             </header>
 
             <div className="px-2">
@@ -110,9 +153,15 @@ export default function UserManagement() {
                     </div>
                 ) : filteredUsers.length > 0 ? (
                     filteredUsers.map((user) => (
-                        <Card key={user.id} className="p-4 flex items-center justify-between group hover:border-bloodRed/50 transition-colors">
+                        <Card key={user.id} className={`p-4 flex items-center justify-between group transition-all ${selectedIds.has(user.id) ? 'border-bloodRed bg-bloodRed/5' : 'hover:border-bloodRed/50'}`}>
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold text-bloodRed overflow-hidden">
+                                <button
+                                    onClick={() => toggleSelect(user.id)}
+                                    className={`p-1 rounded-md transition-colors ${selectedIds.has(user.id) ? 'text-bloodRed' : 'text-secondaryText hover:text-white'}`}
+                                >
+                                    {selectedIds.has(user.id) ? <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(255,0,63,0.3)]" /> : <Circle className="w-5 h-5 opacity-20" />}
+                                </button>
+                                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-bold text-bloodRed overflow-hidden ml-1">
                                     {user.avatar_url ? (
                                         <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                                     ) : (
@@ -199,6 +248,35 @@ export default function UserManagement() {
                             </div>
                         </div>
                     </Card>
+                </div>
+            )}
+
+            {/* Bulk Action Bar */}
+            {selectedIds.size > 0 && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-surface border border-bloodRed/30 shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-2xl p-4 z-[50] animate-in slide-in-from-bottom-4 duration-300 flex items-center justify-between backdrop-blur-md bg-opacity-90">
+                    <div className="flex flex-col">
+                        <span className="text-white font-black text-sm uppercase tracking-tight">{selectedIds.size} Users Selected</span>
+                        <span className="text-[10px] text-secondaryText uppercase font-bold tracking-widest">Bulk Management</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[10px] py-1 h-8"
+                            onClick={() => setSelectedIds(new Set())}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            className="bg-bloodRed hover:bg-bloodRed/80 text-[10px] py-1 h-8 flex items-center gap-2"
+                            onClick={handleBulkDelete}
+                        >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                        </Button>
+                    </div>
                 </div>
             )}
         </div>
