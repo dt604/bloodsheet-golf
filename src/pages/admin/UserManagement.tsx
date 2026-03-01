@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../../components/ui/Card';
-import { Search, UserCog, Shield, ShieldOff, Loader2 } from 'lucide-react';
+import { Search, UserCog, Shield, ShieldOff, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
 
@@ -66,6 +66,19 @@ export default function UserManagement() {
 
         if (!error) {
             setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_admin: !user.is_admin } : u));
+        }
+    }
+
+    async function deleteUser(user: AdminProfile) {
+        if (!window.confirm(`⚠️ DANGER: Are you sure you want to PERMANENTLY delete ${user.full_name}? This will remove their account and all associated match data. This cannot be undone.`)) return;
+
+        const { error } = await supabase.rpc('delete_user', { target_user_id: user.id });
+
+        if (error) {
+            console.error('Error deleting user:', error);
+            alert('Failed to delete user: ' + error.message);
+        } else {
+            setUsers(prev => prev.filter(u => u.id !== user.id));
         }
     }
 
@@ -138,8 +151,16 @@ export default function UserManagement() {
                                             setNewHandicap(user.handicap.toString());
                                         }}
                                         className="p-2 text-secondaryText hover:text-white transition-colors"
+                                        title="Edit Handicap"
                                     >
                                         <UserCog className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => deleteUser(user)}
+                                        className="p-2 text-secondaryText hover:text-bloodRed transition-colors"
+                                        title="Delete User"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
