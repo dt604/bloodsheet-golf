@@ -105,7 +105,7 @@ export default function Home() {
                     <div className="relative overflow-hidden rounded-3xl bg-surface border border-borderColor p-8 flex flex-col items-center text-center group shadow-xl">
                         <div className="absolute inset-0 bg-gradient-to-br from-bloodRed/10 via-transparent to-transparent opacity-50" />
 
-                        <div className="relative z-10 w-24 h-24 mb-6 group-hover:scale-110 transition-transform duration-500">
+                        <div className="relative z-10 w-32 h-32 mb-6 group-hover:scale-110 transition-transform duration-500">
                             <img
                                 src="/logo-final.png"
                                 alt="BloodSheet Golf"
@@ -114,12 +114,9 @@ export default function Home() {
                         </div>
 
                         <div className="relative z-10">
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2 italic">
+                            <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic">
                                 Ready to <span className="text-bloodRed">Tee Off?</span>
                             </h2>
-                            <p className="max-w-[180px] mx-auto text-secondaryText text-[10px] font-bold uppercase tracking-[0.2em] leading-relaxed opacity-80">
-                                Start a new match or join an active group code.
-                            </p>
                         </div>
                     </div>
                 )}
