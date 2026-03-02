@@ -163,7 +163,37 @@ export default function LiveScorecardPage() {
         setTimeout(() => setCodeCopied(false), 2000);
     }
 
+    async function handleMediaDelete(mediaId: string) {
+        if (!matchId) return;
+
+        const media = matchMedia.find(m => m.id === mediaId);
+        if (!media) return;
+
+        try {
+            // 1. Delete from Storage
+            const path = media.media_url.split('/public/match-media/')[1];
+            if (path) {
+                await supabase.storage.from('match-media').remove([path]);
+            }
+
+            // 2. Delete from DB
+            const { error } = await supabase
+                .from('match_media')
+                .delete()
+                .eq('id', mediaId);
+
+            if (error) throw error;
+
+            // 3. Local state update (though realtime handles this, immediate UI feedback is better)
+            setMatchMedia(prev => prev.filter(m => m.id !== mediaId));
+        } catch (err) {
+            console.error('Failed to delete media:', err);
+            alert('Failed to delete image.');
+        }
+    }
+
     // Local per-player score state keyed by userId
+
     const [localScores, setLocalScores] = useState<Record<string, number>>({});
     const [activeTrash, setActiveTrash] = useState<Record<string, string[]>>({});
     const [isDirty, setIsDirty] = useState(false);
@@ -1192,6 +1222,7 @@ export default function LiveScorecardPage() {
                     items={lightboxItems}
                     initialIndex={lightboxInitialIndex}
                     onClose={() => setIsLightboxOpen(false)}
+                    onDelete={handleMediaDelete}
                 />
             )}
         </div>

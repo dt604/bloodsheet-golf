@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Download, Trash2, Share2 } from 'lucide-react';
 import { useState } from 'react';
 
 export interface MediaItem {
@@ -16,10 +16,12 @@ interface MediaLightboxProps {
     items: MediaItem[];
     initialIndex: number;
     onClose: () => void;
+    onDelete?: (mediaId: string) => void;
 }
 
-export function MediaLightbox({ items, initialIndex, onClose }: MediaLightboxProps) {
+export function MediaLightbox({ items, initialIndex, onClose, onDelete }: MediaLightboxProps) {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const handleNext = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -32,6 +34,53 @@ export function MediaLightbox({ items, initialIndex, onClose }: MediaLightboxPro
     };
 
     const currentItem = items[currentIndex];
+
+    const handleShare = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!currentItem) return;
+
+        const shareData = {
+            title: 'BloodSheet Golf Moment',
+            text: `Check out this moment from Hole ${currentItem.holeNumber}!`,
+            url: currentItem.url
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                if (err instanceof Error && err.name !== 'AbortError') console.error(err);
+            }
+        } else {
+            // Fallback: Copy to clipboard
+            try {
+                await navigator.clipboard.writeText(currentItem.url);
+                alert('Link copied to clipboard!');
+            } catch (err) {
+                console.error('Failed to copy link:', err);
+            }
+        }
+    };
+
+    const handleDelete = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!currentItem || !onDelete || isDeleting) return;
+
+        if (confirm('Are you sure you want to delete this moment?')) {
+            setIsDeleting(true);
+            try {
+                await onDelete(currentItem.id);
+                if (items.length === 1) {
+                    onClose();
+                } else {
+                    const nextIndex = currentIndex === items.length - 1 ? currentIndex - 1 : currentIndex;
+                    setCurrentIndex(Math.max(0, nextIndex));
+                }
+            } finally {
+                setIsDeleting(false);
+            }
+        }
+    };
 
     return (
         <AnimatePresence>
@@ -57,16 +106,32 @@ export function MediaLightbox({ items, initialIndex, onClose }: MediaLightboxPro
                             </span>
                         </div>
                     )}
-                    <a
-                        href={currentItem.url}
-                        download
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md text-white hover:bg-white/20 transition-colors"
-                    >
-                        <Download className="w-4 h-4" />
-                    </a>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleShare}
+                            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md text-white hover:bg-white/20 transition-colors"
+                        >
+                            <Share2 className="w-4 h-4" />
+                        </button>
+                        <a
+                            href={currentItem.url}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md text-white hover:bg-white/20 transition-colors"
+                        >
+                            <Download className="w-4 h-4" />
+                        </a>
+                        {onDelete && (
+                            <button
+                                onClick={handleDelete}
+                                className="w-10 h-10 rounded-full bg-bloodRed/20 flex items-center justify-center backdrop-blur-md text-bloodRed hover:bg-bloodRed/30 transition-colors border border-bloodRed/30"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Main Media Container */}
