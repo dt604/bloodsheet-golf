@@ -1132,6 +1132,22 @@ export default function LiveScorecardPage() {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Danger Zone */}
+                                {isScorekeeper && (
+                                    <div className="pt-4 border-t border-borderColor/50">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-bloodRed mb-4">Danger Zone</p>
+                                        <button
+                                            onClick={() => {
+                                                setShowEditSettings(false);
+                                                setShowQuitConfirm(true);
+                                            }}
+                                            className="w-full py-4 rounded-xl border border-bloodRed/30 bg-bloodRed/10 text-bloodRed font-black uppercase italic tracking-wider text-xs hover:bg-bloodRed hover:text-white transition-all shadow-[0_0_15px_rgba(255,0,63,0.1)] flex items-center justify-center gap-2"
+                                        >
+                                            <X className="w-4 h-4" /> Quit & Delete Match
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                             {/* Save */}
                             <div className="p-5 border-t border-borderColor shrink-0">
@@ -1167,21 +1183,24 @@ export default function LiveScorecardPage() {
             {
                 showQuitConfirm && (
                     <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
-                        <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm p-6 space-y-4">
+                        <div className="bg-surface border border-bloodRed/30 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-[0_0_40px_rgba(255,0,63,0.15)]">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-black">Abandon Round?</h3>
+                                <h3 className="text-xl font-black italic uppercase tracking-tighter text-bloodRed">Abandon Round?</h3>
                                 <button onClick={() => setShowQuitConfirm(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
                             </div>
-                            <p className="text-sm text-secondaryText text-center">Quit saves your scores so far. Quit & Delete permanently removes this match.</p>
+                            <p className="text-xs text-secondaryText text-center font-medium leading-relaxed">
+                                <span className="font-bold text-white uppercase italic">Quit Round:</span> Saves scores & leaves match.<br />
+                                <span className="font-bold text-bloodRed uppercase italic">Quit & Delete:</span> Permanently erases the match for everyone.
+                            </p>
                             <div className="flex flex-col gap-3 pt-2">
-                                <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={() => {
+                                <Button size="lg" className="w-full bg-surfaceHover border border-borderColor text-white uppercase font-black italic tracking-widest text-xs" onClick={() => {
                                     if (matchId) sessionStorage.setItem('dismissedMatchId', matchId);
                                     navigate('/dashboard', { replace: true });
                                     setTimeout(() => clearMatch(), 10);
                                 }}>
                                     Quit Round
                                 </Button>
-                                <Button variant="outline" size="lg" className="w-full border-bloodRed text-bloodRed hover:bg-bloodRed/10" onClick={async () => {
+                                <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-none text-white uppercase font-black italic tracking-widest text-xs shadow-[0_0_20px_rgba(255,0,63,0.3)]" onClick={async () => {
                                     if (isGroupMode && activeMatchIds.length > 0) {
                                         await Promise.all(activeMatchIds.map(id => deleteMatch(id)));
                                     } else if (matchId) {
