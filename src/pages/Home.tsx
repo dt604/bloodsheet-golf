@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Flag, ChevronRight, Zap, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -96,7 +97,7 @@ export default function Home() {
         : '?';
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-background overflow-hidden">
+        <div className="flex-1 flex flex-col h-full bg-background overflow-hidden font-sans">
             {/* Header */}
             <header className="flex items-center justify-between p-4 px-6 border-b border-borderColor bg-background/95 backdrop-blur z-20 shrink-0">
                 <div className="flex items-center gap-2">
@@ -168,7 +169,6 @@ export default function Home() {
                         </div>
                     ) : (
                         <div className="relative overflow-hidden rounded-[2.5rem] bg-[#1a1a1c] border border-white/10 flex flex-col items-center justify-center group shadow-2xl min-h-[300px] text-center p-8">
-                            {/* Premium Background with welcome-bg image */}
                             <div
                                 className="absolute inset-0 z-0 bg-cover bg-center transition-transform duration-[10s] group-hover:scale-110"
                                 style={{ backgroundImage: 'url("/welcome-bg.png")' }}
@@ -200,9 +200,7 @@ export default function Home() {
                     <div className="grid grid-cols-2 gap-4">
                         <Link to="/dashboard" className="block h-full group">
                             <div className="relative h-full overflow-hidden rounded-[2rem] bg-[#1a1a1c] border border-white/5 p-5 transition-all duration-300 group-hover:border-bloodRed/50 group-hover:-translate-y-1 group-hover:shadow-[0_20px_40px_-15px_rgba(255,0,63,0.3)] shadow-xl flex flex-col items-start gap-4">
-                                {/* Accent Glow */}
                                 <div className="absolute -top-12 -right-12 w-24 h-24 bg-bloodRed/10 rounded-full blur-2xl group-hover:bg-bloodRed/20 transition-colors" />
-
                                 <div className="w-14 h-14 rounded-2xl bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed text-xs shadow-inner overflow-hidden relative shrink-0 transition-transform group-hover:scale-110 duration-500">
                                     {profile?.avatarUrl ? (
                                         <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
@@ -220,9 +218,7 @@ export default function Home() {
 
                         <Link to="/setup" className="block h-full group">
                             <div className="relative h-full overflow-hidden rounded-[2rem] bg-[#1a1a1c] border border-white/5 p-5 transition-all duration-300 group-hover:border-neonGreen/50 group-hover:-translate-y-1 group-hover:shadow-[0_20px_40px_-15px_rgba(0,255,102,0.2)] shadow-xl flex flex-col items-start gap-4">
-                                {/* Accent Glow */}
                                 <div className="absolute -top-12 -right-12 w-24 h-24 bg-neonGreen/5 rounded-full blur-2xl group-hover:bg-neonGreen/10 transition-colors" />
-
                                 <div className="w-14 h-14 rounded-2xl bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center text-neonGreen shadow-inner relative shrink-0 transition-transform group-hover:scale-110 duration-500">
                                     <Flag className="w-7 h-7 drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]" />
                                 </div>
@@ -235,15 +231,14 @@ export default function Home() {
                     </div>
                 </section>
 
-                {/* QR Code */}
                 <section className="px-4">
                     <Link to="/qr" className="block group">
                         <div className="relative overflow-hidden rounded-[2rem] bg-[#1a1a1c] border border-white/5 p-5 transition-all duration-300 group-hover:border-white/20 group-hover:-translate-y-1 group-hover:shadow-[0_20px_40px_-15px_rgba(255,255,255,0.08)] shadow-xl flex items-center gap-4">
                             <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/3 rounded-full blur-2xl group-hover:bg-white/5 transition-colors" />
                             <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white shrink-0 transition-transform group-hover:scale-110 duration-500">
                                 <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-                                    <rect x="14" y="14" width="3" height="3" rx="0.5"/><rect x="18" y="14" width="3" height="3" rx="0.5"/><rect x="14" y="18" width="3" height="3" rx="0.5"/><rect x="18" y="18" width="3" height="3" rx="0.5"/>
+                                    <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+                                    <rect x="14" y="14" width="3" height="3" rx="0.5" /><rect x="18" y="14" width="3" height="3" rx="0.5" /><rect x="14" y="18" width="3" height="3" rx="0.5" /><rect x="18" y="18" width="3" height="3" rx="0.5" />
                                 </svg>
                             </div>
                             <div className="flex-1 relative z-10">
@@ -255,7 +250,6 @@ export default function Home() {
                     </Link>
                 </section>
 
-                {/* Money Leaders */}
                 <section className="px-4">
                     <Link to="/money-leaders" className="block group">
                         <div className="relative overflow-hidden rounded-[2rem] bg-[#1a1a1c] border border-white/5 p-5 transition-all duration-300 group-hover:border-yellow-500/40 group-hover:-translate-y-1 group-hover:shadow-[0_20px_40px_-15px_rgba(234,179,8,0.2)] shadow-xl flex items-center gap-4">
@@ -272,7 +266,6 @@ export default function Home() {
                     </Link>
                 </section>
 
-                {/* Recent Activity Feed */}
                 <section className="px-4">
                     <div className="flex items-center justify-between mb-4 ml-1">
                         <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Recent Activity</h3>
@@ -298,34 +291,32 @@ export default function Home() {
                                                 initials
                                             )}
                                         </div>
-                                        <div className="min-w-0">
+                                        <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <span className="font-black text-white text-[10px] uppercase tracking-wider truncate block">{match.format || 'Match'}</span>
-                                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded shrink-0 ${match.status === 'completed' ? 'bg-neonGreen/10 text-neonGreen' : 'bg-bloodRed/10 text-bloodRed animate-pulse'}`}>
-                                                    {match.status === 'completed' ? 'Finished' : 'Live'}
+                                                <span className="font-bold text-white uppercase italic text-sm truncate">{match.courses?.name || 'Unknown Course'}</span>
+                                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0 ${match.status === 'completed' ? 'bg-white/5 text-secondaryText' : 'bg-neonGreen/20 text-neonGreen'}`}>
+                                                    {match.status}
                                                 </span>
                                             </div>
-                                            <span className="text-xs font-black italic text-white uppercase tracking-tight truncate block">
-                                                {match.courses?.name || 'Unknown Course'}
+                                            <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest block mt-0.5 opacity-60">
+                                                {match.format} • {new Date(match.created_at).toLocaleDateString()}
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="text-right shrink-0">
-                                        <span className="block text-[8px] text-secondaryText uppercase font-black">
-                                            {new Date(match.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                                        </span>
-                                        <ChevronRight className="w-4 h-4 text-secondaryText group-hover:text-bloodRed transition-colors ml-auto mt-1" />
-                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-secondaryText group-hover:text-bloodRed group-hover:translate-x-1 transition-all shrink-0" />
                                 </Card>
                             ))
                         ) : (
-                            <div className="text-center py-10 bg-surface/50 rounded-3xl border border-dashed border-borderColor">
-                                <p className="text-[10px] text-secondaryText font-black uppercase tracking-[0.2em]">No Recent Activity</p>
-                            </div>
+                            <EmptyState
+                                title="No Rounds"
+                                description="Your legends start here. Tee off for your first bloodsheet."
+                                actionLabel="Tee It Up"
+                                onAction={() => navigate('/setup')}
+                                accentColor="bloodRed"
+                            />
                         )}
                     </div>
                 </section>
-
             </div>
         </div>
     );

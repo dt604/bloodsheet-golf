@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, History, Users, Camera, Loader, ShieldCheck, Home, Clock, PenLine } from 'lucide-react';
+import { Settings, History, Users, Camera, Loader, ShieldCheck, Home, Clock, PenLine, Crown } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
+import { EmptyState } from '../components/ui/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useMatchStore } from '../store/useMatchStore';
@@ -511,7 +512,13 @@ export default function DashboardPage() {
                         </label>
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5 sm:mb-1 truncate max-w-full px-2">{profile?.fullName ?? '…'}</h2>
-                    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8">Member since {memberYear}</span>
+                    {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
+                        <div className="flex items-center justify-center gap-1.5 mt-1 mb-2 px-3 py-1 rounded-full bg-bloodRed/10 border border-bloodRed/30 shadow-[0_0_10px_rgba(255,0,63,0.15)]">
+                            <Crown className="w-4 h-4 text-bloodRed" />
+                            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-bloodRed">BloodSheet Legend</span>
+                        </div>
+                    )}
+                    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8 mt-1 block">Member since {memberYear}</span>
 
                     <div className="w-full flex">
                         <div className="flex-1 border-r border-borderColor flex flex-col items-center justify-center py-1 sm:py-2 px-1">
@@ -573,7 +580,15 @@ export default function DashboardPage() {
                         <button onClick={() => navigate('/history')} className="text-xs font-bold text-bloodRed uppercase tracking-widest hover:opacity-70 transition-opacity">View All</button>
                     </div>
                     {history.length === 0 ? (
-                        <p className="text-secondaryText text-sm px-2">No matches yet. Start your first one!</p>
+                        <div className="mt-4">
+                            <EmptyState
+                                title="No Rounds Recorded"
+                                description="Your status isn't built in a day. Tee off to start your legacy."
+                                actionLabel="Tee It Up"
+                                onAction={() => navigate('/setup')}
+                                accentColor="bloodRed"
+                            />
+                        </div>
                     ) : (
                         <Card className="divide-y divide-borderColor/50">
                             {history.slice(0, 5).map((item) => (

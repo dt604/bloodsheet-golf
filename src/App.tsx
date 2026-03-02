@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import WelcomePage from './pages/Welcome';
 import HomePage from './pages/Home';
@@ -52,41 +53,63 @@ function ViewerRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const pageVariants = {
+  initial: { opacity: 0, x: 10 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -10 }
+};
+
+const PageWrapper = ({ children }: { children: React.ReactNode }) => (
+  <motion.div
+    initial="initial"
+    animate="animate"
+    exit="exit"
+    variants={pageVariants}
+    transition={{ duration: 0.2, ease: "easeOut" }}
+    className="flex-1 flex flex-col overflow-hidden h-full"
+  >
+    {children}
+  </motion.div>
+);
+
 function AppRoutes() {
+  const location = useLocation();
   return (
-    <Routes>
-      <Route path="/" element={<WelcomePage />} />
-      <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/auth/callback" element={<AuthCallbackPage />} />
-      <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-      <Route path="/setup" element={<ProtectedRoute><MatchSetupPage /></ProtectedRoute>} />
-      <Route path="/play/:hole" element={<ViewerRoute><LiveScorecardPage /></ViewerRoute>} />
-      <Route path="/ledger" element={<ViewerRoute><LedgerPage /></ViewerRoute>} />
-      <Route path="/leaderboard" element={<ViewerRoute><LeaderboardPage /></ViewerRoute>} />
-      <Route path="/add-player" element={<ProtectedRoute><AddPlayerPage /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-      <Route path="/join" element={<ViewerRoute><JoinMatchPage /></ViewerRoute>} />
-      <Route path="/money-leaders" element={<ProtectedRoute><MoneyLeadersPage /></ProtectedRoute>} />
-      <Route path="/qr" element={<ProtectedRoute><QRPage /></ProtectedRoute>} />
-      <Route path="/add-friend/:userId" element={<ProtectedRoute><AddFriendQR /></ProtectedRoute>} />
-      <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
-      <Route path="/history" element={<ProtectedRoute><MatchHistoryPage /></ProtectedRoute>} />
-      <Route path="/history/:matchId" element={<ProtectedRoute><PastMatchScorecardPage /></ProtectedRoute>} />
-      <Route path="/player/:userId" element={<ProtectedRoute><PlayerProfilePage /></ProtectedRoute>} />
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<PageWrapper><WelcomePage /></PageWrapper>} />
+        <Route path="/home" element={<ProtectedRoute><PageWrapper><HomePage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/reset-password" element={<PageWrapper><ResetPasswordPage /></PageWrapper>} />
+        <Route path="/auth/callback" element={<PageWrapper><AuthCallbackPage /></PageWrapper>} />
+        <Route path="/onboarding" element={<ProtectedRoute><PageWrapper><OnboardingPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><PageWrapper><DashboardPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/setup" element={<ProtectedRoute><PageWrapper><MatchSetupPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/play/:hole" element={<ViewerRoute><PageWrapper><LiveScorecardPage /></PageWrapper></ViewerRoute>} />
+        <Route path="/ledger" element={<ViewerRoute><PageWrapper><LedgerPage /></PageWrapper></ViewerRoute>} />
+        <Route path="/leaderboard" element={<ViewerRoute><PageWrapper><LeaderboardPage /></PageWrapper></ViewerRoute>} />
+        <Route path="/add-player" element={<ProtectedRoute><PageWrapper><AddPlayerPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><PageWrapper><SettingsPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/join" element={<ViewerRoute><PageWrapper><JoinMatchPage /></PageWrapper></ViewerRoute>} />
+        <Route path="/money-leaders" element={<ProtectedRoute><PageWrapper><MoneyLeadersPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/qr" element={<ProtectedRoute><PageWrapper><QRPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/add-friend/:userId" element={<ProtectedRoute><PageWrapper><AddFriendQR /></PageWrapper></ProtectedRoute>} />
+        <Route path="/friends" element={<ProtectedRoute><PageWrapper><FriendsPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/history" element={<ProtectedRoute><PageWrapper><MatchHistoryPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/history/:matchId" element={<ProtectedRoute><PageWrapper><PastMatchScorecardPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/player/:userId" element={<ProtectedRoute><PageWrapper><PlayerProfilePage /></PageWrapper></ProtectedRoute>} />
 
-      {/* Admin Routes */}
-      <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="users" element={<UserManagement />} />
-        <Route path="matches" element={<MatchManagement />} />
-        <Route path="courses" element={<CourseManagement />} />
-      </Route>
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="matches" element={<MatchManagement />} />
+          <Route path="courses" element={<CourseManagement />} />
+        </Route>
 
-      {/* Wildcard Catch-all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Wildcard Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
   );
 }
 
@@ -105,3 +128,4 @@ function App() {
 }
 
 export default App;
+

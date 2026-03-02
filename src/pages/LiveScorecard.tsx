@@ -116,6 +116,7 @@ export default function LiveScorecardPage() {
     const [pingMessage, setPingMessage] = useState<{ message: string; timestamp: number } | null>(null);
     const [focusedMatchIdx, setFocusedMatchIdx] = useState(0);
     const isGroupMode = activeMatchIds.length > 1;
+    const isScorekeeper = match?.createdBy === user?.id;
 
     async function handleShare() {
         const code = match?.joinCode ?? '';
@@ -253,6 +254,17 @@ export default function LiveScorecardPage() {
         setIsDirty(false);
     }, [currentHole]);
 
+    // Debounced Auto-save
+    useEffect(() => {
+        if (!isDirty || !isScorekeeper) return;
+
+        const timer = setTimeout(() => {
+            saveCurrentHoleScores();
+        }, 1500); // Save 1.5s after last change
+
+        return () => clearTimeout(timer);
+    }, [localScores, activeTrash, isDirty, isScorekeeper]);
+
     useEffect(() => {
         if (isDirty) return;
 
@@ -303,54 +315,63 @@ export default function LiveScorecardPage() {
     const allHcps = players.map(p => Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap));
     const lowestHcp = Math.min(...allHcps); // lowest HCP in the match — everyone plays off this player
 
+    const [lastSaved, setLastSaved] = useState<number | null>(null);
+
     async function saveCurrentHoleScores() {
         if (!match || !matchId) return;
+        setSaving(true);
 
-        if (isGroupMode && groupState) {
-            // Save scores per match, using that match's handicap differential
-            await Promise.all(
-                groupState.matches.flatMap((entry) => {
-                    const matchLowestHcp = Math.min(
-                        ...entry.players.map((p) =>
-                            Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0)
-                        )
-                    );
-                    return entry.players.map((p) => {
+        try {
+            if (isGroupMode && groupState) {
+                // Save scores per match, using that match's handicap differential
+                await Promise.all(
+                    groupState.matches.flatMap((entry) => {
+                        const matchLowestHcp = Math.min(
+                            ...entry.players.map((p) =>
+                                Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0)
+                            )
+                        );
+                        return entry.players.map((p) => {
+                            const gross = localScores[p.userId] ?? holeData.par;
+                            const baseHcp = Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0);
+                            const adjustedHcp = Math.max(0, baseHcp - Math.max(0, matchLowestHcp));
+                            const net = calcNet(gross, adjustedHcp, holeData.strokeIndex);
+                            return saveScore({
+                                matchId: entry.matchId,
+                                holeNumber: currentHole,
+                                playerId: p.userId,
+                                gross,
+                                net,
+                                trashDots: activeTrash[p.userId] ?? [],
+                            });
+                        });
+                    })
+                );
+            } else {
+                const matchHcps = players.map(p => Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0));
+                const lowestHcp = matchHcps.length > 0 ? Math.min(...matchHcps) : 0;
+
+                await Promise.all(
+                    players.map((p) => {
                         const gross = localScores[p.userId] ?? holeData.par;
                         const baseHcp = Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0);
-                        const adjustedHcp = Math.max(0, baseHcp - Math.max(0, matchLowestHcp));
+                        const adjustedHcp = match?.format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
                         const net = calcNet(gross, adjustedHcp, holeData.strokeIndex);
                         return saveScore({
-                            matchId: entry.matchId,
+                            matchId: matchId!,
                             holeNumber: currentHole,
                             playerId: p.userId,
                             gross,
                             net,
                             trashDots: activeTrash[p.userId] ?? [],
                         });
-                    });
-                })
-            );
-        } else {
-            const matchHcps = players.map(p => Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0));
-            const lowestHcp = matchHcps.length > 0 ? Math.min(...matchHcps) : 0;
-
-            await Promise.all(
-                players.map((p) => {
-                    const gross = localScores[p.userId] ?? holeData.par;
-                    const baseHcp = Math.round(playerProfiles[p.userId]?.handicap ?? p.initialHandicap ?? 0);
-                    const adjustedHcp = match?.format === '2v2' ? 0 : Math.max(0, baseHcp - Math.max(0, lowestHcp));
-                    const net = calcNet(gross, adjustedHcp, holeData.strokeIndex);
-                    return saveScore({
-                        matchId: matchId!,
-                        holeNumber: currentHole,
-                        playerId: p.userId,
-                        gross,
-                        net,
-                        trashDots: activeTrash[p.userId] ?? [],
-                    });
-                })
-            );
+                    })
+                );
+            }
+            setLastSaved(Date.now());
+            setIsDirty(false);
+        } finally {
+            setSaving(false);
         }
     }
 
@@ -364,7 +385,6 @@ export default function LiveScorecardPage() {
         : players.length > 0 && players.every((p) =>
             scores.some((s) => s.holeNumber === currentHole && s.playerId === p.userId)
         );
-    const isScorekeeper = match?.createdBy === user?.id;
     const needsSave = isScorekeeper && (isDirty || !allPlayersSaved);
 
     async function handleNextHole() {
@@ -538,16 +558,26 @@ export default function LiveScorecardPage() {
                     <ChevronLeft className="w-6 h-6" />
                 </button>
                 <div className="text-center">
-                    <span className="font-bold text-[10px] tracking-widest uppercase text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.5)]">LIVE MATCH</span>
+                    <div className="flex items-center justify-center gap-2 mb-0.5">
+                        <span className="font-bold text-[10px] tracking-widest uppercase text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.5)]">LIVE MATCH</span>
+                        <div className="h-1 w-1 rounded-full bg-secondaryText/30" />
+                        {saving ? (
+                            <span className="text-[10px] font-bold text-neonGreen animate-pulse uppercase tracking-wider">Saving...</span>
+                        ) : isDirty ? (
+                            <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider">Unsaved</span>
+                        ) : (
+                            <div className="flex items-center gap-1">
+                                <Check className="w-3 h-3 text-neonGreen" />
+                                <span className="text-[10px] font-bold text-neonGreen/70 uppercase tracking-wider">
+                                    Synced {lastSaved ? new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                     <div className="flex items-baseline justify-center gap-1.5 leading-none mt-0.5">
                         <span className="text-4xl font-black text-white tracking-tight">HOLE {currentHole}</span>
                     </div>
                     <span className="block text-[10px] font-semibold text-secondaryText/70 tracking-wider uppercase mt-1">{courseName}</span>
-                    {match?.joinCode && (
-                        <span className="block text-[10px] font-mono font-bold text-secondaryText/60 tracking-[0.2em] mt-0.5">
-                            CODE: {match.joinCode}
-                        </span>
-                    )}
                 </div>
                 <div className="flex items-center gap-1">
                     <button onClick={handleShare} className="p-2 text-secondaryText hover:text-white relative">
@@ -878,11 +908,11 @@ export default function LiveScorecardPage() {
                                     { label: 'Greenies', sub: 'Closest to pin on par 3', val: editGreenies, set: setEditGreenies },
                                     { label: 'Sandies', sub: 'Par+ from bunker', val: editSandies, set: setEditSandies },
                                     { label: 'Snake', sub: '3-putt penalty', val: editSnake, set: setEditSnake },
-                                    ...( match?.format !== 'skins' ? [
+                                    ...(match?.format !== 'skins' ? [
                                         { label: 'Auto Press', sub: 'Press when 2 down', val: editAutoPress, set: setEditAutoPress },
                                         { label: 'Birdies Double', sub: 'Net birdie = 2 pts', val: editBirdiesDouble, set: setEditBirdiesDouble },
                                     ] : []),
-                                    ...( match?.format === 'skins' ? [
+                                    ...(match?.format === 'skins' ? [
                                         { label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', val: editBonusSkins, set: setEditBonusSkins },
                                     ] : []),
                                 ].map(({ label, sub, val, set }) => (

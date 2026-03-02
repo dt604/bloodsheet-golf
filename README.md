@@ -1,50 +1,27 @@
-# React + TypeScript + Vite
+# BloodSheet Golf
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+BloodSheet Golf is a premium digital scorecard and settling tool for highly competitive, skins-and-Nassau playing golf groups.
 
-Currently, two official plugins are available:
+## The Pitch
+Golf apps today are either too casual (basic score tracking) or too complex (spreadsheets). **BloodSheet** strikes the perfect balance. It’s designed specifically for the weekend warrior group that plays for money, uses complicated formats like "Skins with a Pot" or "Team Nassau," and wants to track their net payouts across the season.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+No more asking "wait, am I getting a stroke on this hole?" The app calculates the "Red Dot" handicap distributions instantly.
+No more Venmo math in the parking lot. The app builds a comprehensive Ledger for every match and keeps a running lifetime tally for bragging rights.
 
-## Expanding the ESLint configuration
+BloodSheet Golf is fast, dark-mode only (to save battery on the course), and brings a premium, sports-betting app aesthetic to the fairways.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## Key Features
+*   **"Red Dot" Handicap System:** Instantly see who gets strokes on which holes, calculated against the lowest handicap in the group.
+*   **Live Scorecard:** Fast, single-tap entry for scores and side bets (Greenies, Sandies, Snakes). Real-time updates with "Saving..." states so you know your data is synced.
+*   **Complex Formats Made Easy:** Built-in calculation engines for Standard Skins, Pot Mode Skins, Team Skins, and traditional match-play Nassau.
+*   **The Ledger:** Automated post-round settlement. See exactly who owes whom, what side bets were won/lost, and copy totals right into Venmo.
+*   **Lifetime Stats:** Dashboard tracking of Win Rate, Index, and Total BloodSheet Payouts across the season.
 
-- Configure the top-level `parserOptions` property like this:
+## Tech Stack
+*   **Frontend:** React (Vite), Tailwind CSS, Framer Motion for premium animations.
+*   **Backend & DB:** Supabase (PostgreSQL, Auth, RLS).
+*   **State Management:** Zustand for local, immediate UI updates synced to Supabase.
+*   **Routing:** React Router v6.
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
-
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+## Submission Note
+This project was built and accelerated during the DEV Weekend Challenge, with a focus on delivering a high-context, community-specific tool for competitive golf groups.
