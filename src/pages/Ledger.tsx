@@ -122,6 +122,12 @@ export default function LedgerPage() {
                 }
             }
 
+            // Calculate team handicap diff for 2v2 stroke spotting
+            const teamAHcp = players.filter(p => p.team === 'A').reduce((sum, p) => sum + Math.round(p.initialHandicap ?? 0), 0);
+            const teamBHcp = players.filter(p => p.team === 'B').reduce((sum, p) => sum + Math.round(p.initialHandicap ?? 0), 0);
+            const teamHcpDiff = Math.abs(teamAHcp - teamBHcp);
+            const spottedTeam = teamAHcp > teamBHcp ? 'A' : teamAHcp < teamBHcp ? 'B' : null;
+
             // Points my team earned vs opp on a given hole (1v1: 0 or 1; 2v2 high-low: 0, 1, or 2)
             function holePoints(hole: number): { my: number; opp: number } {
                 const myScores = teamScoresOnHole(myTeamPlayers, hole);
@@ -134,10 +140,22 @@ export default function LedgerPage() {
                 const myHasBirdie = myScores.some((s) => s.gross < par);
                 const oppHasBirdie = oppScores.some((s) => s.gross < par);
 
-                const myNets = myScores.map(s => s.net);
-                const oppNets = oppScores.map(s => s.net);
+                const myNets = myScores.map(s => s.gross); // start with gross for 2v2 team diff application
+                const oppNets = oppScores.map(s => s.gross);
 
                 if (match!.format === '2v2') {
+                    if (spottedTeam && teamHcpDiff > 0) {
+                        const holeStrokeIdx = course?.holes?.find((h: any) => h.number === hole)?.strokeIndex ?? 18;
+                        if (holeStrokeIdx <= teamHcpDiff) {
+                            if (spottedTeam === myTeam) {
+                                const minIdx = myNets[0] <= (myNets[1] ?? Infinity) ? 0 : 1;
+                                myNets[minIdx] -= 1;
+                            } else if (spottedTeam === oppTeam) {
+                                const minIdx = oppNets[0] <= (oppNets[1] ?? Infinity) ? 0 : 1;
+                                oppNets[minIdx] -= 1;
+                            }
+                        }
+                    }
                     let my = 0, opp = 0;
                     // Low ball
                     const myLow = Math.min(...myNets), oppLow = Math.min(...oppNets);
@@ -152,8 +170,10 @@ export default function LedgerPage() {
 
                     return { my, opp };
                 } else {
-                    if (myNets[0] < oppNets[0]) return { my: (birdiesDouble && myHasBirdie) ? 2 : 1, opp: 0 };
-                    if (oppNets[0] < myNets[0]) return { my: 0, opp: (birdiesDouble && oppHasBirdie) ? 2 : 1 };
+                    const myRawNets = myScores.map(s => s.net);
+                    const oppRawNets = oppScores.map(s => s.net);
+                    if (myRawNets[0] < oppRawNets[0]) return { my: (birdiesDouble && myHasBirdie) ? 2 : 1, opp: 0 };
+                    if (oppRawNets[0] < myRawNets[0]) return { my: 0, opp: (birdiesDouble && oppHasBirdie) ? 2 : 1 };
                     return { my: 0, opp: 0 };
                 }
             }

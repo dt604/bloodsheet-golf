@@ -229,15 +229,18 @@ function calcSkinsStandings(
     return { earned, skinsWon, holeResults, currentCarry: carry, currentPot: (1 + carry) * skinValue, potWinnerLabel, isPotMode };
 }
 
-function matchLabel(holesUp: number, holesPlayed: number = 0): string {
+function matchLabel(holesUp: number, holesPlayed: number = 0, format: string = '1v1'): string {
     if (holesPlayed === 0) return 'AS';
     const holesRemaining = 18 - holesPlayed;
     const absUp = Math.abs(holesUp);
 
+    const multiplier = format === '2v2' ? 2 : 1;
+    const maxPointsRemaining = holesRemaining * multiplier;
+
     // Dormie/Final checks
-    if (absUp > holesRemaining) return 'FINAL';
+    if (absUp > maxPointsRemaining && maxPointsRemaining > 0) return 'FINAL';
     if (absUp === 0) return 'AS';
-    if (absUp === holesRemaining) return 'DORMIE';
+    if (absUp === maxPointsRemaining && maxPointsRemaining > 0) return 'DORMIE';
 
     return `${absUp} ${holesUp > 0 ? 'UP' : 'DN'}`;
 }
@@ -555,7 +558,7 @@ export default function LeaderboardPage() {
         }
     }
 
-    const heroLabel = matchLabel(holesUp, holesPlayed);
+    const heroLabel = matchLabel(holesUp, holesPlayed, format);
     const heroLeader = holesUp > 0 ? 'A' : holesUp < 0 ? 'B' : null;
 
     const hcpDiffForDots = showAllPlayers ? globalMaxDiff : (format === '2v2' ? (teamHandicapDiff?.diff ?? 0) : (Math.max(0, ...matchHcps) - lowestMatchHcp));
@@ -1038,7 +1041,9 @@ export default function LeaderboardPage() {
                                 { label: 'BACK', data: matchPlaySplits.back9, isComplete: matchPlaySplits.back9.holesPlayed === 9 },
                                 { label: 'OVERALL', data: matchPlaySplits.overall, isComplete: matchPlaySplits.overall.holesPlayed === 18 }
                             ].map((split, i) => {
-                                const leaderLabel = matchLabel(split.data.holesUp, split.data.holesPlayed).replace(' UP', '').replace(' DN', '');
+                                const rawLabel = matchLabel(split.data.holesUp, split.data.holesPlayed, format);
+                                const isClinched = rawLabel === 'FINAL' || split.isComplete;
+                                const leaderLabel = rawLabel.replace(' UP', '').replace(' DN', '');
                                 const isAS = split.data.holesUp === 0;
                                 const tALeads = split.data.holesUp > 0;
 
@@ -1058,8 +1063,8 @@ export default function LeaderboardPage() {
                                                 <span className="text-[10px] font-bold text-white truncate max-w-full block mb-0.5">
                                                     {leaderName}
                                                 </span>
-                                                <span className={`text-xs font-black ${split.isComplete && tALeads ? 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]' : split.isComplete && !tALeads ? 'text-bloodRed drop-shadow-[0_0_5px_rgba(255,0,63,0.5)]' : tALeads ? 'text-neonGreen/80' : 'text-bloodRed/80'}`}>
-                                                    {leaderLabel} UP
+                                                <span className={`text-xs font-black ${isClinched ? (tALeads ? 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]' : 'text-bloodRed drop-shadow-[0_0_5px_rgba(255,0,63,0.5)]') : (tALeads ? 'text-neonGreen/80' : 'text-bloodRed/80')}`}>
+                                                    {isClinched ? 'WIN' : `${leaderLabel} UP`}
                                                 </span>
                                             </div>
                                         )}
