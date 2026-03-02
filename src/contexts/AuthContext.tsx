@@ -76,12 +76,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setSession(session);
         setUser(session?.user ?? null);
+        setLoading(false); // Resolve loading immediately after session is found
+
         if (session?.user && !session.user.is_anonymous) {
-          await fetchProfile(session.user.id);
+          fetchProfile(session.user.id);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-      } finally {
         setLoading(false);
       }
     }

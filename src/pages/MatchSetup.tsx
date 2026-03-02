@@ -9,13 +9,12 @@ import { Card } from '../components/ui/Card';
 import { Toggle } from '../components/ui/Toggle';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
-import { searchCourses, searchNearbyCourses } from '../lib/courseApi';
+import { searchCourses, searchNearbyCourses, fetchCourseImage } from '../lib/courseApi';
 import { Course } from '../types';
 
 export default function MatchSetupPage() {
     const navigate = useNavigate();
     const { user, profile } = useAuth();
-
     const createMatch = useMatchStore((s) => s.createMatch);
     const createMatchGroup = useMatchStore((s) => s.createMatchGroup);
     const createSkinsMatch = useMatchStore((s) => s.createSkinsMatch);
@@ -51,6 +50,21 @@ export default function MatchSetupPage() {
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [courseSearching, setCourseSearching] = useState(false);
     const [courseError, setCourseError] = useState('');
+
+    async function handleCourseSelection(course: Course) {
+        setCourseSearching(true);
+        try {
+            const imageUrl = await fetchCourseImage(course.name);
+            setSelectedCourse({ ...course, imageUrl });
+            setCourseResults([]);
+        } catch (err) {
+            console.error('Failed to fetch image:', err);
+            setSelectedCourse(course);
+            setCourseResults([]);
+        } finally {
+            setCourseSearching(false);
+        }
+    }
 
     // Side bets / trash (shared across all matches in a group)
     const [greenies, setGreenies] = useState(true);
@@ -820,22 +834,41 @@ export default function MatchSetupPage() {
                                     <div className="text-[10px] text-bloodRed font-bold uppercase tracking-widest pb-0.5">Top Rated</div>
                                 </div>
                                 {selectedCourse ? (
-                                    <Card className="p-4 border-2 border-bloodRed/30 bg-bloodRed/5 shadow-[0_4px_20px_rgba(255,0,63,0.1)] transition-all flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-bloodRed/20 flex items-center justify-center shrink-0">
-                                            <MapPin className="w-6 h-6 text-bloodRed" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-black uppercase tracking-tight text-white mb-0.5 truncate">{selectedCourse.name}</h3>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black bg-white/10 px-1.5 py-0.5 rounded text-secondaryText uppercase shrink-0">{selectedCourse.holes.length} Holes</span>
+                                    <Card className="relative p-0 border-2 border-bloodRed/30 bg-surface shadow-[0_4px_30px_rgba(255,0,63,0.15)] transition-all overflow-hidden group">
+                                        {selectedCourse.imageUrl ? (
+                                            <div className="absolute inset-0 z-0">
+                                                <img
+                                                    src={selectedCourse.imageUrl}
+                                                    alt={selectedCourse.name}
+                                                    className="w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-700"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
                                             </div>
+                                        ) : (
+                                            <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 to-transparent z-0" />
+                                        )}
+
+                                        <div className="relative z-10 p-5 flex items-center gap-4">
+                                            <div className="w-14 h-14 rounded-2xl bg-bloodRed/20 backdrop-blur-md border border-bloodRed/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(255,0,63,0.2)]">
+                                                <MapPin className="w-7 h-7 text-bloodRed" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <span className="text-[10px] font-black text-bloodRed uppercase tracking-[0.2em] italic">Selected Course</span>
+                                                    <div className="h-[1px] w-4 bg-bloodRed/30" />
+                                                </div>
+                                                <h3 className="font-black uppercase tracking-tight text-xl text-white truncate leading-none mb-1.5">{selectedCourse.name}</h3>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black bg-white/10 backdrop-blur-md px-2 py-0.5 rounded text-secondaryText uppercase shrink-0 border border-white/5">{selectedCourse.holes.length} Holes</span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => { setSelectedCourse(null); setCourseResults([]); }}
+                                                className="p-2 text-white/50 hover:text-bloodRed hover:bg-bloodRed/10 rounded-xl transition-all duration-300 backdrop-blur-sm border border-transparent hover:border-bloodRed/20"
+                                            >
+                                                <X className="w-6 h-6" />
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => { setSelectedCourse(null); setCourseResults([]); }}
-                                            className="p-2 text-bloodRed hover:bg-bloodRed/10 rounded-lg transition-colors"
-                                        >
-                                            <X className="w-5 h-5" />
-                                        </button>
                                     </Card>
                                 ) : (
                                     <div className="space-y-3">
@@ -871,7 +904,7 @@ export default function MatchSetupPage() {
                                                     <button
                                                         key={c.id}
                                                         className="w-full p-4 flex items-center gap-4 bg-surface/50 border border-borderColor hover:border-bloodRed/50 hover:bg-surface transition-all rounded-2xl group text-left"
-                                                        onClick={() => { setSelectedCourse(c); setCourseResults([]); }}
+                                                        onClick={() => handleCourseSelection(c)}
                                                     >
                                                         <div className="w-10 h-10 rounded-xl bg-surfaceHover flex items-center justify-center group-hover:bg-bloodRed/10 group-hover:text-bloodRed transition-colors">
                                                             <MapPin className="w-5 h-5 text-secondaryText group-hover:text-bloodRed" />

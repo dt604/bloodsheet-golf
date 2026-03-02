@@ -66,6 +66,7 @@ export interface Press {
 export interface Course {
   id: string;
   name: string;
+  imageUrl?: string;
   holes: Array<{
     number: number;
     par: number;

@@ -43,13 +43,35 @@ function extractHoles(apiCourse: ApiCourse): Course['holes'] {
   }));
 }
 
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+
+export async function fetchCourseImage(name: string): Promise<string | undefined> {
+  if (!GOOGLE_MAPS_API_KEY) return undefined;
+
+  try {
+    const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(name + ' golf course')}&key=${GOOGLE_MAPS_API_KEY}`;
+    const res = await fetch(searchUrl);
+    const data = await res.json();
+
+    if (data.results && data.results.length > 0) {
+      const place = data.results[0];
+      if (place.photos && place.photos.length > 0) {
+        const photoRef = place.photos[0].photo_reference;
+        return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photoRef}&key=${GOOGLE_MAPS_API_KEY}`;
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching course image:', err);
+  }
+  return undefined;
+}
+
 export async function searchCourses(name: string): Promise<Course[]> {
   const url = `https://${RAPIDAPI_HOST}/search?name=${encodeURIComponent(name)}`;
   return fetchAndMapCourses(url);
 }
 
 export async function searchNearbyCourses(lat: number, lng: number, radius: number = 25): Promise<Course[]> {
-  // Note: Adjusting param names based on common RapidAPI golf course API patterns
   const url = `https://${RAPIDAPI_HOST}/search?lat=${lat}&lng=${lng}&radius=${radius}`;
   return fetchAndMapCourses(url);
 }
@@ -65,8 +87,6 @@ async function fetchAndMapCourses(url: string): Promise<Course[]> {
   if (!res.ok) throw new Error(`Course search failed: ${res.status}`);
 
   const data: ApiCourse[] = await res.json();
-
-  // If the API returns a single object instead of an array (common in some endpoints)
   const coursesRaw = Array.isArray(data) ? data : [data];
 
   return coursesRaw.filter((c) => c.name).map((c) => ({

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface LeaderEntry {
@@ -29,13 +29,41 @@ export default function MoneyLeaders() {
 
             const matchIds = matches.map((m: any) => m.id);
 
-            const [{ data: allPlayers }, { data: allScores }, { data: allProfiles }] = await Promise.all([
+            // 1. Fetch Players and Scores in parallel
+            const [{ data: allPlayers }, { data: allScores }] = await Promise.all([
                 supabase.from('match_players').select('match_id, user_id, team').in('match_id', matchIds),
                 supabase.from('hole_scores').select('match_id, hole_number, player_id, net, gross').in('match_id', matchIds),
-                supabase.from('profiles').select('id, full_name, avatar_url'),
             ]);
 
+            // 2. Fetch Profiles for these players
+            const uniqueUserIds = [...new Set((allPlayers ?? []).map((p: any) => p.user_id))];
+            const { data: allProfiles } = await supabase
+                .from('profiles')
+                .select('id, full_name, avatar_url')
+                .in('id', uniqueUserIds);
+
+            // 3. Pre-group players & scores by match_id for O(1) lookup
+            const playersByMatch = new Map<string, any[]>();
+            for (const p of (allPlayers ?? [])) {
+                if (!playersByMatch.has(p.match_id)) playersByMatch.set(p.match_id, []);
+                playersByMatch.get(p.match_id)!.push(p);
+            }
+
+            const scoresByMatch = new Map<string, any[]>();
+            for (const s of (allScores ?? [])) {
+                if (!scoresByMatch.has(s.match_id)) scoresByMatch.set(s.match_id, []);
+                scoresByMatch.get(s.match_id)!.push(s);
+            }
+
             const earningsMap: Record<string, { earnings: number; wins: number; losses: number; pushes: number }> = {};
+
+            function attributeEarnings(userId: string, earnings: number) {
+                if (!earningsMap[userId]) earningsMap[userId] = { earnings: 0, wins: 0, losses: 0, pushes: 0 };
+                earningsMap[userId].earnings += earnings;
+                if (earnings > 0) earningsMap[userId].wins++;
+                else if (earnings < 0) earningsMap[userId].losses++;
+                else earningsMap[userId].pushes++;
+            }
 
             for (const match of matches as any[]) {
                 const matchId = match.id as string;
@@ -43,26 +71,23 @@ export default function MoneyLeaders() {
                 const format = match.format as string;
                 const sideBets = match.side_bets as any;
 
-                const matchPlayers = (allPlayers ?? []).filter((p: any) => p.match_id === matchId);
-                const matchScores = (allScores ?? []).filter((s: any) => s.match_id === matchId);
+                const matchPlayers = playersByMatch.get(matchId) ?? [];
+                const matchScoresRaw = scoresByMatch.get(matchId) ?? [];
                 if (!matchPlayers.length) continue;
 
-                function hScoresForHole(h: number) {
-                    return matchScores
-                        .filter((s: any) => s.hole_number === h)
-                        .map((s: any) => ({
-                            playerId: s.player_id as string,
-                            net: s.net as number,
-                            team: (matchPlayers.find((p: any) => p.user_id === s.player_id) as any)?.team ?? 'A',
-                        }));
+                // Pre-group scores by hole for this match
+                const scoresByHole: Record<number, any[]> = {};
+                for (const s of matchScoresRaw) {
+                    if (!scoresByHole[s.hole_number]) scoresByHole[s.hole_number] = [];
+                    scoresByHole[s.hole_number].push(s);
                 }
 
-                function attributeEarnings(userId: string, earnings: number) {
-                    if (!earningsMap[userId]) earningsMap[userId] = { earnings: 0, wins: 0, losses: 0, pushes: 0 };
-                    earningsMap[userId].earnings += earnings;
-                    if (earnings > 0) earningsMap[userId].wins++;
-                    else if (earnings < 0) earningsMap[userId].losses++;
-                    else earningsMap[userId].pushes++;
+                function getHoleScores(h: number) {
+                    return (scoresByHole[h] ?? []).map((s: any) => ({
+                        playerId: s.player_id as string,
+                        net: s.net as number,
+                        team: (matchPlayers.find((p: any) => p.user_id === s.player_id) as any)?.team ?? 'A',
+                    }));
                 }
 
                 if (format === 'skins') {
@@ -70,11 +95,10 @@ export default function MoneyLeaders() {
                     const isTeamSkins = sideBets?.teamSkins ?? false;
                     const isPotMode = sideBets?.potMode ?? false;
 
-                    // Pre-compute hole outcomes (winner/winTeam + potVal) in one pass
                     const holeOutcomes: { hole: number; winner: string | null; winTeam: string | null; potVal: number }[] = [];
                     let carry = 0;
                     for (let h = 1; h <= 18; h++) {
-                        const hScores = hScoresForHole(h);
+                        const hScores = getHoleScores(h);
                         if (hScores.length < numPlayers) continue;
                         const holesInPot = 1 + carry;
                         const potVal = holesInPot * wager;
@@ -99,8 +123,8 @@ export default function MoneyLeaders() {
                         const pot = wager * numPlayers;
                         const skinCounts: Record<string, number> = {};
                         for (const o of holeOutcomes) {
-                            const hScores = hScoresForHole(o.hole);
                             if (o.winTeam) {
+                                const hScores = getHoleScores(o.hole);
                                 hScores.filter(s => s.team === o.winTeam).forEach(s => {
                                     skinCounts[s.playerId] = (skinCounts[s.playerId] ?? 0) + (o.potVal / wager);
                                 });
@@ -116,17 +140,16 @@ export default function MoneyLeaders() {
                             attributeEarnings(userId, potWinners.includes(userId) ? potShare - wager : -wager);
                         }
                     } else {
-                        // Per-skin payout — compute per player from pre-built outcomes
                         for (const p of matchPlayers as any[]) {
                             const userId = p.user_id as string;
+                            const myTeam = p.team;
                             let skinsPayout = 0;
                             for (const o of holeOutcomes) {
-                                const hScores = hScoresForHole(o.hole);
-                                if (isTeamSkins && o.winTeam) {
-                                    const myScore = hScores.find(s => s.playerId === userId);
+                                if (o.winTeam) {
+                                    const hScores = getHoleScores(o.hole);
                                     const numOpp = hScores.filter(s => s.team !== o.winTeam).length;
                                     const numWin = hScores.filter(s => s.team === o.winTeam).length;
-                                    if (myScore?.team === o.winTeam) skinsPayout += o.potVal * numOpp;
+                                    if (myTeam === o.winTeam) skinsPayout += o.potVal * numOpp;
                                     else skinsPayout -= o.potVal * numWin;
                                 } else if (o.winner) {
                                     if (o.winner === userId) skinsPayout += o.potVal * (numPlayers - 1);
@@ -137,23 +160,24 @@ export default function MoneyLeaders() {
                         }
                     }
                 } else {
-                    // Nassau (1v1 or 2v2)
                     const teamA = matchPlayers.filter((p: any) => p.team === 'A');
                     const teamB = matchPlayers.filter((p: any) => p.team === 'B');
                     if (!teamA.length || !teamB.length) continue;
 
+                    const holesPlayed = Object.keys(scoresByHole).map(Number).sort((a, b) => a - b);
+
                     function holePoints(hole: number): { a: number; b: number } {
-                        const aScores = teamA.map((p: any) => matchScores.find((s: any) => s.hole_number === hole && s.player_id === p.user_id)).filter(Boolean);
-                        const bScores = teamB.map((p: any) => matchScores.find((s: any) => s.hole_number === hole && s.player_id === p.user_id)).filter(Boolean);
-                        if (!aScores.length || !bScores.length) return { a: 0, b: 0 };
-                        const aNets = aScores.map((s: any) => s.net as number);
-                        const bNets = bScores.map((s: any) => s.net as number);
+                        const hScores = scoresByHole[hole] ?? [];
+                        const aNets = teamA.map(p => hScores.find(s => s.player_id === p.user_id)?.net).filter(v => v !== undefined);
+                        const bNets = teamB.map(p => hScores.find(s => s.player_id === p.user_id)?.net).filter(v => v !== undefined);
+                        if (!aNets.length || !bNets.length) return { a: 0, b: 0 };
+
                         if (format === '2v2') {
                             let a = 0, b = 0;
                             const aLow = Math.min(...aNets), bLow = Math.min(...bNets);
                             if (aLow < bLow) a++; else if (bLow < aLow) b++;
-                            const aSum = aNets.reduce((x: number, y: number) => x + y, 0);
-                            const bSum = bNets.reduce((x: number, y: number) => x + y, 0);
+                            const aSum = aNets.reduce((x, y) => x + y, 0);
+                            const bSum = bNets.reduce((x, y) => x + y, 0);
                             if (aSum < bSum) a++; else if (bSum < aSum) b++;
                             return { a, b };
                         }
@@ -170,7 +194,6 @@ export default function MoneyLeaders() {
                         return 0;
                     }
 
-                    const holesPlayed = [...new Set(matchScores.map((s: any) => s.hole_number as number))].sort((a, b) => (a as number) - (b as number)) as number[];
                     const front = holesPlayed.filter((h) => h <= 9);
                     const back = holesPlayed.filter((h) => h > 9);
                     const matchResult =
@@ -179,14 +202,18 @@ export default function MoneyLeaders() {
                         (holesPlayed.length >= 18 ? nassauResult(holesPlayed) : 0);
 
                     for (const p of matchPlayers as any[]) {
-                        const userId = p.user_id as string;
-                        attributeEarnings(userId, p.team === 'A' ? matchResult : -matchResult);
+                        attributeEarnings(p.user_id, p.team === 'A' ? matchResult : -matchResult);
                     }
                 }
             }
 
+            const profilesMap = new Map<string, any>();
+            for (const p of (allProfiles ?? [])) {
+                profilesMap.set(p.id, p);
+            }
+
             const entries: LeaderEntry[] = Object.entries(earningsMap).map(([userId, stats]) => {
-                const profile = (allProfiles ?? []).find((p: any) => p.id === userId) as any;
+                const profile = profilesMap.get(userId);
                 return {
                     userId,
                     fullName: profile?.full_name ?? 'Unknown',
@@ -251,9 +278,14 @@ export default function MoneyLeaders() {
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <span className="block font-black text-sm text-white uppercase italic truncate transition-colors group-hover:text-bloodRed">
-                                    {entry.fullName}
-                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="block font-black text-sm text-white uppercase italic truncate transition-colors group-hover:text-bloodRed">
+                                        {entry.fullName}
+                                    </span>
+                                    {isPositive && (entry.wins + entry.losses + entry.pushes > 0) && (
+                                        <Crown className="w-3 h-3 text-bloodRed shrink-0" />
+                                    )}
+                                </div>
                                 <span className="text-[9px] text-secondaryText font-black uppercase tracking-widest">
                                     {entry.wins}W · {entry.losses}L{entry.pushes > 0 ? ` · ${entry.pushes}P` : ''}
                                 </span>

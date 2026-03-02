@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, History, UserPlus, Check, Loader } from 'lucide-react';
+import { ChevronLeft, History, UserPlus, Check, Loader, Crown, Home, Users, Settings, Camera } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
@@ -30,8 +30,6 @@ interface MatchHistoryItem {
 interface Stats {
     totalMatches: number;
     wins: number;
-    greenies: number;
-    snakesAvoided: number;
     lifetimePayout: number;
 }
 
@@ -53,10 +51,41 @@ export default function PlayerProfilePage() {
     const [stats, setStats] = useState<Stats>({
         totalMatches: 0,
         wins: 0,
-        greenies: 0,
-        snakesAvoided: 0,
         lifetimePayout: 0,
     });
+
+    const [uploadingImage, setUploadingImage] = useState(false);
+
+    async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        if (!e.target.files || e.target.files.length === 0 || !user || !isOwnProfile) return;
+        const file = e.target.files[0];
+        setUploadingImage(true);
+
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${user.id}-${Math.random()}.${fileExt}`;
+
+        try {
+            const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+            // Re-fetch profile data to update UI
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ avatar_url: data.publicUrl })
+                .eq('id', user.id);
+
+            if (updateError) throw updateError;
+
+            setProfileData(prev => prev ? { ...prev, avatarUrl: data.publicUrl } : null);
+        } catch (error: any) {
+            console.error('Error uploading avatar:', error.message);
+            alert('Failed to upload image. Please try again.');
+        } finally {
+            setUploadingImage(false);
+        }
+    }
 
     // Load friendships so the Add Friend button reflects current state
     useEffect(() => {
@@ -194,7 +223,6 @@ export default function PlayerProfilePage() {
 
                 let wins = 0;
                 let lifetimePayout = 0;
-                let snakesAvoided = 0;
                 const payoutMap: Record<string, { payout: number; holesUp: number }> = {};
 
                 for (const matchRow of completedMatches as Record<string, unknown>[]) {
@@ -295,45 +323,105 @@ export default function PlayerProfilePage() {
                         const { my, opp } = holePoints(h);
                         totalMyPts += my; totalOppPts += opp;
                     }
-                    payoutMap[matchId] = { payout: matchPayout, holesUp: totalMyPts - totalOppPts };
 
-                    lifetimePayout += matchPayout;
-                    if (matchPayout > 0) wins++;
+                    if (format === 'skins') {
+                        const numPlayers = matchPlayers.length;
+                        const isTeamSkins = sideBets?.teamSkins ?? false;
+                        const isPotMode = sideBets?.potMode ?? false;
+                        const skinCounts: Record<string, number> = {};
+                        let carry = 0;
+                        let skinsPayout = 0;
 
-                    if (sideBets?.snake) {
-                        const mySnakeDots = matchScores.filter((s) => {
-                            const sc = s as Record<string, unknown>;
-                            const onMyTeam = myTeamPlayers.find(
-                                (p) => (p as Record<string, unknown>).user_id === sc.player_id
-                            );
-                            return onMyTeam && (sc.trash_dots as string[]).includes('snake');
-                        }).length;
-                        if (mySnakeDots === 0) snakesAvoided++;
+                        function hScoresForHole(h: number) {
+                            return matchScores
+                                .filter(s => (s as any).hole_number === h)
+                                .map(s => ({
+                                    playerId: (s as any).player_id as string,
+                                    net: (s as any).net as number,
+                                    team: ((matchPlayers.find(p => (p as any).user_id === (s as any).player_id) as any)?.team ?? 'A') as 'A' | 'B',
+                                }));
+                        }
+
+                        // First pass: compute skins won per player/team
+                        for (let h = 1; h <= 18; h++) {
+                            const hScores = hScoresForHole(h);
+                            if (hScores.length < numPlayers) continue;
+                            const holesInPot = 1 + carry;
+                            if (isTeamSkins) {
+                                const aNet = Math.min(...hScores.filter(s => s.team === 'A').map(s => s.net));
+                                const bNet = Math.min(...hScores.filter(s => s.team === 'B').map(s => s.net));
+                                if (aNet !== bNet) {
+                                    const winTeam = aNet < bNet ? 'A' : 'B';
+                                    hScores.filter(s => s.team === winTeam).forEach(s => {
+                                        skinCounts[s.playerId] = (skinCounts[s.playerId] ?? 0) + holesInPot;
+                                    });
+                                    carry = 0;
+                                } else carry += 1;
+                            } else {
+                                const minNet = Math.min(...hScores.map(s => s.net));
+                                const winners = hScores.filter(s => s.net === minNet);
+                                if (winners.length === 1) {
+                                    skinCounts[winners[0].playerId] = (skinCounts[winners[0].playerId] ?? 0) + holesInPot;
+                                    carry = 0;
+                                } else carry += 1;
+                            }
+                        }
+
+                        if (isPotMode) {
+                            const pot = wagerAmount * numPlayers;
+                            const maxSkins = Math.max(0, ...Object.values(skinCounts));
+                            const potWinners = maxSkins > 0 ? Object.keys(skinCounts).filter(id => skinCounts[id] === maxSkins) : [];
+                            const potShare = potWinners.length > 1 ? pot / potWinners.length : pot;
+                            skinsPayout = potWinners.includes(userId!) ? potShare - wagerAmount : -wagerAmount;
+                        } else {
+                            // Per-skin payout: re-run loop computing net amounts
+                            let carry2 = 0;
+                            for (let h = 1; h <= 18; h++) {
+                                const hScores = hScoresForHole(h);
+                                if (hScores.length < numPlayers) continue;
+                                const holesInPot = 1 + carry2;
+                                const potVal = holesInPot * wagerAmount;
+                                if (isTeamSkins) {
+                                    const aNet = Math.min(...hScores.filter(s => s.team === 'A').map(s => s.net));
+                                    const bNet = Math.min(...hScores.filter(s => s.team === 'B').map(s => s.net));
+                                    if (aNet !== bNet) {
+                                        const winTeam = aNet < bNet ? 'A' : 'B';
+                                        const myScore = hScores.find(s => s.playerId === userId!);
+                                        const numOpp = hScores.filter(s => s.team !== winTeam).length;
+                                        const numWin = hScores.filter(s => s.team === winTeam).length;
+                                        if (myScore?.team === winTeam) skinsPayout += potVal * numOpp;
+                                        else skinsPayout -= potVal * numWin;
+                                        carry2 = 0;
+                                    } else carry2 += 1;
+                                } else {
+                                    const minNet = Math.min(...hScores.map(s => s.net));
+                                    const winners = hScores.filter(s => s.net === minNet);
+                                    if (winners.length === 1) {
+                                        skinsPayout += winners[0].playerId === userId! ? potVal * (numPlayers - 1) : -potVal;
+                                        carry2 = 0;
+                                    } else carry2 += 1;
+                                }
+                            }
+                        }
+
+                        payoutMap[matchId] = { payout: skinsPayout, holesUp: 0 };
+                        lifetimePayout += skinsPayout;
+                        if (skinsPayout > 0) wins++;
+                    } else {
+                        payoutMap[matchId] = { payout: matchPayout, holesUp: totalMyPts - totalOppPts };
+                        lifetimePayout += matchPayout;
+                        if (matchPayout > 0) wins++;
                     }
+
+                    // Back-fill payout/holesUp into history items
+                    setHistory((prev) => prev.map((item) => ({
+                        ...item,
+                        payout: payoutMap[item.id]?.payout ?? 0,
+                        holesUp: payoutMap[item.id]?.holesUp ?? 0,
+                    })));
                 }
 
-                setStats((prev) => ({ ...prev, wins, lifetimePayout, snakesAvoided }));
-
-                // Back-fill payout/holesUp into history items
-                setHistory((prev) => prev.map((item) => ({
-                    ...item,
-                    payout: payoutMap[item.id]?.payout ?? 0,
-                    holesUp: payoutMap[item.id]?.holesUp ?? 0,
-                })));
-            }
-
-            // 5. Greenies count
-            const { count: greeniesCount } = completedIds.length > 0
-                ? await supabase
-                    .from('hole_scores')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('player_id', userId!)
-                    .contains('trash_dots', ['greenie'])
-                    .in('match_id', completedIds)
-                : { count: 0 };
-
-            if (greeniesCount !== null) {
-                setStats((prev) => ({ ...prev, greenies: greeniesCount }));
+                setStats((prev) => ({ ...prev, wins, lifetimePayout }));
             }
         }
 
@@ -370,14 +458,29 @@ export default function PlayerProfilePage() {
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
             {/* Header */}
-            <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background/95 backdrop-blur shrink-0 z-20">
-                <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
-                    <ChevronLeft className="w-6 h-6" />
-                </button>
-                <span className="font-bold text-sm tracking-widest uppercase text-secondaryText">
-                    {isOwnProfile ? 'Your Profile' : 'Player Profile'}
-                </span>
-                <div className="w-10" />
+            <header className="flex items-center justify-between p-4 px-6 border-b border-borderColor bg-background/95 backdrop-blur z-20 shrink-0">
+                <div className="flex items-center gap-3">
+                    <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
+                        <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <span className="text-secondaryText text-[10px] font-black uppercase tracking-widest pt-0.5 whitespace-nowrap">
+                        {isOwnProfile ? 'MY PROFILE' : 'PLAYER PROFILE'}
+                    </span>
+                </div>
+                {isOwnProfile && (
+                    <div className="flex items-center gap-2 -mr-2">
+                        <button onClick={() => navigate('/home')} className="p-2 text-secondaryText hover:text-white transition-colors" title="Home Hub">
+                            <Home className="w-5 h-5" />
+                        </button>
+                        <button onClick={() => navigate('/friends')} className="p-2 text-secondaryText hover:text-white transition-colors">
+                            <Users className="w-6 h-6" />
+                        </button>
+                        <button onClick={() => navigate('/settings')} className="p-2 text-secondaryText hover:text-white transition-colors">
+                            <Settings className="w-6 h-6" />
+                        </button>
+                    </div>
+                )}
+                {!isOwnProfile && <div className="w-10" />}
             </header>
 
             {loadingProfile ? (
@@ -395,16 +498,28 @@ export default function PlayerProfilePage() {
                 <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6">
                     {/* Identity card */}
                     <section className="bg-surface rounded-2xl p-4 sm:p-6 border border-borderColor flex flex-col items-center">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden">
+                        <div className={`w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden transition-transform ${isOwnProfile ? 'group cursor-pointer hover:scale-105' : ''}`}>
                             {profileData.avatarUrl ? (
                                 <img src={profileData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
                                 initials
                             )}
+                            {isOwnProfile && (
+                                <label className="absolute inset-0 bg-background/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity z-10 w-full h-full">
+                                    {uploadingImage ? <Loader className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" /> : <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-bloodRed" />}
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingImage} />
+                                </label>
+                            )}
                         </div>
                         <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5 sm:mb-1 truncate max-w-full px-2">{profileData.fullName}</h2>
-                        <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8">
-                            HCP {profileData.handicap} • Member since {memberYear}
+                        {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
+                            <div className="flex items-center justify-center gap-1.5 mt-1 mb-2 px-3 py-1 rounded-full bg-bloodRed/10 border border-bloodRed/30 shadow-[0_0_10px_rgba(255,0,63,0.15)]">
+                                <Crown className="w-4 h-4 text-bloodRed" />
+                                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-bloodRed">BloodSheet Legend</span>
+                            </div>
+                        )}
+                        <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8 mt-1 block">
+                            Member since {memberYear}
                         </span>
 
                         <div className="w-full flex">
@@ -425,8 +540,6 @@ export default function PlayerProfilePage() {
                     <section className="grid grid-cols-2 gap-2 sm:gap-3">
                         <StatBox label="Total Matches" value={String(stats.totalMatches)} className="px-1" />
                         <StatBox label="Win Rate" value={winRate} className="px-1" />
-                        <StatBox label="Greenies" value={String(stats.greenies)} valueColor="bloodRed" className="px-1" />
-                        <StatBox label="Snakes Avoided" value={String(stats.snakesAvoided)} valueColor="neonGreen" className="px-1" />
                     </section>
 
                     {/* Recent history */}
@@ -466,32 +579,41 @@ export default function PlayerProfilePage() {
                         )}
                     </section>
 
-                    {/* CTA: own profile → settings, other → friend */}
-                    <div className="pb-4">
-                        {isOwnProfile ? (
-                            <Button variant="outline" className="w-full" onClick={() => navigate('/settings')}>
-                                Edit Profile
-                            </Button>
-                        ) : !friendship ? (
-                            <Button
-                                className="w-full"
-                                onClick={() => { if (user && userId) sendFriendRequest(user.id, userId); }}
-                            >
-                                <UserPlus className="w-4 h-4 mr-2" />
-                                Add Friend
-                            </Button>
-                        ) : friendship.status === 'accepted' ? (
-                            <div className="flex items-center justify-center gap-2 py-3 rounded-xl border border-neonGreen/30 bg-neonGreen/5 text-neonGreen font-bold tracking-wider uppercase text-sm">
-                                <Check className="w-4 h-4" />
-                                Friends
-                            </div>
-                        ) : (
-                            <div className="flex items-center justify-center py-3 rounded-xl border border-borderColor text-secondaryText font-bold tracking-wider uppercase text-sm">
-                                Request Sent
-                            </div>
-                        )}
-                    </div>
+                    {/* CTA: other → friend, own → dashboard-style footer */}
+                    {!isOwnProfile && (
+                        <div className="pb-4 mt-6">
+                            {!friendship ? (
+                                <Button
+                                    className="w-full"
+                                    onClick={() => { if (user && userId) sendFriendRequest(user.id, userId); }}
+                                >
+                                    <UserPlus className="w-4 h-4 mr-2" />
+                                    Add Friend
+                                </Button>
+                            ) : friendship.status === 'accepted' ? (
+                                <div className="flex items-center justify-center gap-2 py-3 rounded-xl border border-neonGreen/30 bg-neonGreen/5 text-neonGreen font-bold tracking-wider uppercase text-sm">
+                                    <Check className="w-4 h-4" />
+                                    Friends
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center py-3 rounded-xl border border-borderColor text-secondaryText font-bold tracking-wider uppercase text-sm">
+                                    Request Sent
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </main>
+            )}
+
+            {isOwnProfile && profileData && (
+                <div className="bg-background border-t border-borderColor p-3 sm:p-4 flex gap-2 sm:gap-3 z-20 shrink-0 pb-safe mt-6">
+                    <Button variant="outline" size="sm" className="flex-1 h-12 sm:h-14 font-bold uppercase tracking-wider text-sm sm:text-base" onClick={() => navigate('/join')}>
+                        Join Match
+                    </Button>
+                    <Button size="lg" className="flex-[2] h-12 sm:h-14 text-sm sm:text-base uppercase tracking-widest font-black shadow-[0_0_20px_rgba(255,0,63,0.4)]" onClick={() => navigate('/setup')}>
+                        Start New Match
+                    </Button>
+                </div>
             )}
         </div>
     );

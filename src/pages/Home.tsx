@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMatchStore } from '../store/useMatchStore';
 
 export default function Home() {
-    const { profile, signOut } = useAuth();
+    const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
     const { loadMatch } = useMatchStore();
     const [activeMatch, setActiveMatch] = useState<any>(null);
@@ -18,54 +18,56 @@ export default function Home() {
     const [loadingMatches, setLoadingMatches] = useState(true);
 
     useEffect(() => {
-        if (!profile) return;
+        if (!user) return;
+        const userId = user.id;
 
         async function fetchData() {
             setLoadingMatches(true);
 
-            // 1. Check for Active Match
-            const { data: activeJoin } = await supabase
-                .from('match_players')
-                .select('match_id, matches!inner(id, status, created_at, courses(name))')
-                .eq('user_id', profile?.id)
-                .eq('matches.status', 'in_progress')
-                .order('matches(created_at)', { ascending: false })
-                .limit(1);
+            // Fetch All Match Contexts in Parallel to avoid waterfalling
+            const [activeRes, attestRes, historyRes] = await Promise.all([
+                // 1. Check for Active Match
+                supabase
+                    .from('match_players')
+                    .select('match_id, matches!inner(id, status, created_at, courses(name))')
+                    .eq('user_id', userId)
+                    .eq('matches.status', 'in_progress')
+                    .order('matches(created_at)', { ascending: false })
+                    .limit(1),
+                // 1b. Check for pending attestation match
+                supabase
+                    .from('match_players')
+                    .select('match_id, matches!inner(id, status, created_at, courses(name))')
+                    .eq('user_id', userId)
+                    .eq('matches.status', 'pending_attestation')
+                    .order('matches(created_at)', { ascending: false })
+                    .limit(1),
+                // 2. Fetch Recent Matches (History)
+                supabase
+                    .from('match_players')
+                    .select('match_id, matches!inner(id, status, created_at, format, wager_type, courses(name))')
+                    .eq('user_id', userId)
+                    .order('matches(created_at)', { ascending: false })
+                    .limit(3)
+            ]);
 
-            if (activeJoin && activeJoin.length > 0) {
-                setActiveMatch((activeJoin[0] as any).matches);
+            if (activeRes.data && activeRes.data.length > 0) {
+                setActiveMatch((activeRes.data[0] as any).matches);
             }
 
-            // 1b. Check for pending attestation match
-            const { data: attestJoin } = await supabase
-                .from('match_players')
-                .select('match_id, matches!inner(id, status, created_at, courses(name))')
-                .eq('user_id', profile?.id)
-                .eq('matches.status', 'pending_attestation')
-                .order('matches(created_at)', { ascending: false })
-                .limit(1);
-
-            if (attestJoin && attestJoin.length > 0) {
-                setPendingAttestMatch((attestJoin[0] as any).matches);
+            if (attestRes.data && attestRes.data.length > 0) {
+                setPendingAttestMatch((attestRes.data[0] as any).matches);
             }
 
-            // 2. Fetch Recent Matches (History)
-            const { data: historyJoin } = await supabase
-                .from('match_players')
-                .select('match_id, matches!inner(id, status, created_at, format, wager_type, courses(name))')
-                .eq('user_id', profile?.id)
-                .order('matches(created_at)', { ascending: false })
-                .limit(3);
-
-            if (historyJoin) {
-                setRecentMatches(historyJoin.map((h: any) => h.matches));
+            if (historyRes.data) {
+                setRecentMatches(historyRes.data.map((h: any) => h.matches));
             }
 
             setLoadingMatches(false);
         }
 
         fetchData();
-    }, [profile]);
+    }, [user?.id]);
 
     const handleAttest = async () => {
         if (!pendingAttestMatch) return;
