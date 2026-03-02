@@ -46,20 +46,32 @@ function extractHoles(apiCourse: ApiCourse): Course['holes'] {
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
 
 export async function fetchCourseImage(name: string): Promise<string | undefined> {
-  if (!GOOGLE_MAPS_API_KEY) return undefined;
+  if (!GOOGLE_MAPS_API_KEY) {
+    console.warn('Google Maps API Key is missing (VITE_GOOGLE_MAPS_API_KEY)');
+    return undefined;
+  }
 
   try {
     const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(name + ' golf course')}&key=${GOOGLE_MAPS_API_KEY}`;
+    console.log('Fetching course image for:', name);
     const res = await fetch(searchUrl);
     const data = await res.json();
+
+    if (data.status === 'REQUEST_DENIED') {
+      console.error('Google Maps API Error:', data.error_message);
+      return undefined;
+    }
 
     if (data.results && data.results.length > 0) {
       const place = data.results[0];
       if (place.photos && place.photos.length > 0) {
         const photoRef = place.photos[0].photo_reference;
-        return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photoRef}&key=${GOOGLE_MAPS_API_KEY}`;
+        const finalUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photoRef}&key=${GOOGLE_MAPS_API_KEY}`;
+        console.log('Found image URL:', finalUrl);
+        return finalUrl;
       }
     }
+    console.log('No image found for course:', name);
   } catch (err) {
     console.error('Error fetching course image:', err);
   }
