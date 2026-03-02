@@ -610,11 +610,7 @@ export default function DashboardPage() {
                                     key={item.id}
                                     className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
                                     onClick={() => {
-                                        if (item.status === 'pending_attestation') {
-                                            useMatchStore.setState({ matchId: item.id, match: null });
-                                            localStorage.setItem('activeMatchId', item.id);
-                                            navigate('/ledger');
-                                        } else if (item.status === 'in_progress') {
+                                        if (item.status === 'in_progress') {
                                             navigate(`/play/1`);
                                         } else {
                                             navigate(`/history/${item.id}`);
