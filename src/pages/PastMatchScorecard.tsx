@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Flag, Receipt, Trash2, Edit2, Activity, Target, Zap, Droplets } from 'lucide-react';
+import { ArrowLeft, Flag, Receipt, Trash2, Edit2, Activity, Target, Zap, Droplets, Camera } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatchStore } from '../store/useMatchStore';
 import { Button } from '../components/ui/Button';
+import { MediaLightbox } from '../components/ui/MediaLightbox';
 
 interface CourseHole {
     number: number;
@@ -65,6 +66,12 @@ export default function PastMatchScorecardPage() {
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [data, setData] = useState<MatchScorecardData | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    // Match Media State
+    const [matchMedia, setMatchMedia] = useState<any[]>([]);
+    const [lightboxMedia, setLightboxMedia] = useState<any[]>([]);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
     async function handleDelete() {
         if (!matchId) return;
@@ -145,6 +152,17 @@ export default function PastMatchScorecardPage() {
                     startHole: p.start_hole as number,
                     pressedByTeam: p.pressed_by_team as 'A' | 'B',
                 }));
+
+                // Fetch match media
+                const { data: mediaData } = await supabase
+                    .from('match_media')
+                    .select('*')
+                    .eq('match_id', matchId)
+                    .order('created_at', { ascending: true });
+
+                if (mediaData) {
+                    setMatchMedia(mediaData);
+                }
 
                 const playersMap = new Map<string, MatchPlayer>();
                 if (mps) {
@@ -789,6 +807,7 @@ export default function PastMatchScorecardPage() {
                                             const val = score.gross;
                                             const par = sortedHoles.find(sh => sh.number === h.val)?.par || 4;
                                             const trash = score.dots || [];
+                                            const holeMedia = matchMedia.find(m => m.hole_number === h.val && m.player_id === p.id);
 
                                             let shape;
                                             if (val <= par - 2) {
@@ -826,8 +845,31 @@ export default function PastMatchScorecardPage() {
                                             }
 
                                             return (
-                                                <div key={i} className={`${baseClass} min-w-[52px] text-xs font-black relative`}>
-                                                    <div className="relative flex items-center justify-center w-8 h-8">
+                                                <div key={i} className={`${baseClass} min-w-[52px] text-xs font-black relative group/cell`}>
+                                                    <div
+                                                        className={`relative flex items-center justify-center w-8 h-8 transition-transform ${holeMedia ? 'cursor-pointer hover:scale-110 active:scale-95' : ''}`}
+                                                        onClick={() => {
+                                                            if (holeMedia) {
+                                                                // Find all media for this player/hole to open in lightbox
+                                                                const relevantMedia = matchMedia
+                                                                    .filter(m => m.hole_number === h.val && m.player_id === p.id)
+                                                                    .map(m => ({
+                                                                        id: m.id,
+                                                                        url: m.media_url,
+                                                                        type: m.media_type,
+                                                                        context: m.context,
+                                                                        uploaderId: m.uploader_id,
+                                                                        playerId: m.player_id,
+                                                                        holeNumber: m.hole_number
+                                                                    }));
+                                                                if (relevantMedia.length > 0) {
+                                                                    setLightboxMedia(relevantMedia);
+                                                                    setLightboxIndex(0);
+                                                                    setIsLightboxOpen(true);
+                                                                }
+                                                            }
+                                                        }}
+                                                    >
                                                         {shape}
                                                         {isSkins && (skinDotsMap[h.val as number]?.[p.id] ?? 0) > 0 && (
                                                             <div className="absolute -top-0.5 -left-0.5 flex gap-px">
@@ -844,6 +886,12 @@ export default function PastMatchScorecardPage() {
                                                         )}
                                                         {trash.includes('sandie') && (
                                                             <Droplets className="absolute -top-0.5 -left-0.5 w-[9px] h-[9px] text-cyan-400 fill-cyan-400 drop-shadow-[0_0_3px_rgba(34,211,238,0.6)]" />
+                                                        )}
+                                                        {/* Media Indicator */}
+                                                        {holeMedia && (
+                                                            <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-surface border border-borderColor flex items-center justify-center shadow-[0_0_5px_rgba(255,255,255,0.2)] z-10 transition-transform hover:scale-110">
+                                                                <Camera className="w-[8px] h-[8px] text-white" />
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
@@ -933,18 +981,18 @@ export default function PastMatchScorecardPage() {
                                         <span className="text-[10px] font-black uppercase tracking-widest text-secondaryText">{item.label}</span>
                                     </div>
                                 ) : (
-                                <div
-                                    key={i}
-                                    className={`px-4 py-3 flex items-center justify-between border-b border-borderColor/50 last:border-b-0 ${item.isPress ? 'bg-bloodRed/5 border-l-2 border-l-bloodRed' : ''}`}
-                                >
-                                    <div>
-                                        <span className={`font-bold text-sm block ${item.isPress ? 'text-bloodRed' : 'text-white'}`}>{item.label}</span>
-                                        <span className="text-xs text-secondaryText">{item.sublabel}</span>
+                                    <div
+                                        key={i}
+                                        className={`px-4 py-3 flex items-center justify-between border-b border-borderColor/50 last:border-b-0 ${item.isPress ? 'bg-bloodRed/5 border-l-2 border-l-bloodRed' : ''}`}
+                                    >
+                                        <div>
+                                            <span className={`font-bold text-sm block ${item.isPress ? 'text-bloodRed' : 'text-white'}`}>{item.label}</span>
+                                            <span className="text-xs text-secondaryText">{item.sublabel}</span>
+                                        </div>
+                                        <span className={`font-bold text-base ${item.amount > 0 ? 'text-neonGreen' : item.amount < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                            {item.amount > 0 ? '+' : ''}${item.amount}
+                                        </span>
                                     </div>
-                                    <span className={`font-bold text-base ${item.amount > 0 ? 'text-neonGreen' : item.amount < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                        {item.amount > 0 ? '+' : ''}${item.amount}
-                                    </span>
-                                </div>
                                 )
                             ))}
 
@@ -1015,6 +1063,15 @@ export default function PastMatchScorecardPage() {
                     </div>
                 )
             }
+
+            {/* Media Lightbox */}
+            {isLightboxOpen && lightboxMedia.length > 0 && (
+                <MediaLightbox
+                    items={lightboxMedia}
+                    initialIndex={lightboxIndex}
+                    onClose={() => setIsLightboxOpen(false)}
+                />
+            )}
         </div >
     );
 }

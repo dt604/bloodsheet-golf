@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Camera } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Pencil, Check, Settings } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
@@ -155,8 +156,12 @@ export default function LiveScorecardPage() {
     const [activeTrash, setActiveTrash] = useState<Record<string, string[]>>({});
     const [isDirty, setIsDirty] = useState(false);
 
-    // Load player profiles for display names
     const [playerProfiles, setPlayerProfiles] = useState<Record<string, { fullName: string; handicap: number; avatarUrl?: string }>>({});
+
+    // Media Upload State
+    const [uploadingMediaFor, setUploadingMediaFor] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedPlayerForMedia, setSelectedPlayerForMedia] = useState<string | null>(null);
 
     // Watch for Real-time Score Updates (Ping)
     useEffect(() => {
@@ -316,6 +321,58 @@ export default function LiveScorecardPage() {
     const lowestHcp = Math.min(...allHcps); // lowest HCP in the match — everyone plays off this player
 
     const [lastSaved, setLastSaved] = useState<number | null>(null);
+
+    async function handleMediaUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file || !user || !matchId || !selectedPlayerForMedia) return;
+
+        setUploadingMediaFor(selectedPlayerForMedia);
+
+        try {
+            const fileExt = file.name.split('.').pop() || (file.type.startsWith('video/') ? 'mp4' : 'jpg');
+            const filePath = `${matchId}/${currentHole}/${selectedPlayerForMedia}-${Date.now()}.${fileExt}`;
+            const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+
+            // Check context based on current trash dots
+            const pDots = activeTrash[selectedPlayerForMedia] || [];
+            let ctx = null;
+            if (pDots.includes('snake')) ctx = 'snake';
+            else if (pDots.includes('sandie')) ctx = 'sandie';
+            else if (pDots.includes('greenie')) ctx = 'greenie';
+
+            const { error: uploadError } = await supabase.storage
+                .from('match-media')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('match-media')
+                .getPublicUrl(filePath);
+
+            const { error: dbError } = await supabase
+                .from('match_media')
+                .insert({
+                    match_id: matchId,
+                    player_id: selectedPlayerForMedia,
+                    uploader_id: user.id,
+                    hole_number: currentHole,
+                    media_url: publicUrl,
+                    media_type: mediaType,
+                    context: ctx
+                });
+
+            if (dbError) throw dbError;
+
+        } catch (err) {
+            console.error('Failed to upload media:', err);
+            // Ideally trigger a toast here if we had one
+        } finally {
+            setUploadingMediaFor(null);
+            setSelectedPlayerForMedia(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    }
 
     async function saveCurrentHoleScores() {
         if (!match || !matchId) return;
@@ -608,6 +665,16 @@ export default function LiveScorecardPage() {
                 </div>
             </header>
 
+            {/* Hidden file input for capturing media */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*,video/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleMediaUpload}
+            />
+
             <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6 pb-20 relative">
                 {/* Hole Data Strip */}
                 <div className="flex bg-surface rounded-xl overflow-hidden border border-borderColor divide-x divide-borderColor shadow-sm">
@@ -747,7 +814,19 @@ export default function LiveScorecardPage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-3 sm:gap-4 relative z-10">
+                                        <div className="flex items-center gap-2 sm:gap-4 relative z-10">
+                                            {/* Camera Button */}
+                                            <button
+                                                onClick={() => {
+                                                    if (uploadingMediaFor) return;
+                                                    setSelectedPlayerForMedia(player.userId);
+                                                    fileInputRef.current?.click();
+                                                }}
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${uploadingMediaFor === player.userId ? 'bg-surface text-bloodRed' : 'text-secondaryText hover:text-white hover:bg-surfaceHover'}`}
+                                            >
+                                                {uploadingMediaFor === player.userId ? <Loader className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                                            </button>
+
                                             {isScorekeeper && (
                                                 <button
                                                     onClick={() => {

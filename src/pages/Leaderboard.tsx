@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Share, Activity, Users, LayoutGrid, User, Target, Zap, Droplets } from 'lucide-react';
+import { ChevronLeft, Share, Activity, Users, LayoutGrid, User, Target, Zap, Droplets, Camera } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useMatchStore } from '../store/useMatchStore';
@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { MatchPlayer, HoleScore } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MediaLightbox } from '../components/ui/MediaLightbox';
 
 function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): number {
     if (adjustedHandicap <= 0) return gross;
@@ -283,6 +284,12 @@ export default function LeaderboardPage() {
     const [showAllPlayers, setShowAllPlayers] = useState(false);
     const isGroupMode = activeMatchIds.length > 1;
 
+    // Media State
+    const [matchMedia, setMatchMedia] = useState<any[]>([]);
+    const [lightboxMedia, setLightboxMedia] = useState<any[]>([]);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
     // Resolve which data to show for the "Detailed" view (Scorecard/Stats)
     const focusedEntry = isGroupMode && groupState ? groupState.matches[focusedMatchIdx] : null;
 
@@ -372,6 +379,23 @@ export default function LeaderboardPage() {
         }, 5000);
         return () => clearInterval(interval);
     }, [primaryMatchId, isGroupMode]);
+
+    // Fetch Media
+    useEffect(() => {
+        async function fetchMedia() {
+            if (!activeMatchIds || activeMatchIds.length === 0) return;
+            const { data } = await supabase
+                .from('match_media')
+                .select('*')
+                .in('match_id', activeMatchIds)
+                .order('created_at', { ascending: true });
+
+            if (data) {
+                setMatchMedia(data);
+            }
+        }
+        fetchMedia();
+    }, [activeMatchIds]);
 
     useEffect(() => {
         const allPlayerIds = isGroupMode && groupState
@@ -642,6 +666,7 @@ export default function LeaderboardPage() {
 
         const par = sortedHoles.find(h => h.number === hNum)?.par ?? 4;
         const trash = scoreEntry?.trashDots ?? [];
+        const holeMedia = matchMedia.find(m => m.hole_number === hNum && m.player_id === pId);
 
         // --- Premium Score Visualization ---
         let shape;
@@ -683,7 +708,29 @@ export default function LeaderboardPage() {
         const skinDotCount = isSkins ? (skinDotsMap[hNum]?.[pId] ?? 0) : 0;
 
         return (
-            <div className="relative flex items-center justify-center w-8 h-8">
+            <div
+                className={`relative flex items-center justify-center w-8 h-8 transition-transform group/cell ${holeMedia ? 'cursor-pointer hover:scale-110 active:scale-95' : ''}`}
+                onClick={() => {
+                    if (holeMedia) {
+                        const relevantMedia = matchMedia
+                            .filter(m => m.hole_number === hNum && m.player_id === pId)
+                            .map(m => ({
+                                id: m.id,
+                                url: m.media_url,
+                                type: m.media_type,
+                                context: m.context,
+                                uploaderId: m.uploader_id,
+                                playerId: m.player_id,
+                                holeNumber: m.hole_number
+                            }));
+                        if (relevantMedia.length > 0) {
+                            setLightboxMedia(relevantMedia);
+                            setLightboxIndex(0);
+                            setIsLightboxOpen(true);
+                        }
+                    }
+                }}
+            >
                 {shape}
                 {/* Skin winner dots — one per skin won (carry + bonus) */}
                 {skinDotCount > 0 && (
@@ -702,6 +749,12 @@ export default function LeaderboardPage() {
                 )}
                 {trash.includes('sandie') && (
                     <Droplets className="absolute -top-0.5 -left-0.5 w-[9px] h-[9px] text-cyan-400 fill-cyan-400 drop-shadow-[0_0_3px_rgba(34,211,238,0.6)]" />
+                )}
+                {/* Media Indicator */}
+                {holeMedia && (
+                    <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-surface border border-borderColor flex items-center justify-center shadow-[0_0_5px_rgba(255,255,255,0.2)] z-10 transition-transform hover:scale-110">
+                        <Camera className="w-[8px] h-[8px] text-white" />
+                    </div>
                 )}
             </div>
         );
@@ -895,41 +948,41 @@ export default function LeaderboardPage() {
 
                     {/* Nassau Splits Tracker — hidden for skins */}
                     {!isSkins && matchPlaySplits && (
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                        {[
-                            { label: 'FRONT', data: matchPlaySplits.front9, isComplete: matchPlaySplits.front9.holesPlayed === 9 },
-                            { label: 'BACK', data: matchPlaySplits.back9, isComplete: matchPlaySplits.back9.holesPlayed === 9 },
-                            { label: 'OVERALL', data: matchPlaySplits.overall, isComplete: matchPlaySplits.overall.holesPlayed === 18 }
-                        ].map((split, i) => {
-                            const leaderLabel = matchLabel(split.data.holesUp, split.data.holesPlayed).replace(' UP', '').replace(' DN', '');
-                            const isAS = split.data.holesUp === 0;
-                            const tALeads = split.data.holesUp > 0;
+                        <div className="mt-3 grid grid-cols-3 gap-2">
+                            {[
+                                { label: 'FRONT', data: matchPlaySplits.front9, isComplete: matchPlaySplits.front9.holesPlayed === 9 },
+                                { label: 'BACK', data: matchPlaySplits.back9, isComplete: matchPlaySplits.back9.holesPlayed === 9 },
+                                { label: 'OVERALL', data: matchPlaySplits.overall, isComplete: matchPlaySplits.overall.holesPlayed === 18 }
+                            ].map((split, i) => {
+                                const leaderLabel = matchLabel(split.data.holesUp, split.data.holesPlayed).replace(' UP', '').replace(' DN', '');
+                                const isAS = split.data.holesUp === 0;
+                                const tALeads = split.data.holesUp > 0;
 
-                            const leaderName = tALeads
-                                ? playerRows.filter(r => r.team === 'A').map(r => r.fullName.split(' ')[0]).join(' & ') || 'Team A'
-                                : playerRows.filter(r => r.team === 'B').map(r => r.fullName.split(' ')[0]).join(' & ') || 'Team B';
+                                const leaderName = tALeads
+                                    ? playerRows.filter(r => r.team === 'A').map(r => r.fullName.split(' ')[0]).join(' & ') || 'Team A'
+                                    : playerRows.filter(r => r.team === 'B').map(r => r.fullName.split(' ')[0]).join(' & ') || 'Team B';
 
-                            return (
-                                <div key={i} className="flex flex-col items-center justify-center p-2 rounded-lg border bg-surface/40 border-borderColor/30 transition-all">
-                                    <span className="text-[9px] font-bold uppercase tracking-widest text-secondaryText/80 mb-0.5">{split.label}</span>
-                                    {split.data.holesPlayed === 0 ? (
-                                        <span className="text-xs font-bold text-secondaryText/40">—</span>
-                                    ) : isAS ? (
-                                        <span className="text-sm font-black text-secondaryText">AS</span>
-                                    ) : (
-                                        <div className="flex flex-col items-center leading-none mt-0.5">
-                                            <span className="text-[10px] font-bold text-white truncate max-w-full block mb-0.5">
-                                                {leaderName}
-                                            </span>
-                                            <span className={`text-xs font-black ${split.isComplete && tALeads ? 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]' : split.isComplete && !tALeads ? 'text-bloodRed drop-shadow-[0_0_5px_rgba(255,0,63,0.5)]' : tALeads ? 'text-neonGreen/80' : 'text-bloodRed/80'}`}>
-                                                {leaderLabel} UP
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
+                                return (
+                                    <div key={i} className="flex flex-col items-center justify-center p-2 rounded-lg border bg-surface/40 border-borderColor/30 transition-all">
+                                        <span className="text-[9px] font-bold uppercase tracking-widest text-secondaryText/80 mb-0.5">{split.label}</span>
+                                        {split.data.holesPlayed === 0 ? (
+                                            <span className="text-xs font-bold text-secondaryText/40">—</span>
+                                        ) : isAS ? (
+                                            <span className="text-sm font-black text-secondaryText">AS</span>
+                                        ) : (
+                                            <div className="flex flex-col items-center leading-none mt-0.5">
+                                                <span className="text-[10px] font-bold text-white truncate max-w-full block mb-0.5">
+                                                    {leaderName}
+                                                </span>
+                                                <span className={`text-xs font-black ${split.isComplete && tALeads ? 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]' : split.isComplete && !tALeads ? 'text-bloodRed drop-shadow-[0_0_5px_rgba(255,0,63,0.5)]' : tALeads ? 'text-neonGreen/80' : 'text-bloodRed/80'}`}>
+                                                    {leaderLabel} UP
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     )}
                 </section>
 
@@ -1258,6 +1311,15 @@ export default function LeaderboardPage() {
                     Back to Scorecard
                 </Button>
             </div>
+
+            {/* Media Lightbox */}
+            {isLightboxOpen && lightboxMedia.length > 0 && (
+                <MediaLightbox
+                    items={lightboxMedia}
+                    initialIndex={lightboxIndex}
+                    onClose={() => setIsLightboxOpen(false)}
+                />
+            )}
         </div>
     );
 }

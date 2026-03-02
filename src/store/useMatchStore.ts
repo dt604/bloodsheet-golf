@@ -12,7 +12,13 @@ function genId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+  // Fallback for non-secure contexts (like local IP testing on mobile) where crypto is unavailable.
+  // Must be a valid UUID format for Postgres UUID columns.
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
 function dbToMatch(row: Record<string, unknown>): Match {
@@ -347,6 +353,9 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         .select()
         .single();
 
+      if (error) {
+        console.error('Match insert error:', error);
+      }
       if (error || !data) continue;
 
       const match = dbToMatch(data as Record<string, unknown>);
@@ -901,6 +910,19 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
 
   // ── Transition match to pending_attestation + fire emails ────
   async submitForAttestation(matchId) {
+    // Check if the match already has attestations
+    const { count } = await supabase
+      .from('match_attestations')
+      .select('*', { count: 'exact', head: true })
+      .eq('match_id', matchId);
+
+    if (count && count > 0) {
+      // The match was previously attested and completed. 
+      // User is just editing it. Transition directly back to completed.
+      await get().completeMatch(matchId);
+      return;
+    }
+
     await supabase.from('matches').update({ status: 'pending_attestation' }).eq('id', matchId);
     set((state) => ({
       match: state.match?.id === matchId
