@@ -166,8 +166,9 @@ export default function LedgerPage() {
                     myPts += my;
                     oppPts += opp;
                 }
-                if (myPts > oppPts) return match!.wagerAmount;
-                if (oppPts > myPts) return -match!.wagerAmount;
+                const oppTeamSize = oppTeamPlayers.length > 0 ? oppTeamPlayers.length : 1;
+                if (myPts > oppPts) return match!.wagerAmount * (match!.format === '2v2' ? oppTeamSize : 1);
+                if (oppPts > myPts) return -match!.wagerAmount * (match!.format === '2v2' ? oppTeamSize : 1);
                 return 0;
             }
 
@@ -446,9 +447,9 @@ export default function LedgerPage() {
                 // Nassau
                 const front9Holes = holesPlayed.filter((h) => h <= 9);
                 const back9Holes = holesPlayed.filter((h) => h > 9);
-                const front9Amount = front9Holes.length >= 9 ? nassauResult(front9Holes) : 0;
-                const back9Amount = back9Holes.length >= 9 ? nassauResult(back9Holes) : 0;
-                const overallAmount = holesPlayed.length >= 18 ? nassauResult(holesPlayed) : 0;
+                const front9Amount = front9Holes.length > 0 ? nassauResult(front9Holes) : 0;
+                const back9Amount = back9Holes.length > 0 ? nassauResult(back9Holes) : 0;
+                const overallAmount = holesPlayed.length > 0 ? nassauResult(holesPlayed) : 0;
 
                 items.push(
                     { label: 'Front 9 (Base)', sublabel: front9Amount > 0 ? 'Won' : front9Amount < 0 ? 'Lost' : 'Pushed', amount: front9Amount },
@@ -623,16 +624,17 @@ export default function LedgerPage() {
                         myPts += my;
                         oppPts += opp;
                     }
-                    if (myPts > oppPts) return entry.match.wagerAmount;
-                    if (oppPts > myPts) return -entry.match.wagerAmount;
+                    const oppTeamSize = oppTeamPlayers.length > 0 ? oppTeamPlayers.length : 1;
+                    if (myPts > oppPts) return entry.match.wagerAmount * (entry.match.format === '2v2' ? oppTeamSize : 1);
+                    if (oppPts > myPts) return -entry.match.wagerAmount * (entry.match.format === '2v2' ? oppTeamSize : 1);
                     return 0;
                 }
 
                 const front9Holes = holesPlayed.filter((h) => h <= 9);
                 const back9Holes = holesPlayed.filter((h) => h > 9);
-                const front9Amount = front9Holes.length >= 9 ? nassauResult(front9Holes) : 0;
-                const back9Amount = back9Holes.length >= 9 ? nassauResult(back9Holes) : 0;
-                const overallAmount = holesPlayed.length >= 18 ? nassauResult(holesPlayed) : 0;
+                const front9Amount = front9Holes.length > 0 ? nassauResult(front9Holes) : 0;
+                const back9Amount = back9Holes.length > 0 ? nassauResult(back9Holes) : 0;
+                const overallAmount = holesPlayed.length > 0 ? nassauResult(holesPlayed) : 0;
 
                 const items: LineItem[] = [
                     { label: 'Front 9', sublabel: front9Amount > 0 ? 'Won' : front9Amount < 0 ? 'Lost' : 'Pushed', amount: front9Amount },
