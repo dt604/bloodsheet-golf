@@ -115,16 +115,20 @@ export default function DashboardPage() {
             }
 
             // 2. Recent match history for display (last 10) — includes pending_attestation
-            const { data: recentMatches } = await supabase
-                .from('matches')
-                .select('id, format, wager_type, wager_amount, status, created_at, created_by, courses(name)')
-                .in('id', allMatchIds)
-                .in('status', ['completed', 'pending_attestation'])
-                .order('created_at', { ascending: false })
-                .limit(10);
+            let recentMatches: any[] = [];
+            if (allMatchIds.length > 0) {
+                const { data } = await supabase
+                    .from('matches')
+                    .select('id, format, wager_type, wager_amount, status, created_at, created_by, courses(name)')
+                    .in('id', allMatchIds)
+                    .in('status', ['completed', 'pending_attestation'])
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                if (data) recentMatches = data;
+            }
 
             // 2b. Find matches where user needs to attest (pending, not creator, not yet attested)
-            const pendingMatchIds = (recentMatches ?? [])
+            const pendingMatchIds = recentMatches
                 .filter((m) => (m as Record<string, unknown>).status === 'pending_attestation'
                     && (m as Record<string, unknown>).created_by !== userId)
                 .map((m) => (m as Record<string, unknown>).id as string);
@@ -136,7 +140,7 @@ export default function DashboardPage() {
                     .eq('user_id', userId)
                     .in('match_id', pendingMatchIds);
                 const alreadyAttested = new Set((myAttestations ?? []).map((a: any) => a.match_id as string));
-                const unattested = (recentMatches ?? [])
+                const unattested = recentMatches
                     .filter((m) => {
                         const row = m as Record<string, unknown>;
                         return pendingMatchIds.includes(row.id as string) && !alreadyAttested.has(row.id as string);
@@ -149,18 +153,22 @@ export default function DashboardPage() {
                 setNeedsAttestation(unattested);
             }
 
-            if (recentMatches) {
+            if (recentMatches && recentMatches.length > 0) {
                 const recentMatchIds = (recentMatches as Record<string, unknown>[]).map((m) => m.id as string);
 
                 // Fetch all players for these recent matches
-                const { data: recentPlayers } = await supabase
-                    .from('match_players')
-                    .select('match_id, user_id, team, guest_name')
-                    .in('match_id', recentMatchIds);
+                let recentPlayers: any[] = [];
+                if (recentMatchIds.length > 0) {
+                    const { data } = await supabase
+                        .from('match_players')
+                        .select('match_id, user_id, team, guest_name')
+                        .in('match_id', recentMatchIds);
+                    if (data) recentPlayers = data;
+                }
 
                 // Fetch profile names for all non-guest players
                 const playerUserIds = [...new Set(
-                    (recentPlayers ?? []).map((p) => (p as Record<string, unknown>).user_id as string).filter(Boolean)
+                    recentPlayers.map((p) => (p as Record<string, unknown>).user_id as string).filter(Boolean)
                 )];
                 const profileNameMap: Record<string, string> = {};
                 if (playerUserIds.length > 0) {
@@ -175,7 +183,7 @@ export default function DashboardPage() {
 
                 const items: MatchHistoryItem[] = (recentMatches as Record<string, unknown>[]).map((m) => {
                     const matchId = m.id as string;
-                    const matchPlayers = (recentPlayers ?? []).filter(
+                    const matchPlayers = recentPlayers.filter(
                         (p) => (p as Record<string, unknown>).match_id === matchId
                     );
                     const myEntry = (userMatchPlayers ?? []).find((mp) => mp.match_id === matchId);
@@ -218,13 +226,17 @@ export default function DashboardPage() {
             }
 
             // 3. Completed matches — compute wins, lifetime payout, snakes avoided
-            const { data: completedMatches } = await supabase
-                .from('matches')
-                .select('id, format, wager_amount, side_bets, courses(holes)')
-                .in('id', allMatchIds)
-                .eq('status', 'completed');
+            let completedMatches: any[] = [];
+            if (allMatchIds.length > 0) {
+                const { data } = await supabase
+                    .from('matches')
+                    .select('id, format, wager_amount, side_bets, courses(holes)')
+                    .in('id', allMatchIds)
+                    .eq('status', 'completed');
+                if (data) completedMatches = data;
+            }
 
-            const completedIds = (completedMatches as Record<string, unknown>[] ?? []).map((m) => m.id as string);
+            const completedIds = completedMatches.map((m) => (m as Record<string, unknown>).id as string);
             setStats((prev) => ({ ...prev, totalMatches: completedIds.length }));
 
             let wins = 0;
