@@ -67,12 +67,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function initAuth() {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        // Safe timeout for getSession so it never hangs the app completely
+        const sessionPromise = supabase.auth.getSession();
+        const timeout = new Promise<{ data: { session: any }, error: any }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null }, error: new Error('Auth init timeout') }), 3000)
+        );
 
-        setSession(session);
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeout]);
+
+        setSession(session ?? null);
         setUser(session?.user ?? null);
-        setLoading(false); // Resolve loading immediately after session is found
+        setLoading(false); // Resolve loading immediately after session is found (or timed out)
 
         if (session?.user && !session.user.is_anonymous) {
           fetchProfile(session.user.id);
@@ -86,16 +91,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         console.log('Auth Event:', _event);
         setSession(session);
         setUser(session?.user ?? null);
+
+        // Critical: Set loading to false immediately so the app can render!
+        setLoading(false);
+
         if (session?.user && !session.user.is_anonymous) {
-          await fetchProfile(session.user.id).catch(e => console.error('onAuthStateChange profile fetch failed:', e));
+          // Fire and forget profile fetch
+          fetchProfile(session.user.id).catch(e => console.error('onAuthStateChange profile fetch failed:', e));
         } else {
           setProfile(null);
         }
-        setLoading(false);
       }
     );
 
