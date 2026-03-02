@@ -672,17 +672,6 @@ export default function LiveScorecardPage() {
                 </div>
             )}
 
-            {/* Course Photo Backdrop */}
-            {course?.imageUrl && (
-                <div className="absolute inset-0 z-0 h-[300px]">
-                    <img
-                        src={course.imageUrl}
-                        alt=""
-                        className="w-full h-full object-cover opacity-15 grayscale"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background" />
-                </div>
-            )}
 
             {/* Header - Stationary */}
             <header className="flex flex-col border-b border-borderColor shrink-0 bg-background/80 backdrop-blur-md z-30">
@@ -788,36 +777,58 @@ export default function LiveScorecardPage() {
             />
 
             <main className="flex-1 overflow-y-auto momentum-scroll px-4 py-4 space-y-6 pb-20 relative z-10">
-                {/* Hole Data Strip */}
-                <section className={`flex items-center justify-between bg-surface/40 backdrop-blur-xl p-6 rounded-[2rem] border transition-all duration-500 shadow-2xl relative overflow-hidden group ${isStrokeHole ? 'border-neonGreen/30 shadow-[0_0_30px_rgba(0,255,102,0.1)]' : 'border-white/5'}`}>
-                    {/* Subtle glow effect */}
-                    <div className={`absolute -top-24 -left-24 w-48 h-48 blur-[100px] rounded-full pointer-events-none transition-colors ${isStrokeHole ? 'bg-neonGreen/10' : 'bg-bloodRed/5'}`} />
-
-                    <div className="space-y-1 relative z-10">
-                        <div className="flex items-center gap-2">
-                            <span className="text-4xl font-black italic tracking-tighter text-white">PAR {holeData.par}</span>
-                            <div className="h-6 w-[1px] bg-white/10 mx-1" />
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-black text-secondaryText uppercase tracking-widest leading-none">SI {holeData.strokeIndex}</span>
-                                <span className="text-[10px] font-black text-bloodRed uppercase tracking-widest leading-none mt-1">{holeData.yardage} YDS</span>
-                            </div>
+                {/* Hole Hero Strip */}
+                <section className={`relative h-48 rounded-[2rem] border transition-all duration-500 shadow-2xl overflow-hidden group ${isStrokeHole ? 'border-neonGreen/30 shadow-[0_0_30px_rgba(0,255,102,0.15)]' : 'border-white/5'}`}>
+                    {/* Course Image as content-box background */}
+                    {course?.imageUrl ? (
+                        <div className="absolute inset-0 z-0">
+                            <img
+                                src={course.imageUrl}
+                                alt={course.name}
+                                className="w-full h-full object-cover grayscale-[0.3] brightness-50 transition-transform duration-1000 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
                         </div>
-                    </div>
+                    ) : (
+                        <div className="absolute inset-0 bg-surface/40 backdrop-blur-xl transition-colors" />
+                    )}
 
-                    <div className="flex gap-4 relative z-10">
-                        <button
-                            onClick={() => currentHole > 1 && navigate(`/play/${currentHole === 1 ? 18 : currentHole - 1}`)}
-                            disabled={currentHole === startingHole && currentHole === 1}
-                            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${currentHole === startingHole && currentHole === 1 ? 'bg-surface/20 text-borderColor cursor-not-allowed' : 'bg-surface hover:bg-surfaceHover text-white shadow-xl'}`}
-                        >
-                            <ArrowLeft className="w-6 h-6" />
-                        </button>
-                        <button
-                            onClick={() => navigate(`/play/${currentHole === 18 ? 1 : currentHole + 1}`)}
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all bg-bloodRed hover:bg-bloodRed/80 text-white shadow-[0_0_20px_rgba(255,0,63,0.3)]"
-                        >
-                            <ArrowRight className="w-6 h-6" />
-                        </button>
+                    {/* Subtle glow effect */}
+                    <div className={`absolute -top-24 -left-24 w-48 h-48 blur-[100px] rounded-full pointer-events-none transition-colors z-10 ${isStrokeHole ? 'bg-neonGreen/20' : 'bg-bloodRed/10'}`} />
+
+                    <div className="absolute inset-0 p-6 flex items-center justify-between z-20">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <span className="text-5xl font-black italic tracking-tighter text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">PAR {holeData.par}</span>
+                                <div className="h-8 w-[1px] bg-white/20 mx-1" />
+                                <div className="flex flex-col">
+                                    <span className={`text-xs font-black uppercase tracking-widest leading-none ${isStrokeHole ? 'text-neonGreen underline' : 'text-secondaryText'}`}>SI {holeData.strokeIndex}</span>
+                                    <span className="text-xs font-black text-bloodRed uppercase tracking-widest leading-none mt-1.5">{holeData.yardage} YDS</span>
+                                </div>
+                            </div>
+                            {isStrokeHole && (
+                                <div className="flex items-center gap-1.5 mt-2 transition-all">
+                                    <Target className="w-3 h-3 text-neonGreen animate-pulse" />
+                                    <span className="text-[10px] font-black text-neonGreen uppercase tracking-[0.2em] drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]">STROKE HOLE</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => currentHole > 1 && navigate(`/play/${currentHole === 1 ? 18 : currentHole - 1}`)}
+                                disabled={currentHole === startingHole && currentHole === 1}
+                                className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all backdrop-blur-md ${currentHole === startingHole && currentHole === 1 ? 'bg-white/5 text-white/20 cursor-not-allowed' : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'}`}
+                            >
+                                <ArrowLeft className="w-6 h-6" />
+                            </button>
+                            <button
+                                onClick={() => navigate(`/play/${currentHole === 18 ? 1 : currentHole + 1}`)}
+                                className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all bg-bloodRed hover:bg-bloodRed/80 text-white shadow-[0_0_20px_rgba(255,0,63,0.4)] border border-bloodRed/50"
+                            >
+                                <ArrowRight className="w-6 h-6" />
+                            </button>
+                        </div>
                     </div>
                 </section>
 
