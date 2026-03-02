@@ -237,7 +237,11 @@ export default function MoneyLeaders() {
                     const isNegative = entry.totalEarnings < 0;
                     const initials = entry.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
                     return (
-                        <div key={entry.userId} className={`flex items-center gap-3 p-3.5 rounded-2xl bg-surface border ${rankBorder(i)}`}>
+                        <div
+                            key={entry.userId}
+                            onClick={() => navigate(`/player/${entry.userId}`)}
+                            className={`flex items-center gap-3 p-3.5 rounded-2xl bg-surface border ${rankBorder(i)} cursor-pointer hover:bg-surfaceHover hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 group`}
+                        >
                             <span className={`w-5 text-center font-black text-sm shrink-0 ${rankColor(i)}`}>{i + 1}</span>
                             <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-sm shrink-0 overflow-hidden">
                                 {entry.avatarUrl && !entry.avatarUrl.includes('profile_default') ? (
@@ -247,7 +251,9 @@ export default function MoneyLeaders() {
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <span className="block font-black text-sm text-white uppercase italic truncate">{entry.fullName}</span>
+                                <span className="block font-black text-sm text-white uppercase italic truncate transition-colors group-hover:text-bloodRed">
+                                    {entry.fullName}
+                                </span>
                                 <span className="text-[9px] text-secondaryText font-black uppercase tracking-widest">
                                     {entry.wins}W · {entry.losses}L{entry.pushes > 0 ? ` · ${entry.pushes}P` : ''}
                                 </span>
