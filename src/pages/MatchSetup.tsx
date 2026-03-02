@@ -851,8 +851,12 @@ export default function MatchSetupPage() {
                                         )}
 
                                         <div className="relative z-10 p-5 flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-2xl bg-bloodRed/20 backdrop-blur-md border border-bloodRed/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(255,0,63,0.2)]">
-                                                <MapPin className="w-7 h-7 text-bloodRed" />
+                                            <div className="w-14 h-14 rounded-2xl bg-bloodRed/20 backdrop-blur-md border border-white/10 flex items-center justify-center shrink-0 shadow-[0_4px_20px_rgba(0,0,0,0.5)] overflow-hidden">
+                                                {selectedCourse.imageUrl ? (
+                                                    <img src={selectedCourse.imageUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <MapPin className="w-7 h-7 text-bloodRed" />
+                                                )}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-0.5">
