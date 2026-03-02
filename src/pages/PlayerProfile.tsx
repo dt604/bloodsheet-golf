@@ -229,7 +229,13 @@ export default function PlayerProfilePage() {
                     const matchId = matchRow.id as string;
                     const format = matchRow.format as string;
                     const wagerAmount = matchRow.wager_amount as number;
-                    const sideBets = matchRow.side_bets as { snake?: boolean; trashValue?: number; birdiesDouble?: boolean } | null;
+                    const sideBets = matchRow.side_bets as {
+                        snake?: boolean;
+                        trashValue?: number;
+                        birdiesDouble?: boolean;
+                        teamSkins?: boolean;
+                        potMode?: boolean;
+                    } | null;
                     const courseData = matchRow.courses as { holes: { number: number; par: number }[] } | null;
 
                     const myEntry = (userMatchPlayers ?? []).find((mp) => mp.match_id === matchId);
