@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
+import { MediaLightbox } from '../components/ui/MediaLightbox';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): number {
@@ -118,6 +119,17 @@ export default function LiveScorecardPage() {
     const [focusedMatchIdx, setFocusedMatchIdx] = useState(0);
     const isGroupMode = activeMatchIds.length > 1;
     const isScorekeeper = match?.createdBy === user?.id;
+
+    // Media State
+    const [matchMedia, setMatchMedia] = useState<any[]>([]);
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const [lightboxInitialIndex, setLightboxInitialIndex] = useState(0);
+    const [lightboxItems, setLightboxItems] = useState<any[]>([]);
+
+    const holeMedia = useMemo(() => {
+        return matchMedia.filter(m => m.hole_number === currentHole);
+    }, [matchMedia, currentHole]);
+
 
     async function handleShare() {
         const code = match?.joinCode ?? '';
@@ -285,6 +297,41 @@ export default function LiveScorecardPage() {
     useEffect(() => {
         setIsDirty(false);
     }, [currentHole]);
+
+    // Fetch match media for indicators
+    useEffect(() => {
+        const storedMatchId = matchId || localStorage.getItem('activeMatchId');
+        if (!storedMatchId) return;
+
+        async function fetchMedia() {
+            const { data } = await supabase
+                .from('match_media')
+                .select('*')
+                .eq('match_id', storedMatchId);
+            if (data) setMatchMedia(data);
+        }
+        fetchMedia();
+
+        const channel = supabase.channel(`match-media-${storedMatchId}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'match_media',
+                filter: `match_id=eq.${storedMatchId}`
+            }, (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    setMatchMedia(prev => [...prev, payload.new]);
+                } else if (payload.eventType === 'DELETE') {
+                    setMatchMedia(prev => prev.filter(m => m.id !== payload.old.id));
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [matchId]);
+
 
     // Debounced Auto-save
     useEffect(() => {
@@ -818,17 +865,51 @@ export default function LiveScorecardPage() {
                                         </div>
 
                                         <div className="flex items-center gap-2 sm:gap-4 relative z-10">
-                                            {/* Camera Button */}
-                                            <button
-                                                onClick={() => {
-                                                    if (uploadingMediaFor) return;
-                                                    setSelectedPlayerForMedia(player.userId);
-                                                    fileInputRef.current?.click();
-                                                }}
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${uploadingMediaFor === player.userId ? 'bg-surface text-bloodRed' : 'text-secondaryText hover:text-white hover:bg-surfaceHover'}`}
-                                            >
-                                                {uploadingMediaFor === player.userId ? <Loader className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                                            </button>
+                                            {/* Camera Button & Indicator */}
+                                            <div className="relative">
+                                                <button
+                                                    onClick={() => {
+                                                        const pMedia = holeMedia.filter(m => m.player_id === player.userId);
+                                                        if (pMedia.length > 0) {
+                                                            setLightboxItems(pMedia.map(m => ({
+                                                                id: m.id,
+                                                                url: m.media_url,
+                                                                type: m.media_type,
+                                                                context: m.context,
+                                                                uploaderId: m.uploader_id,
+                                                                playerId: m.player_id,
+                                                                holeNumber: m.hole_number
+                                                            })));
+                                                            setLightboxInitialIndex(0);
+                                                            setIsLightboxOpen(true);
+                                                        } else {
+                                                            if (uploadingMediaFor) return;
+                                                            setSelectedPlayerForMedia(player.userId);
+                                                            fileInputRef.current?.click();
+                                                        }
+                                                    }}
+                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${uploadingMediaFor === player.userId ? 'bg-surface text-bloodRed' :
+                                                        holeMedia.some(m => m.player_id === player.userId) ? 'bg-neonGreen/20 text-neonGreen shadow-[0_0_10px_rgba(0,255,102,0.3)]' :
+                                                            'text-secondaryText hover:text-white hover:bg-surfaceHover'}`}
+                                                >
+                                                    {uploadingMediaFor === player.userId ? <Loader className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                                                </button>
+
+                                                {/* Upload new photo if one already exists */}
+                                                {holeMedia.some(m => m.player_id === player.userId) && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (uploadingMediaFor) return;
+                                                            setSelectedPlayerForMedia(player.userId);
+                                                            fileInputRef.current?.click();
+                                                        }}
+                                                        className="absolute -top-1 -right-1 w-4 h-4 bg-background border border-borderColor rounded-full flex items-center justify-center text-white hover:text-neonGreen transition-colors z-10"
+                                                    >
+                                                        <Plus className="w-2.5 h-2.5" />
+                                                    </button>
+                                                )}
+                                            </div>
 
                                             {isScorekeeper && (
                                                 <button
@@ -1105,6 +1186,14 @@ export default function LiveScorecardPage() {
                     </Button>
                 </div>
             </div>
+            {/* Media Lightbox */}
+            {isLightboxOpen && (
+                <MediaLightbox
+                    items={lightboxItems}
+                    initialIndex={lightboxInitialIndex}
+                    onClose={() => setIsLightboxOpen(false)}
+                />
+            )}
         </div>
     );
 }
