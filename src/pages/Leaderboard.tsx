@@ -290,6 +290,36 @@ export default function LeaderboardPage() {
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
+    async function handleMediaDelete(mediaId: string) {
+        const media = matchMedia.find(m => m.id === mediaId);
+        if (!media) return;
+
+        try {
+            const path = media.media_url.split('/public/match-media/')[1];
+            if (path) {
+                await supabase.storage.from('match-media').remove([path]);
+            }
+
+            const { error } = await supabase
+                .from('match_media')
+                .delete()
+                .eq('id', mediaId);
+
+            if (error) throw error;
+
+            // Immediate update for local state
+            setMatchMedia(prev => prev.filter(m => m.id !== mediaId));
+            // Also filter lightboxMedia if it's currently open
+            if (lightboxMedia.length > 0) {
+                setLightboxMedia(prev => prev.filter(m => m.id !== mediaId));
+            }
+        } catch (err) {
+            console.error('Failed to delete media:', err);
+            alert('Failed to delete image.');
+        }
+    }
+
+
     // Resolve which data to show for the "Detailed" view (Scorecard/Stats)
     const focusedEntry = isGroupMode && groupState ? groupState.matches[focusedMatchIdx] : null;
 
@@ -1318,6 +1348,7 @@ export default function LeaderboardPage() {
                     items={lightboxMedia}
                     initialIndex={lightboxIndex}
                     onClose={() => setIsLightboxOpen(false)}
+                    onDelete={handleMediaDelete}
                 />
             )}
         </div>

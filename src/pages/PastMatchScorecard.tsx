@@ -73,11 +73,37 @@ export default function PastMatchScorecardPage() {
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
+    async function handleMediaDelete(mediaId: string) {
+        const media = matchMedia.find(m => m.id === mediaId);
+        if (!media) return;
+
+        try {
+            const path = media.media_url.split('/public/match-media/')[1];
+            if (path) {
+                await supabase.storage.from('match-media').remove([path]);
+            }
+
+            const { error } = await supabase
+                .from('match_media')
+                .delete()
+                .eq('id', mediaId);
+
+            if (error) throw error;
+
+            setMatchMedia(prev => prev.filter(m => m.id !== mediaId));
+            setLightboxMedia(prev => prev.filter(m => m.id !== mediaId));
+        } catch (err) {
+            console.error('Failed to delete media:', err);
+            alert('Failed to delete image.');
+        }
+    }
+
     async function handleDelete() {
         if (!matchId) return;
         await deleteMatch(matchId);
         navigate('/dashboard');
     }
+
 
     async function handleEditMatch() {
         if (!matchId) return;
@@ -1070,6 +1096,7 @@ export default function PastMatchScorecardPage() {
                     items={lightboxMedia}
                     initialIndex={lightboxIndex}
                     onClose={() => setIsLightboxOpen(false)}
+                    onDelete={handleMediaDelete}
                 />
             )}
         </div >

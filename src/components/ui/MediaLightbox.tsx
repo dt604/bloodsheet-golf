@@ -109,7 +109,7 @@ export function MediaLightbox({ items, initialIndex, onClose, onDelete }: MediaL
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleShare}
-                            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md text-white hover:bg-white/20 transition-colors"
+                            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md text-white hover:bg-white/20 transition-all border border-white/10 shadow-lg active:scale-95"
                         >
                             <Share2 className="w-4 h-4" />
                         </button>
@@ -119,14 +119,15 @@ export function MediaLightbox({ items, initialIndex, onClose, onDelete }: MediaL
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md text-white hover:bg-white/20 transition-colors"
+                            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md text-white hover:bg-white/20 transition-all border border-white/10 shadow-lg active:scale-95"
                         >
                             <Download className="w-4 h-4" />
                         </a>
                         {onDelete && (
                             <button
                                 onClick={handleDelete}
-                                className="w-10 h-10 rounded-full bg-bloodRed/20 flex items-center justify-center backdrop-blur-md text-bloodRed hover:bg-bloodRed/30 transition-colors border border-bloodRed/30"
+                                className="w-10 h-10 rounded-full bg-bloodRed flex items-center justify-center text-white hover:bg-bloodRed/80 transition-all shadow-[0_0_15px_rgba(255,0,63,0.4)] active:scale-90"
+                                title="Delete moment"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
