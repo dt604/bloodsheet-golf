@@ -1058,10 +1058,22 @@ export default function LiveScorecardPage() {
                         </div>
                         <p className="text-sm text-secondaryText text-center">Quit saves your scores so far. Quit & Delete permanently removes this match.</p>
                         <div className="flex flex-col gap-3 pt-2">
-                            <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={() => { if (matchId) sessionStorage.setItem('dismissedMatchId', matchId); clearMatch(); navigate('/dashboard'); }}>
+                            <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={() => {
+                                if (matchId) sessionStorage.setItem('dismissedMatchId', matchId);
+                                navigate('/dashboard', { replace: true });
+                                setTimeout(() => clearMatch(), 10);
+                            }}>
                                 Quit Round
                             </Button>
-                            <Button variant="outline" size="lg" className="w-full border-bloodRed text-bloodRed hover:bg-bloodRed/10" onClick={async () => { if (matchId) { await deleteMatch(matchId); } clearMatch(); navigate('/dashboard'); }}>
+                            <Button variant="outline" size="lg" className="w-full border-bloodRed text-bloodRed hover:bg-bloodRed/10" onClick={async () => {
+                                if (isGroupMode && activeMatchIds.length > 0) {
+                                    await Promise.all(activeMatchIds.map(id => deleteMatch(id)));
+                                } else if (matchId) {
+                                    await deleteMatch(matchId);
+                                }
+                                navigate('/dashboard', { replace: true });
+                                setTimeout(() => clearMatch(), 10);
+                            }}>
                                 Quit & Delete Round
                             </Button>
                         </div>
