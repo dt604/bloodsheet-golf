@@ -69,18 +69,31 @@ export default function AddPlayerPage() {
             if (myMatches && myMatches.length > 0) {
                 const matchIds = myMatches.map((m: { match_id: string }) => m.match_id);
 
-                const { data: partners } = await supabase
+                const { data: partnersData } = await supabase
                     .from('match_players')
-                    .select('user_id, profiles(id, full_name, handicap, avatar_url)')
+                    .select('user_id')
                     .in('match_id', matchIds)
                     .neq('user_id', user!.id)
-                    .limit(10);
+                    .limit(20);
 
-                if (partners) {
-                    for (const p of partners as unknown as { user_id: string; profiles: { id: string; full_name: string; handicap: number; avatar_url: string | null } | null }[]) {
-                        if (p.profiles && p.profiles.full_name && p.profiles.full_name.trim() !== '' && !seen.has(p.user_id)) {
-                            seen.add(p.user_id);
-                            rows.push({ id: p.user_id, fullName: p.profiles.full_name, handicap: p.profiles.handicap, avatarUrl: p.profiles.avatar_url ?? undefined });
+                if (partnersData && partnersData.length > 0) {
+                    const partnerIds = partnersData.map(p => p.user_id);
+                    const { data: profilesData } = await supabase
+                        .from('profiles')
+                        .select('id, full_name, handicap, avatar_url')
+                        .in('id', partnerIds);
+
+                    if (profilesData) {
+                        for (const p of profilesData) {
+                            if (p.full_name && p.full_name.trim() !== '' && !seen.has(p.id)) {
+                                seen.add(p.id);
+                                rows.push({
+                                    id: p.id,
+                                    fullName: p.full_name,
+                                    handicap: p.handicap,
+                                    avatarUrl: p.avatar_url ?? undefined
+                                });
+                            }
                         }
                     }
                     setRecentPartners(rows);
