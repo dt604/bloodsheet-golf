@@ -265,7 +265,9 @@ export default function MatchSetupPage() {
                         </span>
                         <span className="block text-[10px] text-bloodRed font-black tracking-[0.2em] uppercase -mt-1">BLOODSHEET GOLF</span>
                     </div>
-                    <div className="w-10" />
+                    <button onClick={() => navigate('/dashboard')} className="p-2 -mr-2 text-secondaryText hover:text-white transition-colors">
+                        <X className="w-6 h-6" />
+                    </button>
                 </div>
 
                 {/* Progress Tracker */}
