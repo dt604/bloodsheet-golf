@@ -38,15 +38,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function fetchProfile(userId: string, retries = 3) {
     for (let i = 0; i < retries; i++) {
       try {
-        const profilePromise = supabase
+        const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .single();
 
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 10000));
-
-        const { data } = await Promise.race([profilePromise, timeoutPromise]) as any;
+        if (error) throw error;
 
         if (data) {
           setProfile({
@@ -69,10 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function initAuth() {
       try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Auth init timeout')), 5000));
-
-        const { data: { session } } = await Promise.race([sessionPromise, timeout]) as any;
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
 
         setSession(session);
         setUser(session?.user ?? null);
