@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Camera } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Pencil, Check, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
@@ -113,8 +113,6 @@ export default function LiveScorecardPage() {
     const [editTrashValue, setEditTrashValue] = useState(5);
     const [editBonusSkins, setEditBonusSkins] = useState(false);
     const [settingsSaving, setSettingsSaving] = useState(false);
-    const [editingStrokeIdx, setEditingStrokeIdx] = useState(false);
-    const [strokeIdxInput, setStrokeIdxInput] = useState(1);
     const [pingMessage, setPingMessage] = useState<{ message: string; timestamp: number } | null>(null);
     const [focusedMatchIdx, setFocusedMatchIdx] = useState(0);
     const isGroupMode = activeMatchIds.length > 1;
@@ -572,18 +570,6 @@ export default function LiveScorecardPage() {
         navigate('/leaderboard');
     }
 
-    async function saveStrokeIndex() {
-        if (!course) return;
-        const newIdx = Math.max(1, Math.min(18, strokeIdxInput));
-        const updatedHoles = course.holes.map(h =>
-            h.number === currentHole ? { ...h, strokeIndex: newIdx } : h
-        );
-        await supabase.from('courses').update({ holes: updatedHoles }).eq('id', course.id);
-        useMatchStore.setState(state => ({
-            course: state.course ? { ...state.course, holes: updatedHoles } : null,
-        }));
-        setEditingStrokeIdx(false);
-    }
 
     async function handleInitiatePress(team: 'A' | 'B') {
         if (!matchId) return;
@@ -686,137 +672,77 @@ export default function LiveScorecardPage() {
                 </div>
             )}
 
+            {/* Course Photo Backdrop */}
+            {course?.imageUrl && (
+                <div className="absolute inset-0 z-0 h-[300px]">
+                    <img
+                        src={course.imageUrl}
+                        alt=""
+                        className="w-full h-full object-cover opacity-15 grayscale"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background" />
+                </div>
+            )}
+
             {/* Header - Stationary */}
-            <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background shrink-0 z-10">
-                <button
-                    onClick={() => currentHole !== startingHole ? navigate(`/play/${currentHole === 1 ? 18 : currentHole - 1}`) : navigate('/leaderboard')}
-                    className="p-2 -ml-2 text-secondaryText hover:text-white"
-                >
-                    <ChevronLeft className="w-6 h-6" />
-                </button>
-                <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-0.5">
-                        <span className="font-bold text-[10px] tracking-widest uppercase text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.5)]">LIVE MATCH</span>
-                        <div className="h-1 w-1 rounded-full bg-secondaryText/30" />
-                        {saving ? (
-                            <span className="text-[10px] font-bold text-neonGreen animate-pulse uppercase tracking-wider">Saving...</span>
-                        ) : isDirty ? (
-                            <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider">Unsaved</span>
-                        ) : (
-                            <div className="flex items-center gap-1">
-                                <Check className="w-3 h-3 text-neonGreen" />
-                                <span className="text-[10px] font-bold text-neonGreen/70 uppercase tracking-wider">
-                                    Synced {lastSaved ? new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex items-baseline justify-center gap-1.5 leading-none mt-0.5">
-                        <span className="text-4xl font-black text-white tracking-tight">HOLE {currentHole}</span>
-                    </div>
-                    <span className="block text-[10px] font-semibold text-secondaryText/70 tracking-wider uppercase mt-1">{courseName}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <button onClick={handleShare} className="p-2 text-secondaryText hover:text-white relative">
-                        <Share2 className="w-5 h-5" />
-                        {codeCopied && (
-                            <span className="absolute -bottom-7 right-0 text-[10px] font-bold bg-surface border border-borderColor rounded px-2 py-1 text-neonGreen whitespace-nowrap">
-                                Copied!
+            <header className="flex flex-col border-b border-borderColor shrink-0 bg-background/80 backdrop-blur-md z-30">
+                <div className="flex items-center justify-between p-4 pb-2">
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors flex items-center gap-1 group"
+                    >
+                        <ChevronLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Exit</span>
+                    </button>
+
+                    <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 mb-0.5">
+                            <span className="font-bold text-[10px] tracking-widest uppercase text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.5)]">LIVE MATCH</span>
+                            <div className="h-1 w-1 rounded-full bg-secondaryText/30" />
+                            {saving ? (
+                                <span className="text-[10px] font-bold text-neonGreen animate-pulse uppercase tracking-wider">Saving...</span>
+                            ) : isDirty ? (
+                                <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider">Unsaved</span>
+                            ) : (
+                                <div className="flex items-center gap-1">
+                                    <Check className="w-3 h-3 text-neonGreen" />
+                                    <span className="text-[10px] font-bold text-neonGreen/70 uppercase tracking-wider">
+                                        Synced {lastSaved ? new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-baseline justify-center gap-1.5 leading-none mt-0.5">
+                            <span className="text-4xl font-black text-white tracking-tight">HOLE {currentHole}</span>
+                        </div>
+                        <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] font-black text-secondaryText/80 uppercase tracking-widest bg-surface/50 px-2 py-0.5 rounded border border-white/5">
+                                {courseName}
                             </span>
-                        )}
-                    </button>
-                    <button onClick={() => {
-                        setEditWager(match?.wagerAmount ?? 0);
-                        setEditWagerType(match?.wagerType ?? 'NASSAU');
-                        setEditGreenies(match?.sideBets?.greenies ?? false);
-                        setEditSandies(match?.sideBets?.sandies ?? false);
-                        setEditSnake(match?.sideBets?.snake ?? false);
-                        setEditAutoPress(match?.sideBets?.autoPress ?? false);
-                        setEditBirdiesDouble(match?.sideBets?.birdiesDouble ?? false);
-                        setEditTrashValue(match?.sideBets?.trashValue ?? 5);
-                        setEditBonusSkins(match?.sideBets?.bonusSkins ?? false);
-                        setShowEditSettings(true);
-                    }} className="p-2 text-secondaryText hover:text-white transition-colors">
-                        <Settings className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => setShowQuitConfirm(true)} className="p-2 -mr-2 text-secondaryText hover:text-bloodRed transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-            </header>
-
-            {/* Hidden file input for capturing media */}
-            <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*,video/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleMediaUpload}
-            />
-
-            <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6 pb-20 relative">
-                {/* Hole Data Strip */}
-                <div className="flex bg-surface rounded-xl overflow-hidden border border-borderColor divide-x divide-borderColor shadow-sm">
-                    <div className="flex-1 p-2 sm:p-3 text-center">
-                        <span className="block text-[10px] sm:text-xs text-secondaryText uppercase tracking-wider font-semibold">Par</span>
-                        <span className="block text-lg sm:text-xl font-bold font-sans">{holeData.par}</span>
+                        </div>
                     </div>
-                    {/* Stroke Index Column - Glows if it's an active stroke hole */}
-                    <div className={`flex-1 p-2 sm:p-3 text-center relative transition-colors ${isStrokeHole ? 'bg-neonGreen/10' : ''}`}>
-                        {isStrokeHole && (
-                            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-4/5 h-[1px] bg-neonGreen/50 shadow-[0_0_8px_rgba(0,255,102,1)]" />
-                        )}
-                        <span className={`block text-[10px] sm:text-xs uppercase tracking-wider font-semibold whitespace-nowrap ${isStrokeHole ? 'text-neonGreen drop-shadow-[0_0_2px_rgba(0,255,102,0.8)]' : 'text-secondaryText'}`}>
-                            {isStrokeHole ? 'Stroke Hole' : 'Stroke Idx'}
-                        </span>
-                        {editingStrokeIdx ? (
-                            <div className="flex items-center justify-center gap-1 mt-0.5">
-                                <input
-                                    type="number"
-                                    min={1}
-                                    max={18}
-                                    value={strokeIdxInput}
-                                    onChange={e => setStrokeIdxInput(parseInt(e.target.value) || 1)}
-                                    className="w-10 text-center text-lg font-bold bg-surfaceHover border border-borderColor rounded text-white"
-                                    autoFocus
-                                />
-                                <button onClick={saveStrokeIndex} className="text-neonGreen">
-                                    <Check className="w-4 h-4" />
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="flex items-center justify-center gap-1">
-                                <span className={`block text-lg sm:text-xl font-bold font-sans ${isStrokeHole ? 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]' : ''}`}>{holeData.strokeIndex}</span>
-                                <button onClick={() => { setStrokeIdxInput(holeData.strokeIndex); setEditingStrokeIdx(true); }} className="text-secondaryText hover:text-white">
-                                    <Pencil className="w-3 h-3" />
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex-1 p-2 sm:p-3 text-center">
-                        <span className="block text-[10px] sm:text-xs text-secondaryText uppercase tracking-wider font-semibold whitespace-nowrap">Yards</span>
-                        <span className="block text-lg sm:text-xl font-bold font-sans">{holeData.yardage}</span>
+
+                    <div className="flex items-center gap-1">
+                        <button onClick={handleShare} className="p-2 text-secondaryText hover:text-white relative transition-colors">
+                            <Share2 className="w-5 h-5" />
+                            {codeCopied && (
+                                <span className="absolute -bottom-7 right-0 text-[10px] font-bold bg-surface border border-borderColor rounded px-2 py-1 text-neonGreen whitespace-nowrap z-50">
+                                    Copied!
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setShowEditSettings(true)}
+                            className="p-2 -mr-2 text-secondaryText hover:text-white transition-colors"
+                        >
+                            <Settings className="w-5 h-5" />
+                        </button>
                     </div>
                 </div>
 
-                {/* Skin Pot Chip — pot mode shows fixed pot; carryover mode shows when skin carries */}
-                {match.format === 'skins' && match.sideBets?.potMode && (
-                    <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Total Pot</span>
-                        <span className="text-sm font-black text-white">${currentSkinPot}</span>
-                    </div>
-                )}
-                {match.format === 'skins' && !match.sideBets?.potMode && currentSkinPot > match.wagerAmount && (
-                    <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Carried Skin Pot</span>
-                        <span className="text-sm font-black text-white">${currentSkinPot}</span>
-                    </div>
-                )}
-
-                {/* Match Ticker Strip — shown only in multi-match mode */}
+                {/* Score Ticker (Group Mode) */}
                 {isGroupMode && groupState && (
-                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                    <div className="flex items-center gap-2 overflow-x-auto momentum-scroll px-4 pb-3 scrollbar-hide">
                         {groupState.matches.map((entry, i) => {
                             const mHolesUp = calcGroupMatchHolesUp(entry);
                             const pA = entry.players.find(p => p.team === 'A');
@@ -847,6 +773,65 @@ export default function LiveScorecardPage() {
                                 </button>
                             );
                         })}
+                    </div>
+                )}
+            </header>
+
+            {/* Hidden file input for capturing media */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*,video/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleMediaUpload}
+            />
+
+            <main className="flex-1 overflow-y-auto momentum-scroll px-4 py-4 space-y-6 pb-20 relative z-10">
+                {/* Hole Data Strip */}
+                <section className={`flex items-center justify-between bg-surface/40 backdrop-blur-xl p-6 rounded-[2rem] border transition-all duration-500 shadow-2xl relative overflow-hidden group ${isStrokeHole ? 'border-neonGreen/30 shadow-[0_0_30px_rgba(0,255,102,0.1)]' : 'border-white/5'}`}>
+                    {/* Subtle glow effect */}
+                    <div className={`absolute -top-24 -left-24 w-48 h-48 blur-[100px] rounded-full pointer-events-none transition-colors ${isStrokeHole ? 'bg-neonGreen/10' : 'bg-bloodRed/5'}`} />
+
+                    <div className="space-y-1 relative z-10">
+                        <div className="flex items-center gap-2">
+                            <span className="text-4xl font-black italic tracking-tighter text-white">PAR {holeData.par}</span>
+                            <div className="h-6 w-[1px] bg-white/10 mx-1" />
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-secondaryText uppercase tracking-widest leading-none">SI {holeData.strokeIndex}</span>
+                                <span className="text-[10px] font-black text-bloodRed uppercase tracking-widest leading-none mt-1">{holeData.yardage} YDS</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-4 relative z-10">
+                        <button
+                            onClick={() => currentHole > 1 && navigate(`/play/${currentHole === 1 ? 18 : currentHole - 1}`)}
+                            disabled={currentHole === startingHole && currentHole === 1}
+                            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${currentHole === startingHole && currentHole === 1 ? 'bg-surface/20 text-borderColor cursor-not-allowed' : 'bg-surface hover:bg-surfaceHover text-white shadow-xl'}`}
+                        >
+                            <ArrowLeft className="w-6 h-6" />
+                        </button>
+                        <button
+                            onClick={() => navigate(`/play/${currentHole === 18 ? 1 : currentHole + 1}`)}
+                            className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all bg-bloodRed hover:bg-bloodRed/80 text-white shadow-[0_0_20px_rgba(255,0,63,0.3)]"
+                        >
+                            <ArrowRight className="w-6 h-6" />
+                        </button>
+                    </div>
+                </section>
+
+                {/* Skin Pot Chip — pot mode shows fixed pot; carryover mode shows when skin carries */}
+                {match.format === 'skins' && match.sideBets?.potMode && (
+                    <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Total Pot</span>
+                        <span className="text-sm font-black text-white">${currentSkinPot}</span>
+                    </div>
+                )}
+                {match.format === 'skins' && !match.sideBets?.potMode && currentSkinPot > match.wagerAmount && (
+                    <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Carried Skin Pot</span>
+                        <span className="text-sm font-black text-white">${currentSkinPot}</span>
                     </div>
                 )}
 
@@ -1057,143 +1042,147 @@ export default function LiveScorecardPage() {
                         );
                     })}
                 </div>
-            </main>
+            </main >
 
             {/* Edit Match Settings */}
-            {showEditSettings && (
-                <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
-                    <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden">
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-5 border-b border-borderColor shrink-0">
-                            <h3 className="text-lg font-black uppercase italic">Match Settings</h3>
-                            <button onClick={() => setShowEditSettings(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
-                        </div>
-                        {/* Scrollable body */}
-                        <div className="overflow-y-auto flex-1 p-5 space-y-6">
-                            {/* Wager */}
-                            <div className="space-y-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText">Wager</p>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm font-bold text-white">Amount</span>
-                                    <div className="flex items-center gap-3">
-                                        <button onClick={() => setEditWager(v => Math.max(0, v - 5))} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
-                                        <span className="text-base font-black w-10 text-center tabular-nums">${editWager}</span>
-                                        <button onClick={() => setEditWager(v => v + 5)} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
-                                    </div>
-                                </div>
-                                {match?.format !== 'skins' && (
+            {
+                showEditSettings && (
+                    <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
+                        <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden">
+                            {/* Header */}
+                            <div className="flex items-center justify-between p-5 border-b border-borderColor shrink-0">
+                                <h3 className="text-lg font-black uppercase italic">Match Settings</h3>
+                                <button onClick={() => setShowEditSettings(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                            </div>
+                            {/* Scrollable body */}
+                            <div className="overflow-y-auto flex-1 p-5 space-y-6">
+                                {/* Wager */}
+                                <div className="space-y-3">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText">Wager</p>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm font-bold text-white">Type</span>
-                                        <div className="flex gap-2">
-                                            {(['NASSAU', 'PER_HOLE'] as const).map(t => (
-                                                <button key={t} onClick={() => setEditWagerType(t)} className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border transition-colors ${editWagerType === t ? 'bg-bloodRed border-bloodRed text-white' : 'border-borderColor text-secondaryText'}`}>
-                                                    {t === 'NASSAU' ? 'Nassau' : 'Per Hole'}
-                                                </button>
-                                            ))}
+                                        <span className="text-sm font-bold text-white">Amount</span>
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => setEditWager(v => Math.max(0, v - 5))} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
+                                            <span className="text-base font-black w-10 text-center tabular-nums">${editWager}</span>
+                                            <button onClick={() => setEditWager(v => v + 5)} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                            {/* Side Bets */}
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText mb-2">Side Bets</p>
-                                {[
-                                    { label: 'Greenies', sub: 'Closest to pin on par 3', val: editGreenies, set: setEditGreenies },
-                                    { label: 'Sandies', sub: 'Par+ from bunker', val: editSandies, set: setEditSandies },
-                                    { label: 'Snake', sub: '3-putt penalty', val: editSnake, set: setEditSnake },
-                                    ...(match?.format !== 'skins' ? [
-                                        { label: 'Auto Press', sub: 'Press when 2 down', val: editAutoPress, set: setEditAutoPress },
-                                        { label: 'Birdies Double', sub: 'Net birdie = 2 pts', val: editBirdiesDouble, set: setEditBirdiesDouble },
-                                    ] : []),
-                                    ...(match?.format === 'skins' ? [
-                                        { label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', val: editBonusSkins, set: setEditBonusSkins },
-                                    ] : []),
-                                ].map(({ label, sub, val, set }) => (
-                                    <div key={label} className="flex items-center justify-between py-2.5 border-b border-borderColor/50">
+                                    {match?.format !== 'skins' && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-bold text-white">Type</span>
+                                            <div className="flex gap-2">
+                                                {(['NASSAU', 'PER_HOLE'] as const).map(t => (
+                                                    <button key={t} onClick={() => setEditWagerType(t)} className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border transition-colors ${editWagerType === t ? 'bg-bloodRed border-bloodRed text-white' : 'border-borderColor text-secondaryText'}`}>
+                                                        {t === 'NASSAU' ? 'Nassau' : 'Per Hole'}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                {/* Side Bets */}
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText mb-2">Side Bets</p>
+                                    {[
+                                        { label: 'Greenies', sub: 'Closest to pin on par 3', val: editGreenies, set: setEditGreenies },
+                                        { label: 'Sandies', sub: 'Par+ from bunker', val: editSandies, set: setEditSandies },
+                                        { label: 'Snake', sub: '3-putt penalty', val: editSnake, set: setEditSnake },
+                                        ...(match?.format !== 'skins' ? [
+                                            { label: 'Auto Press', sub: 'Press when 2 down', val: editAutoPress, set: setEditAutoPress },
+                                            { label: 'Birdies Double', sub: 'Net birdie = 2 pts', val: editBirdiesDouble, set: setEditBirdiesDouble },
+                                        ] : []),
+                                        ...(match?.format === 'skins' ? [
+                                            { label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', val: editBonusSkins, set: setEditBonusSkins },
+                                        ] : []),
+                                    ].map(({ label, sub, val, set }) => (
+                                        <div key={label} className="flex items-center justify-between py-2.5 border-b border-borderColor/50">
+                                            <div>
+                                                <p className="text-sm font-bold text-white">{label}</p>
+                                                <p className="text-[10px] text-secondaryText">{sub}</p>
+                                            </div>
+                                            <button onClick={() => set(!val)} className={`w-11 h-6 rounded-full border transition-colors relative ${val ? 'bg-bloodRed border-bloodRed' : 'bg-surfaceHover border-borderColor'}`}>
+                                                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${val ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {/* Trash Value */}
+                                    <div className="flex items-center justify-between py-2.5">
                                         <div>
-                                            <p className="text-sm font-bold text-white">{label}</p>
-                                            <p className="text-[10px] text-secondaryText">{sub}</p>
+                                            <p className="text-sm font-bold text-white">Trash Value</p>
+                                            <p className="text-[10px] text-secondaryText">Payout per dot</p>
                                         </div>
-                                        <button onClick={() => set(!val)} className={`w-11 h-6 rounded-full border transition-colors relative ${val ? 'bg-bloodRed border-bloodRed' : 'bg-surfaceHover border-borderColor'}`}>
-                                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${val ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                                        </button>
-                                    </div>
-                                ))}
-                                {/* Trash Value */}
-                                <div className="flex items-center justify-between py-2.5">
-                                    <div>
-                                        <p className="text-sm font-bold text-white">Trash Value</p>
-                                        <p className="text-[10px] text-secondaryText">Payout per dot</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => setEditTrashValue(v => Math.max(0, v - 5))} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
-                                        <span className="text-sm font-black w-8 text-center tabular-nums">${editTrashValue}</span>
-                                        <button onClick={() => setEditTrashValue(v => v + 5)} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => setEditTrashValue(v => Math.max(0, v - 5))} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
+                                            <span className="text-sm font-black w-8 text-center tabular-nums">${editTrashValue}</span>
+                                            <button onClick={() => setEditTrashValue(v => v + 5)} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        {/* Save */}
-                        <div className="p-5 border-t border-borderColor shrink-0">
-                            <Button size="lg" className="w-full" disabled={settingsSaving} onClick={async () => {
-                                if (!matchId) return;
-                                setSettingsSaving(true);
-                                await updateMatchSettings(matchId, {
-                                    wagerAmount: editWager,
-                                    wagerType: editWagerType,
-                                    sideBets: {
-                                        ...(match?.sideBets ?? {}),
-                                        greenies: editGreenies,
-                                        sandies: editSandies,
-                                        snake: editSnake,
-                                        autoPress: editAutoPress,
-                                        birdiesDouble: editBirdiesDouble,
-                                        trashValue: editTrashValue,
-                                        bonusSkins: editBonusSkins,
-                                    },
-                                });
-                                setSettingsSaving(false);
-                                setShowEditSettings(false);
-                            }}>
-                                {settingsSaving ? <Loader className="w-4 h-4 animate-spin" /> : 'Save Changes'}
-                            </Button>
+                            {/* Save */}
+                            <div className="p-5 border-t border-borderColor shrink-0">
+                                <Button size="lg" className="w-full" disabled={settingsSaving} onClick={async () => {
+                                    if (!matchId) return;
+                                    setSettingsSaving(true);
+                                    await updateMatchSettings(matchId, {
+                                        wagerAmount: editWager,
+                                        wagerType: editWagerType,
+                                        sideBets: {
+                                            ...(match?.sideBets ?? {}),
+                                            greenies: editGreenies,
+                                            sandies: editSandies,
+                                            snake: editSnake,
+                                            autoPress: editAutoPress,
+                                            birdiesDouble: editBirdiesDouble,
+                                            trashValue: editTrashValue,
+                                            bonusSkins: editBonusSkins,
+                                        },
+                                    });
+                                    setSettingsSaving(false);
+                                    setShowEditSettings(false);
+                                }}>
+                                    {settingsSaving ? <Loader className="w-4 h-4 animate-spin" /> : 'Save Changes'}
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Quit Confirmation Dialog */}
-            {showQuitConfirm && (
-                <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
-                    <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm p-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-xl font-black">Abandon Round?</h3>
-                            <button onClick={() => setShowQuitConfirm(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
-                        </div>
-                        <p className="text-sm text-secondaryText text-center">Quit saves your scores so far. Quit & Delete permanently removes this match.</p>
-                        <div className="flex flex-col gap-3 pt-2">
-                            <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={() => {
-                                if (matchId) sessionStorage.setItem('dismissedMatchId', matchId);
-                                navigate('/dashboard', { replace: true });
-                                setTimeout(() => clearMatch(), 10);
-                            }}>
-                                Quit Round
-                            </Button>
-                            <Button variant="outline" size="lg" className="w-full border-bloodRed text-bloodRed hover:bg-bloodRed/10" onClick={async () => {
-                                if (isGroupMode && activeMatchIds.length > 0) {
-                                    await Promise.all(activeMatchIds.map(id => deleteMatch(id)));
-                                } else if (matchId) {
-                                    await deleteMatch(matchId);
-                                }
-                                navigate('/dashboard', { replace: true });
-                                setTimeout(() => clearMatch(), 10);
-                            }}>
-                                Quit & Delete Round
-                            </Button>
+            {
+                showQuitConfirm && (
+                    <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
+                        <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm p-6 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xl font-black">Abandon Round?</h3>
+                                <button onClick={() => setShowQuitConfirm(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                            </div>
+                            <p className="text-sm text-secondaryText text-center">Quit saves your scores so far. Quit & Delete permanently removes this match.</p>
+                            <div className="flex flex-col gap-3 pt-2">
+                                <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-bloodRed" onClick={() => {
+                                    if (matchId) sessionStorage.setItem('dismissedMatchId', matchId);
+                                    navigate('/dashboard', { replace: true });
+                                    setTimeout(() => clearMatch(), 10);
+                                }}>
+                                    Quit Round
+                                </Button>
+                                <Button variant="outline" size="lg" className="w-full border-bloodRed text-bloodRed hover:bg-bloodRed/10" onClick={async () => {
+                                    if (isGroupMode && activeMatchIds.length > 0) {
+                                        await Promise.all(activeMatchIds.map(id => deleteMatch(id)));
+                                    } else if (matchId) {
+                                        await deleteMatch(matchId);
+                                    }
+                                    navigate('/dashboard', { replace: true });
+                                    setTimeout(() => clearMatch(), 10);
+                                }}>
+                                    Quit & Delete Round
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Bottom Actions - Stationary */}
             <div className="bg-background border-t border-borderColor p-3 sm:p-4 shrink-0 pb-safe">
@@ -1217,14 +1206,16 @@ export default function LiveScorecardPage() {
                 </div>
             </div>
             {/* Media Lightbox */}
-            {isLightboxOpen && (
-                <MediaLightbox
-                    items={lightboxItems}
-                    initialIndex={lightboxInitialIndex}
-                    onClose={() => setIsLightboxOpen(false)}
-                    onDelete={handleMediaDelete}
-                />
-            )}
-        </div>
+            {
+                isLightboxOpen && (
+                    <MediaLightbox
+                        items={lightboxItems}
+                        initialIndex={lightboxInitialIndex}
+                        onClose={() => setIsLightboxOpen(false)}
+                        onDelete={handleMediaDelete}
+                    />
+                )
+            }
+        </div >
     );
 }

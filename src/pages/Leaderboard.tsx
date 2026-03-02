@@ -831,16 +831,30 @@ export default function LeaderboardPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+            {/* Course Photo Background */}
+            {course?.imageUrl && (
+                <div className="absolute inset-0 z-0 h-[400px]">
+                    <img
+                        src={course.imageUrl}
+                        alt="Course"
+                        className="w-full h-full object-cover opacity-20 grayscale-[0.5]"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/80 to-background" />
+                </div>
+            )}
+
             {/* Header - Stationary */}
-            <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background/95 backdrop-blur shrink-0 z-20">
-                <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
+            <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background/80 backdrop-blur-md shrink-0 z-30">
+                <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors relative">
                     <ChevronLeft className="w-6 h-6" />
                 </button>
                 <div className="text-center">
-                    <span className="font-bold text-lg tracking-wide uppercase text-bloodRed drop-shadow-[0_0_10px_rgba(255,0,63,0.5)]">LIVE MATCH</span>
-                    <span className="block text-xs font-semibold text-secondaryText mt-0.5 tracking-widest uppercase">
-                        {course?.name ?? 'Course'} • Hole {holeNum}
-                    </span>
+                    <span className="font-black text-lg tracking-wider uppercase text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.6)]">LEADERBOARD</span>
+                    <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] font-black text-secondaryText/80 uppercase tracking-widest">
+                            {course?.name || 'Course'}
+                        </span>
+                    </div>
                 </div>
                 <button className="p-2 -mr-2 text-secondaryText hover:text-white transition-colors">
                     <Share className="w-5 h-5" />
@@ -848,7 +862,7 @@ export default function LeaderboardPage() {
             </header>
 
             {/* Scrollable Content */}
-            <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6 pb-20">
+            <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6 pb-20 z-10">
                 {/* Multi-Match Group Overview */}
                 {isGroupMode && groupState && (
                     <section>
@@ -972,27 +986,37 @@ export default function LeaderboardPage() {
                         </Card>
                     ) : (
                         /* ── Nassau Hero Card ── */
-                        <Card className="flex items-center justify-between p-5 py-8 border border-borderColor shadow-lg relative overflow-hidden bg-gradient-to-br from-surface to-background">
+                        <Card className="flex items-center justify-between p-5 py-8 border border-borderColor/50 shadow-2xl relative overflow-hidden group">
+                            {/* Inner Background Decor */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-surface to-background transition-colors" />
+                            {course?.imageUrl && (
+                                <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <img src={course.imageUrl} alt="" className="w-full h-full object-cover grayscale" />
+                                </div>
+                            )}
+
                             {/* Team A */}
-                            <div className={`text-center z-10 transition-opacity ${heroLeader === 'B' ? 'opacity-40' : ''}`}>
-                                <span className="text-sm font-bold uppercase tracking-widest text-white">Team A</span>
-                                <span className="block text-xs text-secondaryText mt-1">
+                            <div className={`text-center z-10 transition-all ${heroLeader === 'B' ? 'opacity-40 grayscale' : 'scale-110'}`}>
+                                <span className={`text-sm font-black uppercase tracking-widest ${heroLeader === 'A' ? 'text-neonGreen drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]' : 'text-white'}`}>Team A</span>
+                                <span className="block text-[10px] text-secondaryText font-bold mt-1 uppercase tracking-tighter">
                                     {playerRows.filter((r) => r.team === 'A').map((r) => r.fullName.split(' ')[0]).join(' & ') || '—'}
                                 </span>
                             </div>
+
                             {/* Centre score */}
                             <div className="flex flex-col items-center z-10 scale-125 mx-2">
-                                <span className={`text-5xl font-black font-sans tracking-tighter leading-none ${holesUp > 0 ? 'text-neonGreen drop-shadow-[0_0_15px_rgba(0,255,102,0.4)]' : holesUp < 0 ? 'text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.4)]' : 'text-secondaryText'}`}>
+                                <span className={`text-6xl font-black font-sans tracking-tighter leading-none ${holesUp > 0 ? 'text-neonGreen drop-shadow-[0_0_15px_rgba(0,255,102,0.5)]' : holesUp < 0 ? 'text-bloodRed drop-shadow-[0_0_15px_rgba(255,0,63,0.5)]' : 'text-secondaryText'}`}>
                                     {heroLabel}
                                 </span>
-                                <span className="text-[10px] text-secondaryText uppercase tracking-widest mt-1">
+                                <span className="text-[9px] font-black text-secondaryText uppercase tracking-[0.3em] mt-2 translate-y-1">
                                     {holesPlayed === 0 ? 'No holes yet' : `Thru ${holesPlayed}`}
                                 </span>
                             </div>
+
                             {/* Team B */}
-                            <div className={`text-center z-10 transition-opacity ${heroLeader === 'A' ? 'opacity-40' : ''}`}>
-                                <span className="text-sm font-bold uppercase tracking-widest text-white">Team B</span>
-                                <span className="block text-xs text-secondaryText mt-1">
+                            <div className={`text-center z-10 transition-all ${heroLeader === 'A' ? 'opacity-40 grayscale' : 'scale-110'}`}>
+                                <span className={`text-sm font-black uppercase tracking-widest ${heroLeader === 'B' ? 'text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.4)]' : 'text-white'}`}>Team B</span>
+                                <span className="block text-[10px] text-secondaryText font-bold mt-1 uppercase tracking-tighter">
                                     {playerRows.filter((r) => r.team === 'B').map((r) => r.fullName.split(' ')[0]).join(' & ') || '—'}
                                 </span>
                             </div>

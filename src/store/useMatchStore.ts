@@ -319,6 +319,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       id: course.id,
       name: course.name,
       holes: course.holes,
+      image_url: course.imageUrl,
     });
 
     const groupId = genId();
@@ -458,6 +459,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       id: course.id,
       name: course.name,
       holes: course.holes,
+      image_url: course.imageUrl,
     });
 
     const { data, error } = await supabase
@@ -613,6 +615,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       id: course.id,
       name: course.name,
       holes: course.holes,
+      image_url: course.imageUrl,
     });
 
     const joinCode = genJoinCode();
@@ -729,7 +732,12 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       const match = dbToMatch(primaryRow as Record<string, unknown>);
       const courseRow = (primaryRow as any).courses;
       const course: Course | null = courseRow
-        ? { id: courseRow.id as string, name: courseRow.name as string, holes: courseRow.holes as Course['holes'] }
+        ? {
+          id: courseRow.id as string,
+          name: courseRow.name as string,
+          holes: courseRow.holes as Course['holes'],
+          imageUrl: courseRow.image_url as string
+        }
         : null;
 
       localStorage.setItem('activeMatchId', match.id);
