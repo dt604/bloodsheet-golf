@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTimeout(() => resolve({ data: { session: null }, error: new Error('Auth init timeout') }), 3000)
         );
 
-        const { data: { session }, error } = await Promise.race([sessionPromise, timeout]);
+        const { data: { session } } = await Promise.race([sessionPromise, timeout]);
 
         setSession(session ?? null);
         setUser(session?.user ?? null);
