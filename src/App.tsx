@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import Analytics from './components/Analytics';
 
 import WelcomePage from './pages/Welcome';
 import HomePage from './pages/Home';
@@ -118,6 +119,7 @@ function App() {
     <div className="h-[100dvh] bg-background text-primaryText font-sans overflow-hidden">
       <div className="w-full max-w-md landscape:max-w-none lg:landscape:max-w-md mx-auto bg-background h-full shadow-2xl relative flex flex-col overflow-hidden safe-x">
         <BrowserRouter>
+          <Analytics trackingId={import.meta.env.VITE_GA_TRACKING_ID} />
           <AuthProvider>
             <AppRoutes />
           </AuthProvider>
