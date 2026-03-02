@@ -12,7 +12,8 @@ serve(async (req) => {
 
     try {
         const { query } = await req.json()
-        const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY')
+        // Prefer standard env var naming
+        const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY') || Deno.env.get('VITE_GOOGLE_MAPS_API_KEY')
 
         if (!GOOGLE_MAPS_API_KEY) {
             return new Response(JSON.stringify({ error: 'GOOGLE_MAPS_API_KEY not configured' }), {
@@ -21,8 +22,11 @@ serve(async (req) => {
             })
         }
 
+        // Clean query: remove bullet points and everything after (city, state, etc)
+        const cleanedQuery = (query as string).split('•')[0].trim();
+
         // 1. Search for the place
-        const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' golf course')}&key=${GOOGLE_MAPS_API_KEY}`
+        const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(cleanedQuery + ' golf course')}&key=${GOOGLE_MAPS_API_KEY}`
         const searchRes = await fetch(searchUrl)
         const searchData = await searchRes.json()
 
