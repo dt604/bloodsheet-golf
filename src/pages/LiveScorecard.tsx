@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Camera } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
@@ -1144,7 +1144,7 @@ export default function LiveScorecardPage() {
                                             }}
                                             className="w-full py-4 rounded-xl border border-bloodRed/30 bg-bloodRed/10 text-bloodRed font-black uppercase italic tracking-wider text-xs hover:bg-bloodRed hover:text-white transition-all shadow-[0_0_15px_rgba(255,0,63,0.1)] flex items-center justify-center gap-2"
                                         >
-                                            <X className="w-4 h-4" /> Quit & Delete Match
+                                            <Trash2 className="w-4 h-4" /> Delete Match
                                         </button>
                                     </div>
                                 )}
@@ -1185,21 +1185,13 @@ export default function LiveScorecardPage() {
                     <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
                         <div className="bg-surface border border-bloodRed/30 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-[0_0_40px_rgba(255,0,63,0.15)]">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-black italic uppercase tracking-tighter text-bloodRed">Abandon Round?</h3>
+                                <h3 className="text-xl font-black italic uppercase tracking-tighter text-bloodRed">Delete Match?</h3>
                                 <button onClick={() => setShowQuitConfirm(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
                             </div>
                             <p className="text-xs text-secondaryText text-center font-medium leading-relaxed">
-                                <span className="font-bold text-white uppercase italic">Quit Round:</span> Saves scores & leaves match.<br />
-                                <span className="font-bold text-bloodRed uppercase italic">Quit & Delete:</span> Permanently erases the match for everyone.
+                                This will <span className="font-bold text-bloodRed uppercase italic">permanently erase</span> the match and all scores for everyone in the group. This action cannot be undone.
                             </p>
                             <div className="flex flex-col gap-3 pt-2">
-                                <Button size="lg" className="w-full bg-surfaceHover border border-borderColor text-white uppercase font-black italic tracking-widest text-xs" onClick={() => {
-                                    if (matchId) sessionStorage.setItem('dismissedMatchId', matchId);
-                                    navigate('/dashboard', { replace: true });
-                                    setTimeout(() => clearMatch(), 10);
-                                }}>
-                                    Quit Round
-                                </Button>
                                 <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-none text-white uppercase font-black italic tracking-widest text-xs shadow-[0_0_20px_rgba(255,0,63,0.3)]" onClick={async () => {
                                     if (isGroupMode && activeMatchIds.length > 0) {
                                         await Promise.all(activeMatchIds.map(id => deleteMatch(id)));
@@ -1209,7 +1201,10 @@ export default function LiveScorecardPage() {
                                     navigate('/dashboard', { replace: true });
                                     setTimeout(() => clearMatch(), 10);
                                 }}>
-                                    Quit & Delete Round
+                                    Confirm Delete
+                                </Button>
+                                <Button size="lg" variant="outline" className="w-full border-borderColor text-secondaryText uppercase font-black italic tracking-widest text-xs" onClick={() => setShowQuitConfirm(false)}>
+                                    Cancel
                                 </Button>
                             </div>
                         </div>
