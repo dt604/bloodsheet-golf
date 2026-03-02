@@ -9,6 +9,7 @@ import { MatchPlayer, HoleScore } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MediaLightbox } from '../components/ui/MediaLightbox';
+import SEO from '../components/SEO';
 
 function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): number {
     if (adjustedHandicap <= 0) return gross;
@@ -815,6 +816,7 @@ export default function LeaderboardPage() {
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden relative">
+            <SEO title="Leaderboard" />
             {/* Realtime Score Update Ping */}
             <AnimatePresence>
                 {pingMessage && (

@@ -7,6 +7,7 @@ import { useMatchStore } from '../store/useMatchStore';
 import { Button } from '../components/ui/Button';
 import { MediaLightbox } from '../components/ui/MediaLightbox';
 import { motion } from 'framer-motion';
+import SEO from '../components/SEO';
 
 interface CourseHole {
     number: number;
@@ -651,6 +652,7 @@ export default function PastMatchScorecardPage() {
 
     return (
         <div className="flex flex-col h-full bg-background font-sans overflow-y-auto overflow-x-hidden momentum-scroll pb-20 safe-bottom">
+            <SEO title="Match Scorecard" />
             <header className="flex flex-col border-b border-borderColor bg-surface/90 backdrop-blur sticky top-0 z-30 flex-shrink-0">
                 <div className="flex items-center p-4">
                     <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">

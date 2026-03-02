@@ -8,6 +8,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useMatchStore } from '../store/useMatchStore';
+import SEO from '../components/SEO';
 
 interface MatchHistoryItem {
     id: string;
@@ -485,6 +486,7 @@ export default function DashboardPage() {
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+            <SEO title="Dashboard" />
             {/* Header - Stationary */}
             <header className="flex items-center justify-between p-4 px-6 border-b border-borderColor bg-background/95 backdrop-blur z-20 shrink-0">
                 <div className="flex items-center gap-3">

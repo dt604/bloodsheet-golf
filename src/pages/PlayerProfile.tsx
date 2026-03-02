@@ -7,6 +7,7 @@ import { StatBox } from '../components/ui/StatBox';
 import { useAuth } from '../contexts/AuthContext';
 import { useFriendsStore } from '../store/useFriendsStore';
 import { supabase } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 interface ProfileData {
     id: string;
@@ -463,6 +464,7 @@ export default function PlayerProfilePage() {
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+            <SEO title={profileData?.fullName ? `${profileData.fullName} | Player Profile` : "Player Profile"} />
             {/* Header */}
             <header className="flex items-center justify-between p-4 px-6 border-b border-borderColor bg-background/95 backdrop-blur z-20 shrink-0">
                 <div className="flex items-center gap-3">

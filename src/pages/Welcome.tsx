@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Loader, Search } from 'lucide-react';
+import SEO from '../components/SEO';
 
 function GoogleIcon() {
     return (
@@ -127,6 +128,7 @@ export default function WelcomePage() {
             className="flex-1 flex flex-col bg-background p-6 relative overflow-hidden"
             style={{ backgroundImage: 'url("/welcome-bg.png")' }}
         >
+            <SEO title="Log In & Register" />
             {/* Dark overlay to ensure text remains readable */}
             <div className="absolute inset-0 bg-background/85 z-0"></div>
 

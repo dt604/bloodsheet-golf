@@ -11,6 +11,7 @@ import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { searchCourses, searchNearbyCourses, fetchCourseImage } from '../lib/courseApi';
 import { Course } from '../types';
+import SEO from '../components/SEO';
 
 export default function MatchSetupPage() {
     const navigate = useNavigate();
@@ -253,6 +254,7 @@ export default function MatchSetupPage() {
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden relative">
+            <SEO title="Setup Match" />
             {/* Header */}
             <header className="flex flex-col border-b border-borderColor shrink-0 bg-background/95 backdrop-blur-sm z-30">
                 <div className="flex items-center justify-between p-4">

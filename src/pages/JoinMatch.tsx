@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { supabase } from '../lib/supabase';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
+import SEO from '../components/SEO';
 
 export default function JoinMatchPage() {
     const navigate = useNavigate();
@@ -53,6 +54,7 @@ export default function JoinMatchPage() {
 
     return (
         <div className="flex flex-col h-screen bg-background">
+            <SEO title="Join Match" />
             {/* Header */}
             <header className="flex items-center justify-between p-4 border-b border-borderColor">
                 <button onClick={() => isGuest ? navigate('/') : navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white">

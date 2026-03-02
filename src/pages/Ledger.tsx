@@ -7,6 +7,7 @@ import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import confetti from 'canvas-confetti';
+import SEO from '../components/SEO';
 
 interface LineItem {
     label: string;
@@ -800,6 +801,7 @@ export default function LedgerPage() {
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden relative">
+            <SEO title="Final Ledger" />
             {/* Header - Stationary */}
             <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background/95 backdrop-blur shrink-0 z-20">
                 <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-secondaryText hover:text-white">

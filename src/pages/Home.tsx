@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatchStore } from '../store/useMatchStore';
+import SEO from '../components/SEO';
 
 export default function Home() {
     const { user, profile, signOut } = useAuth();
@@ -100,6 +101,7 @@ export default function Home() {
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden font-sans">
+            <SEO title="Home Dashboard" />
             {/* Header */}
             <header className="flex items-center justify-between p-4 px-6 border-b border-borderColor bg-background/95 backdrop-blur z-20 shrink-0">
                 <div className="flex items-center gap-2">

@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
 import { MediaLightbox } from '../components/ui/MediaLightbox';
 import { motion, AnimatePresence } from 'framer-motion';
+import SEO from '../components/SEO';
 
 function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): number {
     if (adjustedHandicap <= 0) return gross;
@@ -662,6 +663,7 @@ export default function LiveScorecardPage() {
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden relative">
+            <SEO title="Live Scorecard" />
             {/* Realtime Ping Toast */}
             {pingMessage && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-none">

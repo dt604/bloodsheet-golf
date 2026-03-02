@@ -4,6 +4,7 @@ import { ArrowLeft, History, Home } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 interface MatchHistoryItem {
     id: string;
@@ -248,6 +249,7 @@ export default function MatchHistoryPage() {
 
     return (
         <div className="flex flex-col h-full bg-background font-sans">
+            <SEO title="Match History" />
             <header className="flex items-center justify-between p-4 border-b border-borderColor bg-surface/90 backdrop-blur sticky top-0 z-30">
                 <div className="flex items-center gap-2">
                     <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">

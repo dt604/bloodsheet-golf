@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 interface LeaderEntry {
     userId: string;
@@ -240,6 +241,7 @@ export default function MoneyLeaders() {
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden">
+            <SEO title="Money Leaders" />
             <header className="flex items-center gap-3 p-4 border-b border-borderColor shrink-0 bg-background z-20">
                 <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
                     <ChevronLeft className="w-6 h-6" />
