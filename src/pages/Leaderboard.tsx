@@ -843,9 +843,14 @@ export default function LeaderboardPage() {
                 </div>
             )}
 
-            {/* Header - Stationary */}
             <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background/80 backdrop-blur-md shrink-0 z-30">
-                <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors relative">
+                <button
+                    onClick={() => {
+                        if (primaryMatchId) sessionStorage.setItem('dismissedMatchId', primaryMatchId);
+                        navigate(-1);
+                    }}
+                    className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors relative"
+                >
                     <ChevronLeft className="w-6 h-6" />
                 </button>
                 <div className="text-center">

@@ -121,7 +121,7 @@ export default function DashboardPage() {
                     .from('matches')
                     .select('id, format, wager_type, wager_amount, status, created_at, created_by, courses(name)')
                     .in('id', allMatchIds)
-                    .in('status', ['completed', 'pending_attestation'])
+                    .in('status', ['completed', 'pending_attestation', 'in_progress'])
                     .order('created_at', { ascending: false })
                     .limit(10);
                 if (data) recentMatches = data;
@@ -612,6 +612,8 @@ export default function DashboardPage() {
                                             useMatchStore.setState({ matchId: item.id, match: null });
                                             localStorage.setItem('activeMatchId', item.id);
                                             navigate('/ledger');
+                                        } else if (item.status === 'in_progress') {
+                                            navigate(`/play/1`);
                                         } else {
                                             navigate(`/history/${item.id}`);
                                         }
@@ -629,6 +631,11 @@ export default function DashboardPage() {
                                             <div className="flex flex-col items-end gap-1">
                                                 <Clock className="w-4 h-4 text-yellow-400" />
                                                 <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Unattested</span>
+                                            </div>
+                                        ) : item.status === 'in_progress' ? (
+                                            <div className="flex flex-col items-end gap-1">
+                                                <div className="w-2 h-2 rounded-full bg-neonGreen animate-pulse shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
+                                                <span className="text-[10px] font-bold text-neonGreen uppercase tracking-widest">Live Round</span>
                                             </div>
                                         ) : (
                                             <>

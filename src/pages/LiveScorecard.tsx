@@ -677,7 +677,10 @@ export default function LiveScorecardPage() {
             <header className="flex flex-col border-b border-borderColor shrink-0 bg-background/80 backdrop-blur-md z-30">
                 <div className="flex items-center justify-between p-4 pb-2">
                     <button
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => {
+                            if (matchId) sessionStorage.setItem('dismissedMatchId', matchId);
+                            navigate('/dashboard');
+                        }}
                         className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors flex items-center gap-1 group"
                     >
                         <ChevronLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
