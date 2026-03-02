@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMatchStore } from '../store/useMatchStore';
 import { Button } from '../components/ui/Button';
 import { MediaLightbox } from '../components/ui/MediaLightbox';
+import { motion } from 'framer-motion';
 
 interface CourseHole {
     number: number;
@@ -990,6 +991,57 @@ export default function PastMatchScorecardPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Moments Feed */}
+                {matchMedia.length > 0 && (
+                    <div className="px-4 mt-6">
+                        <div className="text-secondaryText text-xs font-bold uppercase tracking-widest flex items-center justify-between px-1 mb-3">
+                            <span>Moments Feed</span>
+                            <Camera className="w-4 h-4 text-neonGreen animate-pulse" />
+                        </div>
+                        <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+                            {matchMedia.map((media, idx) => (
+                                <motion.button
+                                    key={media.id}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => {
+                                        setLightboxMedia(matchMedia.map(m => ({
+                                            id: m.id,
+                                            url: m.media_url,
+                                            type: m.media_type,
+                                            playerId: m.player_id,
+                                            holeNumber: m.hole_number,
+                                            uploaderId: m.uploader_id,
+                                            context: m.context
+                                        })));
+                                        setLightboxIndex(idx);
+                                        setIsLightboxOpen(true);
+                                    }}
+                                    className="relative flex-shrink-0 w-32 h-44 rounded-2xl overflow-hidden border border-borderColor/50 shadow-lg group"
+                                >
+                                    {media.media_type === 'video' ? (
+                                        <video src={media.media_url} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" />
+                                    ) : (
+                                        <img src={media.media_url} alt="" className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" />
+                                    )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-100 transition-opacity" />
+                                    <div className="absolute bottom-2 left-2 right-2 text-left">
+                                        <span className="block text-[10px] font-black text-neonGreen uppercase tracking-widest drop-shadow-sm">Hole {media.hole_number}</span>
+                                        <span className="block text-[9px] font-bold text-white/80 line-clamp-1">
+                                            {players.find(p => p.id === media.player_id)?.fullName.split(' ')[0] ?? 'Someone'}
+                                        </span>
+                                    </div>
+                                    {media.media_type === 'video' && (
+                                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center">
+                                            <div className="w-0 h-0 border-t-[3px] border-t-transparent border-l-[5px] border-l-white border-b-[3px] border-b-transparent ml-0.5" />
+                                        </div>
+                                    )}
+                                </motion.button>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Settlement Card */}
                 {settlementItems && settlementItems.length > 0 && (
