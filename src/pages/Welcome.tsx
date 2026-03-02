@@ -140,7 +140,7 @@ export default function WelcomePage() {
                 </div>
 
                 <p className="text-base sm:text-lg text-white/90 font-semibold mt-2 sm:mt-4 max-w-[280px] sm:max-w-[320px] drop-shadow-md tracking-wide">
-                    The ultimate high-stakes match play and Nassau betting ledger.
+                    The ultimate high-stakes ledger for Skins, Nassau, and automated settlements.
                 </p>
             </div>
 
