@@ -71,7 +71,7 @@ export default function AddPlayerPage() {
 
                 const { data: partners } = await supabase
                     .from('match_players')
-                    .select('user_id, profiles(id, full_name, handicap, avatar_url)')
+                    .select('user_id, profiles!user_id(id, full_name, handicap, avatar_url)')
                     .in('match_id', matchIds)
                     .neq('user_id', user!.id)
                     .limit(10);

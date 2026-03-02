@@ -255,6 +255,33 @@ export default function LiveScorecardPage() {
         yardage: _foundHole?.yardage ?? 400,
     };
 
+    // ── Skins: current accumulated pot value ──────────────────
+    // Moved up to be unconditional (prevents hook count mismatch)
+    const currentSkinPot = useMemo(() => {
+        if (match?.format !== 'skins' || !match) return 0;
+        if (match.sideBets?.potMode) return match.wagerAmount * players.length; // fixed pot
+        const skinValue = match.wagerAmount;
+        const isTeamSkins = match.sideBets?.teamSkins ?? false;
+        let carry = 0;
+        for (let h = 1; h < currentHole; h++) {
+            const hScores = scores.filter(s => s.holeNumber === h);
+            if (hScores.length < players.length) break;
+            if (isTeamSkins) {
+                // Best ball per team
+                const teamANet = Math.min(...hScores.filter(s => players.find(p => p.userId === s.playerId)?.team === 'A').map(s => s.net));
+                const teamBNet = Math.min(...hScores.filter(s => players.find(p => p.userId === s.playerId)?.team === 'B').map(s => s.net));
+                if (teamANet !== teamBNet) carry = 0;
+                else carry += 1;
+            } else {
+                const minNet = Math.min(...hScores.map(s => s.net));
+                const winners = hScores.filter(s => s.net === minNet);
+                if (winners.length === 1) carry = 0;
+                else carry += 1;
+            }
+        }
+        return (1 + carry) * skinValue;
+    }, [match, scores, players, currentHole]);
+
     useEffect(() => {
         setIsDirty(false);
     }, [currentHole]);
@@ -529,31 +556,7 @@ export default function LiveScorecardPage() {
 
     const holesUp = match.format === 'skins' ? 0 : calcHolesUp(teamAIds, teamBIds, scoresWithAdjusted, match.format as '1v1' | '2v2', course, match.sideBets?.birdiesDouble, match.sideBets, teamHandicapDiff);
 
-    // ── Skins: current accumulated pot value ──────────────────
-    const currentSkinPot = useMemo(() => {
-        if (match?.format !== 'skins') return 0;
-        if (match.sideBets?.potMode) return match.wagerAmount * players.length; // fixed pot
-        const skinValue = match.wagerAmount;
-        const isTeamSkins = match.sideBets?.teamSkins ?? false;
-        let carry = 0;
-        for (let h = 1; h < currentHole; h++) {
-            const hScores = scores.filter(s => s.holeNumber === h);
-            if (hScores.length < players.length) break;
-            if (isTeamSkins) {
-                // Best ball per team
-                const teamANet = Math.min(...hScores.filter(s => players.find(p => p.userId === s.playerId)?.team === 'A').map(s => s.net));
-                const teamBNet = Math.min(...hScores.filter(s => players.find(p => p.userId === s.playerId)?.team === 'B').map(s => s.net));
-                if (teamANet !== teamBNet) carry = 0;
-                else carry += 1;
-            } else {
-                const minNet = Math.min(...hScores.map(s => s.net));
-                const winners = hScores.filter(s => s.net === minNet);
-                if (winners.length === 1) carry = 0;
-                else carry += 1;
-            }
-        }
-        return (1 + carry) * skinValue;
-    }, [match, scores, players, currentHole]);
+
 
     // ── Group mode: per-match holes-up calculation ────────────
     function calcGroupMatchHolesUp(entry: typeof groupState extends null ? never : NonNullable<typeof groupState>['matches'][0]): number {
