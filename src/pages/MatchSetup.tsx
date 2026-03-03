@@ -101,13 +101,17 @@ export default function MatchSetupPage() {
 
     const [tooltips, setTooltips] = useState<Record<string, { strokes?: boolean, wager?: boolean }>>({});
     const toggleTooltip = (slotId: string, type: 'strokes' | 'wager') => {
-        setTooltips(prev => ({
-            ...prev,
-            [slotId]: {
-                ...prev[slotId],
-                [type]: !prev[slotId]?.[type]
-            }
-        }));
+        setTooltips(prev => {
+            const currentSlot = prev[slotId] || {};
+            const isCurrentlyOpen = currentSlot[type];
+            return {
+                ...prev,
+                [slotId]: {
+                    strokes: type === 'strokes' ? !isCurrentlyOpen : false,
+                    wager: type === 'wager' ? !isCurrentlyOpen : false,
+                }
+            };
+        });
     };
 
 
@@ -738,7 +742,7 @@ export default function MatchSetupPage() {
 
                                                         {/* Wager Grid */}
                                                         {slot.opponentId && (
-                                                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                                            <div className="grid grid-cols-2 gap-3 pt-2 items-start">
                                                                 <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30 flex flex-col justify-between">
                                                                     <div>
                                                                         <div
