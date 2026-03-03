@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useMatchStore } from '../store/useMatchStore';
 import SEO from '../components/SEO';
+import { RecentMedia } from '../components/dashboard/RecentMedia';
 
 interface MatchHistoryItem {
     id: string;
@@ -565,6 +566,9 @@ export default function DashboardPage() {
                     </Card>
                 </section>
             )}
+
+            {/* Recent Media (The Vault preview) */}
+            <RecentMedia />
 
             {/* Recent Matches */}
             <section>

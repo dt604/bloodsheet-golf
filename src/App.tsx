@@ -17,6 +17,7 @@ import JoinMatchPage from './pages/JoinMatch';
 import PastMatchScorecardPage from './pages/PastMatchScorecard';
 import MatchHistoryPage from './pages/MatchHistory';
 import FriendsPage from './pages/Friends';
+import MomentsPage from './pages/Moments';
 import PlayerProfilePage from './pages/PlayerProfile';
 import MoneyLeadersPage from './pages/MoneyLeaders';
 import QRPage from './pages/QRPage';
@@ -99,6 +100,7 @@ function AppRoutes() {
         <Route path="/qr" element={<ProtectedRoute><PageWrapper><QRPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/add-friend/:userId" element={<ProtectedRoute><PageWrapper><AddFriendQR /></PageWrapper></ProtectedRoute>} />
         <Route path="/friends" element={<ProtectedRoute><PageWrapper><MainLayout><FriendsPage /></MainLayout></PageWrapper></ProtectedRoute>} />
+        <Route path="/moments" element={<ProtectedRoute><PageWrapper><MainLayout><MomentsPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/history" element={<ProtectedRoute><PageWrapper><MainLayout><MatchHistoryPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/history/:matchId" element={<ProtectedRoute><PageWrapper><PastMatchScorecardPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/player/:userId" element={<ProtectedRoute><PageWrapper><MainLayout><PlayerProfilePage /></MainLayout></PageWrapper></ProtectedRoute>} />

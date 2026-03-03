@@ -194,6 +194,9 @@ export default function Home() {
             <section className="px-4">
                 <div className="flex items-center justify-between mb-4 ml-1">
                     <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Activity Feed</h3>
+                    <Link to="/moments" className="text-[10px] text-bloodRed font-black uppercase tracking-widest hover:underline flex items-center gap-1">
+                        The Vault
+                    </Link>
                 </div>
                 <ActivityFeed />
             </section>
