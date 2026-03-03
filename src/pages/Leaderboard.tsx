@@ -453,8 +453,21 @@ export default function LeaderboardPage() {
                 .in('id', allPlayerIds);
 
             const map: Record<string, { fullName: string; handicap: number; avatarUrl?: string }> = {};
+            // Seed ALL players with their match-time handicaps (respects stroke overrides)
+            const allPlayers = isGroupMode && groupState
+                ? groupState.matches.flatMap(m => m.players)
+                : primaryPlayers;
+            for (const p of allPlayers) {
+                map[p.userId] = {
+                    fullName: p.guestName ?? p.userId,
+                    handicap: p.initialHandicap,
+                    avatarUrl: p.avatarUrl,
+                };
+            }
+            // DB profiles overwrite name & avatar only (NOT handicap — match-time value is authoritative)
             for (const row of (profiles ?? []) as { id: string; full_name: string; handicap: number; avatar_url: string | null }[]) {
-                map[row.id] = { fullName: row.full_name, handicap: row.handicap, avatarUrl: row.avatar_url ?? undefined };
+                const existing = map[row.id];
+                map[row.id] = { fullName: row.full_name, handicap: existing?.handicap ?? row.handicap, avatarUrl: row.avatar_url ?? undefined };
             }
             setPlayerProfiles(map);
         }

@@ -805,11 +805,13 @@ export default function MatchSetupPage() {
                                             const nameB = 'Team B';
                                             if (absDiff === 0) return (
                                                 <div className="p-3 border-t border-borderColor/50 text-center bg-surfaceHover/10">
-                                                    <div className="flex items-center justify-center gap-2">
+                                                    <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest flex items-center justify-center gap-1">
+                                                        Scratch Match •
                                                         <button onClick={() => setTeamStrokeOverride(effectiveDiff - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed">−</button>
-                                                        <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Scratch Match • No Strokes Given</span>
+                                                        <span className="text-sm text-bloodRed">{absDiff}</span>
                                                         <button onClick={() => setTeamStrokeOverride(effectiveDiff + 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen">+</button>
-                                                    </div>
+                                                        Strokes Given
+                                                    </span>
                                                 </div>
                                             );
                                             const spottedName = effectiveDiff > 0 ? nameA : nameB;
@@ -828,13 +830,13 @@ export default function MatchSetupPage() {
                                                         </div>
                                                     </div>
                                                     <div className="bg-background/80 rounded-xl p-3 border border-bloodRed/20 flex items-center justify-center shadow-[0_4px_12px_rgba(255,0,63,0.1)]">
-                                                        <div className="flex items-center gap-2">
-                                                            <button onClick={() => setTeamStrokeOverride(effectiveDiff - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed shrink-0">−</button>
-                                                            <p className="text-xs font-black uppercase tracking-widest text-white text-center">
-                                                                {spottingName} spots {spottedName} <span className="text-sm text-bloodRed px-1">{absDiff}</span> stroke{absDiff !== 1 ? 's' : ''}
-                                                            </p>
-                                                            <button onClick={() => setTeamStrokeOverride(effectiveDiff + 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen shrink-0">+</button>
-                                                        </div>
+                                                        <p className="text-xs font-black uppercase tracking-widest text-white text-center flex items-center justify-center gap-1">
+                                                            {spottingName} spots {spottedName}
+                                                            <button onClick={() => setTeamStrokeOverride(effectiveDiff > 0 ? effectiveDiff - 1 : effectiveDiff + 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed shrink-0">−</button>
+                                                            <span className="text-sm text-bloodRed px-1">{absDiff}</span>
+                                                            <button onClick={() => setTeamStrokeOverride(effectiveDiff > 0 ? effectiveDiff + 1 : effectiveDiff - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen shrink-0">+</button>
+                                                            stroke{absDiff !== 1 ? 's' : ''}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             );
