@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { History, UserPlus, Check, Loader, Crown, Camera } from 'lucide-react';
+import { History, UserPlus, Check, Loader, Crown } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useFriendsStore } from '../store/useFriendsStore';
 import { supabase } from '../lib/supabase';
 import SEO from '../components/SEO';
+
 
 interface ProfileData {
     id: string;
@@ -55,37 +56,11 @@ export default function PlayerProfilePage() {
         lifetimePayout: 0,
     });
 
-    const [uploadingImage, setUploadingImage] = useState(false);
-
-    async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-        if (!e.target.files || e.target.files.length === 0 || !user || !isOwnProfile) return;
-        const file = e.target.files[0];
-        setUploadingImage(true);
-
-        const fileExt = file.name.split('.').pop();
-        const filePath = `${user.id}-${Math.random()}.${fileExt}`;
-
-        try {
-            const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
-            if (uploadError) throw uploadError;
-
-            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-
-            const { error: updateError } = await supabase
-                .from('profiles')
-                .update({ avatar_url: data.publicUrl })
-                .eq('id', user.id);
-
-            if (updateError) throw updateError;
-
-            setProfileData(prev => prev ? { ...prev, avatarUrl: data.publicUrl } : null);
-        } catch (error: any) {
-            console.error('Error uploading avatar:', error.message);
-            alert('Failed to upload image. Please try again.');
-        } finally {
-            setUploadingImage(false);
+    useEffect(() => {
+        if (isOwnProfile) {
+            navigate('/dashboard', { replace: true });
         }
-    }
+    }, [isOwnProfile, navigate]);
 
     useEffect(() => {
         if (user && !isOwnProfile) {
@@ -329,12 +304,6 @@ export default function PlayerProfilePage() {
 
     const friendship = friendships.find(f => f.requesterId === userId || f.addresseeId === userId);
 
-
-
-    const initials = profileData?.fullName
-        ? profileData.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-        : '?';
-
     const memberYear = profileData?.createdAt ? new Date(profileData.createdAt).getFullYear() : '—';
     const winRate = stats.totalMatches > 0 ? Math.round((stats.wins / stats.totalMatches) * 100) + '%' : '—';
 
@@ -356,17 +325,11 @@ export default function PlayerProfilePage() {
                 <div className="space-y-10">
                     {/* Identity card */}
                     <section className="bg-surface rounded-2xl p-6 border border-borderColor flex flex-col items-center relative overflow-hidden">
-                        <div className={`w-20 h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-3xl mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden transition-transform ${isOwnProfile ? 'group cursor-pointer hover:scale-105' : ''}`}>
+                        <div className="w-20 h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-3xl mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden transition-transform">
                             {profileData.avatarUrl ? (
                                 <img src={profileData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
-                                initials
-                            )}
-                            {isOwnProfile && (
-                                <label className="absolute inset-0 bg-background/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity z-10 w-full h-full">
-                                    {uploadingImage ? <Loader className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6 text-bloodRed" />}
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingImage} />
-                                </label>
+                                <img src="/logo-final.png" alt="Default Avatar" className="w-full h-full object-cover opacity-60" />
                             )}
                         </div>
                         <h2 className="text-3xl font-black tracking-tight mb-1 truncate max-w-full px-2">{profileData.fullName}</h2>
@@ -455,14 +418,9 @@ export default function PlayerProfilePage() {
                         </div>
                     )}
 
-                    {isOwnProfile && (
-                        <div className="flex gap-3 pb-8">
-                            <Button variant="outline" className="flex-1" onClick={() => navigate('/join')}>Join Match</Button>
-                            <Button className="flex-[2] shadow-[0_0_20px_rgba(255,0,63,0.4)]" onClick={() => navigate('/setup')}>Start Match</Button>
-                        </div>
-                    )}
                 </div>
             )}
         </div>
     );
 }
+

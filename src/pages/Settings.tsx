@@ -1,11 +1,27 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Camera, Loader } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Loader, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Toggle } from '../components/ui/Toggle';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+
+// Import avatars
+import juniorAvatar from '../assets/avatars/junior.png';
+import oldFemaleAvatar from '../assets/avatars/old_female.png';
+import oldMaleAvatar from '../assets/avatars/old_male.png';
+import youngFemaleAvatar from '../assets/avatars/young_female.png';
+import youngMaleAvatar from '../assets/avatars/young_male.png';
+
+const AVATARS = [
+    { id: 'old_male', url: oldMaleAvatar, label: 'Old Male' },
+    { id: 'old_female', url: oldFemaleAvatar, label: 'Old Female' },
+    { id: 'young_male', url: youngMaleAvatar, label: 'Young Male' },
+    { id: 'young_female', url: youngFemaleAvatar, label: 'Young Female' },
+    { id: 'junior', url: juniorAvatar, label: 'Junior' },
+];
 
 export default function SettingsPage() {
     const navigate = useNavigate();
@@ -23,8 +39,10 @@ export default function SettingsPage() {
     const [editingHandicap, setEditingHandicap] = useState(false);
     const [handicapInput, setHandicapInput] = useState(String(profile?.handicap ?? '0.0'));
     const [saving, setSaving] = useState(false);
-    const [uploadingImage, setUploadingImage] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
         if (!e.target.files || e.target.files.length === 0 || !user) return;
@@ -39,15 +57,28 @@ export default function SettingsPage() {
             if (uploadError) throw uploadError;
 
             const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
             await updateProfile({ avatarUrl: data.publicUrl });
         } catch (error: any) {
             console.error('Error uploading avatar:', error.message);
-            alert('Failed to upload image. Did you run the SQL script?');
+            alert('Failed to upload image. Please try again.');
         } finally {
             setUploadingImage(false);
         }
     }
 
+    async function handleSelectAvatar(url: string) {
+        if (!user) return;
+        setUploadingImage(true);
+
+        try {
+            await updateProfile({ avatarUrl: url });
+        } catch (error: any) {
+            console.error('Error selecting avatar:', error.message);
+        } finally {
+            setUploadingImage(false);
+        }
+    }
     async function handleSaveName() {
         const val = nameInput.trim();
         if (!val) return;
@@ -114,21 +145,81 @@ export default function SettingsPage() {
                 <section>
                     <div className="text-secondaryText text-xs font-bold uppercase tracking-widest pl-2 mb-2">Account Information</div>
                     <Card className="divide-y divide-borderColor/50">
-                        <div className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors">
-                            <span className="font-semibold text-white">Profile Photo</span>
-                            <div className="relative group">
-                                {profile?.avatarUrl ? (
-                                    <img src={profile.avatarUrl} alt="Avatar" className="w-12 h-12 rounded-full object-cover border border-borderColor" />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center overflow-hidden">
-                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Golfer" alt="Default Golfer" className="w-full h-full object-cover opacity-80" />
-                                    </div>
-                                )}
-                                <label className="absolute inset-0 bg-background/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity border border-dashed border-bloodRed/50">
-                                    {uploadingImage ? <Loader className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4 text-bloodRed" />}
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingImage} />
-                                </label>
+                        <div
+                            className="p-4 flex flex-col hover:bg-surfaceHover transition-colors cursor-pointer"
+                            onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                        >
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-white">Profile Photo</span>
+                                <div className="flex items-center gap-2">
+                                    {profile?.avatarUrl ? (
+                                        <img src={profile.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-borderColor" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center overflow-hidden">
+                                            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Golfer" alt="Default Golfer" className="w-full h-full object-cover opacity-80" />
+                                        </div>
+                                    )}
+                                    <ChevronRight className={`w-4 h-4 text-secondaryText transition-transform ${showAvatarPicker ? 'rotate-90' : ''}`} />
+                                </div>
                             </div>
+
+                            <AnimatePresence>
+                                {showAvatarPicker && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="pt-4 mt-2 border-t border-borderColor">
+                                            <div className="grid grid-cols-3 gap-3">
+                                                {/* Large Upload Button */}
+                                                <button
+                                                    onClick={() => document.getElementById('settingsProfileUpload')?.click()}
+                                                    className="relative aspect-square rounded-2xl border-2 border-dashed border-borderColor bg-background/50 flex flex-col items-center justify-center gap-2 group transition-all hover:border-bloodRed hover:scale-105"
+                                                >
+                                                    {uploadingImage ? (
+                                                        <Loader className="w-6 h-6 animate-spin text-bloodRed" />
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-10 h-10 rounded-full bg-bloodRed/10 flex items-center justify-center group-hover:bg-bloodRed/20 transition-colors">
+                                                                <Camera className="w-5 h-5 text-bloodRed" />
+                                                            </div>
+                                                            <div className="text-center">
+                                                                <span className="block text-[8px] font-black uppercase tracking-widest text-white">Upload</span>
+                                                                <span className="block text-[6px] font-bold uppercase tracking-widest text-secondaryText group-hover:text-bloodRed transition-colors">Photo</span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    <input
+                                                        id="settingsProfileUpload"
+                                                        type="file"
+                                                        className="hidden"
+                                                        accept="image/*"
+                                                        onChange={handleAvatarUpload}
+                                                    />
+                                                </button>
+
+                                                {AVATARS.map((avatar) => (
+                                                    <button
+                                                        key={avatar.id}
+                                                        onClick={() => handleSelectAvatar(avatar.url)}
+                                                        className={`relative aspect-square rounded-2xl overflow-hidden border-2 transition-all hover:border-bloodRed/50 hover:scale-105 hover:cursor-[url('${avatar.url}'),_pointer] ${profile?.avatarUrl === avatar.url ? 'border-bloodRed shadow-[0_0_15px_rgba(255,0,63,0.4)] scale-105' : 'border-borderColor'}`}
+                                                    >
+                                                        <img src={avatar.url} alt={avatar.label} className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity" />
+                                                        {profile?.avatarUrl === avatar.url && (
+                                                            <div className="absolute inset-0 bg-bloodRed/10 flex items-center justify-center">
+                                                                <Check className="w-8 h-8 text-white drop-shadow-lg" />
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                         <div className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer" onClick={() => setEditingName(!editingName)}>
                             <span className="font-semibold text-white">Name</span>

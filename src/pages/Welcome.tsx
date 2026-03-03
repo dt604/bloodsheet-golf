@@ -29,14 +29,15 @@ export default function WelcomePage() {
     const [fullName, setFullName] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [skipAutoRedirect, setSkipAutoRedirect] = useState(false);
 
     const { user, profile } = useAuth();
 
     useEffect(() => {
-        if (user && profile) {
+        if (user && profile && !skipAutoRedirect) {
             navigate('/home');
         }
-    }, [user, profile, navigate]);
+    }, [user, profile, navigate, skipAutoRedirect]);
 
     const [grintSearch, setGrintSearch] = useState('');
     const [searchingGrint, setSearchingGrint] = useState(false);
@@ -79,6 +80,7 @@ export default function WelcomePage() {
     async function handleSignUp(selectedGrintProfile?: any) {
         setError('');
         setLoading(true);
+        setSkipAutoRedirect(true);
         const hcp = selectedGrintProfile?.handicap ?? 0;
         const avatar = selectedGrintProfile?.avatarUrl;
         const grintId = selectedGrintProfile?.grintId;
@@ -90,7 +92,7 @@ export default function WelcomePage() {
             setAuthMode('signup'); // Go back to correct info
             return;
         }
-        navigate('/home');
+        navigate('/onboarding');
     }
 
     async function handleSignIn() {
@@ -231,7 +233,7 @@ export default function WelcomePage() {
                                 onClick={() => handleSignUp()}
                                 disabled={loading}
                             >
-                                {loading ? 'Saving...' : 'Skip for now'}
+                                {loading ? 'Saving...' : 'Continue'}
                             </button>
                         </div>
                     </div>

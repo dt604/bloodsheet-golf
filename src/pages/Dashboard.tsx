@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, Camera, Loader, Clock, PenLine, Crown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Crown, History, PenLine, Clock, Camera, Loader, Check, X } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -9,6 +10,21 @@ import { supabase } from '../lib/supabase';
 import { useMatchStore } from '../store/useMatchStore';
 import SEO from '../components/SEO';
 import { RecentMedia } from '../components/dashboard/RecentMedia';
+
+// Import avatars
+import juniorAvatar from '../assets/avatars/junior.png';
+import oldFemaleAvatar from '../assets/avatars/old_female.png';
+import oldMaleAvatar from '../assets/avatars/old_male.png';
+import youngFemaleAvatar from '../assets/avatars/young_female.png';
+import youngMaleAvatar from '../assets/avatars/young_male.png';
+
+const AVATARS = [
+    { id: 'old_male', url: oldMaleAvatar, label: 'Old Male' },
+    { id: 'old_female', url: oldFemaleAvatar, label: 'Old Female' },
+    { id: 'young_male', url: youngMaleAvatar, label: 'Young Male' },
+    { id: 'young_female', url: youngFemaleAvatar, label: 'Young Female' },
+    { id: 'junior', url: juniorAvatar, label: 'Junior' },
+];
 
 interface MatchHistoryItem {
     id: string;
@@ -37,6 +53,7 @@ export default function DashboardPage() {
     const navigate = useNavigate();
     const { user, profile, updateProfile } = useAuth();
 
+    const [showAvatarPicker, setShowAvatarPicker] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
 
     const [history, setHistory] = useState<MatchHistoryItem[]>([]);
@@ -60,10 +77,27 @@ export default function DashboardPage() {
             if (uploadError) throw uploadError;
 
             const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
             await updateProfile({ avatarUrl: data.publicUrl });
+            setShowAvatarPicker(false);
         } catch (error: any) {
             console.error('Error uploading avatar:', error.message);
             alert('Failed to upload image. Please try again.');
+        } finally {
+            setUploadingImage(false);
+        }
+    }
+
+    async function handleSelectAvatar(url: string) {
+        if (!user) return;
+        setUploadingImage(true);
+        setShowAvatarPicker(false);
+
+        try {
+            await updateProfile({ avatarUrl: url });
+            setShowAvatarPicker(false);
+        } catch (error: any) {
+            console.error('Error selecting avatar:', error.message);
         } finally {
             setUploadingImage(false);
         }
@@ -496,40 +530,120 @@ export default function DashboardPage() {
             <SEO title="Dashboard" />
             {/* Scrollable Content */}
             {/* Ident & Ledger Bal */}
-            <section className="bg-surface rounded-2xl p-4 sm:p-6 border border-borderColor flex flex-col items-center">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden group cursor-pointer transition-transform hover:scale-105">
-                    {profile?.avatarUrl ? (
-                        <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                        initials
-                    )}
-                    <label className="absolute inset-0 bg-background/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity z-10 w-full h-full">
-                        {uploadingImage ? <Loader className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" /> : <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-bloodRed" />}
-                        <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingImage} />
-                    </label>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5 sm:mb-1 truncate max-w-full px-2">{profile?.fullName ?? '…'}</h2>
-                {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
-                    <div className="flex items-center justify-center gap-1.5 mt-1 mb-2 px-3 py-1 rounded-full bg-bloodRed/10 border border-bloodRed/30 shadow-[0_0_10px_rgba(255,0,63,0.15)]">
-                        <Crown className="w-4 h-4 text-bloodRed" />
-                        <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-bloodRed">BloodSheet Legend</span>
-                    </div>
-                )}
-                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8 mt-1 block">Member since {memberYear}</span>
+            <AnimatePresence mode="wait">
+                {!showAvatarPicker ? (
+                    <motion.section
+                        key="ident"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-surface rounded-2xl p-4 sm:p-6 border border-borderColor flex flex-col items-center"
+                    >
+                        <div
+                            className="w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden cursor-pointer transition-transform hover:scale-105 group"
+                            onClick={() => setShowAvatarPicker(true)}
+                        >
+                            {profile?.avatarUrl ? (
+                                <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                                initials
+                            )}
+                            <div className="absolute inset-0 bg-background/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 w-full h-full">
+                                {uploadingImage ? <Loader className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-white" /> : <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-lg" />}
+                            </div>
+                        </div>
+                        <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5 sm:mb-1 truncate max-w-full px-2">{profile?.fullName ?? '…'}</h2>
+                        {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
+                            <div className="flex items-center justify-center gap-1.5 mt-1 mb-2 px-3 py-1 rounded-full bg-bloodRed/10 border border-bloodRed/30 shadow-[0_0_10px_rgba(255,0,63,0.15)]">
+                                <Crown className="w-4 h-4 text-bloodRed" />
+                                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-bloodRed">BloodSheet Legend</span>
+                            </div>
+                        )}
+                        <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8 mt-1 block">Member since {memberYear}</span>
 
-                <div className="w-full flex">
-                    <div className="flex-1 border-r border-borderColor flex flex-col items-center justify-center py-1 sm:py-2 px-1">
-                        <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 leading-tight">Index</span>
-                        <span className="text-3xl sm:text-4xl font-black font-sans">{profile?.handicap ?? '—'}</span>
-                    </div>
-                    <div className="flex-1 flex flex-col items-center justify-center py-1 sm:py-2 px-1">
-                        <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 whitespace-nowrap leading-tight text-center">BloodSheet Total</span>
-                        <span className={`text-2xl sm:text-4xl font-black font-sans ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
-                            {stats.lifetimePayout >= 0 ? '+' : ''}${stats.lifetimePayout}
-                        </span>
-                    </div>
-                </div>
-            </section>
+                        <div className="w-full flex">
+                            <div className="flex-1 border-r border-borderColor flex flex-col items-center justify-center py-1 sm:py-2 px-1">
+                                <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 leading-tight">Index</span>
+                                <span className="text-3xl sm:text-4xl font-black font-sans">{profile?.handicap ?? '—'}</span>
+                            </div>
+                            <div className="flex-1 flex flex-col items-center justify-center py-1 sm:py-2 px-1">
+                                <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 whitespace-nowrap leading-tight text-center">BloodSheet Total</span>
+                                <span className={`text-2xl sm:text-4xl font-black font-sans ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
+                                    {stats.lifetimePayout >= 0 ? '+' : ''}${stats.lifetimePayout}
+                                </span>
+                            </div>
+                        </div>
+                    </motion.section>
+                ) : (
+                    <motion.section
+                        key="picker"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-surface rounded-2xl p-6 border border-borderColor space-y-6"
+                    >
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-black italic uppercase tracking-tight text-white">Choose Your Look</h3>
+                                <p className="text-secondaryText text-[10px] font-bold uppercase tracking-widest mt-0.5">Pick your presence</p>
+                            </div>
+                            <button
+                                onClick={() => setShowAvatarPicker(false)}
+                                className="w-10 h-10 rounded-xl bg-background border border-borderColor flex items-center justify-center text-secondaryText hover:text-white transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                            {/* Large Upload Button */}
+                            <motion.button
+                                whileHover={{ scale: 1.02, borderColor: '#FF003F' }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => document.getElementById('dashboardProfileUpload')?.click()}
+                                className="relative aspect-square rounded-2xl border-2 border-dashed border-borderColor bg-background/50 flex flex-col items-center justify-center gap-2 group transition-all"
+                            >
+                                {uploadingImage ? (
+                                    <Loader className="w-6 h-6 animate-spin text-bloodRed" />
+                                ) : (
+                                    <>
+                                        <div className="w-10 h-10 rounded-full bg-bloodRed/10 flex items-center justify-center group-hover:bg-bloodRed/20 transition-colors">
+                                            <Camera className="w-5 h-5 text-bloodRed" />
+                                        </div>
+                                        <div className="text-center">
+                                            <span className="block text-[8px] font-black uppercase tracking-widest text-white">Upload</span>
+                                            <span className="block text-[6px] font-bold uppercase tracking-widest text-secondaryText group-hover:text-bloodRed transition-colors">Photo</span>
+                                        </div>
+                                    </>
+                                )}
+                                <input
+                                    id="dashboardProfileUpload"
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleAvatarUpload}
+                                />
+                            </motion.button>
+
+                            {AVATARS.map((avatar) => (
+                                <button
+                                    key={avatar.id}
+                                    onClick={() => handleSelectAvatar(avatar.url)}
+                                    className={`relative aspect-square rounded-2xl overflow-hidden border-2 transition-all group ${profile?.avatarUrl === avatar.url ? 'border-bloodRed scale-105 shadow-[0_0_15px_rgba(255,0,63,0.4)]' : 'border-borderColor hover:border-bloodRed/50'
+                                        }`}
+                                >
+                                    <img src={avatar.url} alt={avatar.label} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                    {profile?.avatarUrl === avatar.url && (
+                                        <div className="absolute inset-0 bg-bloodRed/10 flex items-center justify-center">
+                                            <Check className="w-8 h-8 text-white drop-shadow-lg" />
+                                        </div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </motion.section>
+                )}
+            </AnimatePresence>
 
 
             {/* 2x2 Stats Grid */}

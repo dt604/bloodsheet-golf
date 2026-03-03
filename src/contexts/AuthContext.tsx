@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 interface Profile {
   id: string;
   fullName: string;
+  email: string;
   avatarUrl?: string;
   handicap: number;
   is_admin: boolean;
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile({
             id: data.id,
             fullName: data.full_name,
+            email: data.email ?? '',
             avatarUrl: data.avatar_url ?? undefined,
             handicap: data.handicap,
             is_admin: data.is_admin ?? false,
