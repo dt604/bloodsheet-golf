@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, MapPin, Settings2, Plus, X, Search, Loader, Swords, ArrowRight, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, MapPin, Settings2, Plus, X, Search, Loader, Swords, ArrowRight, ArrowLeft, Info } from 'lucide-react';
 import { StepTracker } from '../components/ui/StepTracker';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { Button } from '../components/ui/Button';
@@ -98,6 +98,17 @@ export default function MatchSetupPage() {
         }
         setPendingTeamSkins(enabled);
     }
+
+    const [tooltips, setTooltips] = useState<Record<string, { strokes?: boolean, wager?: boolean }>>({});
+    const toggleTooltip = (slotId: string, type: 'strokes' | 'wager') => {
+        setTooltips(prev => ({
+            ...prev,
+            [slotId]: {
+                ...prev[slotId],
+                [type]: !prev[slotId]?.[type]
+            }
+        }));
+    };
 
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
@@ -721,8 +732,28 @@ export default function MatchSetupPage() {
                                                         {/* Wager Grid */}
                                                         {slot.opponentId && (
                                                             <div className="grid grid-cols-2 gap-3 pt-2">
-                                                                <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30">
-                                                                    <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest mb-1">Strokes</div>
+                                                                <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30 flex flex-col justify-between">
+                                                                    <div>
+                                                                        <div
+                                                                            className="flex items-center justify-between mb-1 cursor-pointer w-full group"
+                                                                            onClick={() => toggleTooltip(slot.id, 'strokes')}
+                                                                        >
+                                                                            <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest group-hover:text-white transition-colors">Strokes</div>
+                                                                            <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-white transition-colors" />
+                                                                        </div>
+                                                                        <AnimatePresence>
+                                                                            {tooltips[slot.id]?.strokes && (
+                                                                                <motion.div
+                                                                                    initial={{ opacity: 0, height: 0 }}
+                                                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                                                    exit={{ opacity: 0, height: 0 }}
+                                                                                    className="text-[9px] text-secondaryText/80 font-medium leading-relaxed mb-2 overflow-hidden pr-2"
+                                                                                >
+                                                                                    Strokes spotted to the higher handicap based on the exact Course Handicap differential.
+                                                                                </motion.div>
+                                                                            )}
+                                                                        </AnimatePresence>
+                                                                    </div>
                                                                     {(() => {
                                                                         const p1Id = slot.player1Id || user?.id;
                                                                         const p1 = p1Id === user?.id ? { handicap: creatorHcp } : poolPlayers.find(p => p.userId === p1Id);
@@ -731,7 +762,7 @@ export default function MatchSetupPage() {
                                                                         const strokes = slot.strokeOverride !== undefined ? slot.strokeOverride : calcStrokes;
                                                                         const label = strokes > 0 ? `+${strokes}` : strokes < 0 ? `${strokes}` : 'Even';
                                                                         return (
-                                                                            <div className="flex items-center justify-between">
+                                                                            <div className="flex items-center justify-between mt-auto pt-1">
                                                                                 <span className="text-lg font-black text-neonGreen">{label}</span>
                                                                                 <div className="flex gap-1">
                                                                                     <button onClick={() => setSlotStrokes(slot.id, strokes - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed">−</button>
@@ -741,9 +772,29 @@ export default function MatchSetupPage() {
                                                                         );
                                                                     })()}
                                                                 </div>
-                                                                <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30">
-                                                                    <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest mb-1">Match Wager</div>
-                                                                    <div className="flex items-center justify-between">
+                                                                <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30 flex flex-col justify-between">
+                                                                    <div>
+                                                                        <div
+                                                                            className="flex items-center justify-between mb-1 cursor-pointer w-full group"
+                                                                            onClick={() => toggleTooltip(slot.id, 'wager')}
+                                                                        >
+                                                                            <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest group-hover:text-white transition-colors">Match Wager</div>
+                                                                            <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-white transition-colors" />
+                                                                        </div>
+                                                                        <AnimatePresence>
+                                                                            {tooltips[slot.id]?.wager && (
+                                                                                <motion.div
+                                                                                    initial={{ opacity: 0, height: 0 }}
+                                                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                                                    exit={{ opacity: 0, height: 0 }}
+                                                                                    className="text-[9px] text-secondaryText/80 font-medium leading-relaxed mb-2 overflow-hidden pr-2"
+                                                                                >
+                                                                                    Amount bet separately on the Front 9, Back 9, and the Overall match.
+                                                                                </motion.div>
+                                                                            )}
+                                                                        </AnimatePresence>
+                                                                    </div>
+                                                                    <div className="flex items-center justify-between mt-auto pt-1">
                                                                         <span className="text-lg font-black text-white">${slot.wager}</span>
                                                                         <div className="flex gap-1">
                                                                             <button onClick={() => setSlotWager(slot.id, Math.max(5, (slot.wager || 10) - 5))} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed">-</button>
