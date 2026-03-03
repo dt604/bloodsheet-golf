@@ -38,14 +38,16 @@ export default function MomentsPage() {
             }
 
             // We fetch media where any of the targetIds were tagged as player_id or uploader_id
-            const targetIdsStr = targetIds.join(',');
+            const orQuery = targetIds.map(id => `player_id.eq.${id},uploader_id.eq.${id}`).join(',');
 
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from('match_media')
                 .select('id, media_url, media_type, hole_number, player_id, uploader_id, created_at, matches(id, courses(name)), players:player_id(id, raw_user_meta_data)')
-                .or(`player_id.in.(${targetIdsStr}),uploader_id.in.(${targetIdsStr})`)
+                .or(orQuery)
                 .order('created_at', { ascending: false })
                 .limit(50);
+
+            if (error) console.error("Vault Query Error:", error);
 
             if (data) {
                 setMediaItems(data);
