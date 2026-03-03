@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { EmptyState } from '../components/ui/EmptyState';
 import { Flag, ChevronRight, Zap } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatchStore } from '../store/useMatchStore';
 import SEO from '../components/SEO';
+import { ActivityFeed } from '../components/home/ActivityFeed';
 
 export default function Home() {
     const { user, profile } = useAuth();
@@ -15,18 +14,14 @@ export default function Home() {
     const { loadMatch } = useMatchStore();
     const [activeMatch, setActiveMatch] = useState<any>(null);
     const [pendingAttestMatch, setPendingAttestMatch] = useState<any>(null);
-    const [recentMatches, setRecentMatches] = useState<any[]>([]);
-    const [loadingMatches, setLoadingMatches] = useState(true);
 
     useEffect(() => {
         if (!user) return;
         const userId = user.id;
 
         async function fetchData() {
-            setLoadingMatches(true);
-
-            // Fetch All Match Contexts in Parallel to avoid waterfalling
-            const [activeRes, attestRes, historyRes] = await Promise.all([
+            // Fetch Active and Pending Matches in Parallel
+            const [activeRes, attestRes] = await Promise.all([
                 // 1. Check for Active Match
                 supabase
                     .from('match_players')
@@ -42,14 +37,7 @@ export default function Home() {
                     .eq('user_id', userId)
                     .eq('matches.status', 'pending_attestation')
                     .order('matches(created_at)', { ascending: false })
-                    .limit(1),
-                // 2. Fetch Recent Matches (History)
-                supabase
-                    .from('match_players')
-                    .select('match_id, matches!inner(id, status, created_at, format, wager_type, wager_amount, side_bets, courses(name))')
-                    .eq('user_id', userId)
-                    .order('matches(created_at)', { ascending: false })
-                    .limit(3)
+                    .limit(1)
             ]);
 
             if (activeRes.data && activeRes.data.length > 0) {
@@ -59,125 +47,6 @@ export default function Home() {
             if (attestRes.data && attestRes.data.length > 0) {
                 setPendingAttestMatch((attestRes.data[0] as any).matches);
             }
-
-            if (historyRes.data) {
-                const rawMatches = historyRes.data.map((h: any) => h.matches);
-                const completedMatchIds = rawMatches.filter(m => m.status === 'completed').map(m => m.id);
-
-                if (completedMatchIds.length > 0) {
-                    const [{ data: allPlayers }, { data: allScores }] = await Promise.all([
-                        supabase.from('match_players').select('match_id, user_id, team').in('match_id', completedMatchIds),
-                        supabase.from('hole_scores').select('match_id, hole_number, player_id, net').in('match_id', completedMatchIds),
-                    ]);
-
-                    const calculatedMatches = rawMatches.map((match: any) => {
-                        if (match.status !== 'completed') return match;
-
-                        try {
-                            const matchId = match.id;
-                            const mPlayers = (allPlayers ?? []).filter((p: any) => p.match_id === matchId);
-                            const mScores = (allScores ?? []).filter((s: any) => s.match_id === matchId);
-                            const myEntry = mPlayers.find((p: any) => p.user_id === userId);
-                            if (!myEntry) return match;
-
-                            const myTeam = myEntry.team;
-                            const oppTeam = myTeam === 'A' ? 'B' : 'A';
-                            const wager = match.wager_amount || 0;
-
-                            if (match.format === 'skins') {
-                                // Simplified Skins calculation for Home preview
-                                let payout = 0;
-                                const numPlayers = mPlayers.length;
-                                const isPot = match.side_bets?.potMode ?? false;
-
-                                if (isPot) {
-                                    // Pot logic: winners split (simplified for preview)
-                                    // We'd need more logic for 'who won' if we want it perfect, but let's just use 0 for now if complex
-                                    payout = 0;
-                                } else {
-                                    // Standard skins
-                                    const isTeam = match.side_bets?.teamSkins ?? false;
-                                    const skinCounts: Record<string, number> = {};
-                                    let carry = 0;
-                                    for (let h = 1; h <= 18; h++) {
-                                        const hS = mScores.filter((s: any) => s.hole_number === h);
-                                        if (hS.length < numPlayers) continue;
-
-                                        if (isTeam) {
-                                            const aNet = Math.min(...hS.filter(s => mPlayers.find(p => p.user_id === s.player_id)?.team === 'A').map(s => s.net));
-                                            const bNet = Math.min(...hS.filter(s => mPlayers.find(p => p.user_id === s.player_id)?.team === 'B').map(s => s.net));
-                                            if (aNet !== bNet) {
-                                                const winTeam = aNet < bNet ? 'A' : 'B';
-                                                hS.filter(s => mPlayers.find(p => p.user_id === s.player_id)?.team === winTeam).forEach(s => {
-                                                    skinCounts[s.player_id] = (skinCounts[s.player_id] || 0) + (1 + carry);
-                                                });
-                                                carry = 0;
-                                            } else carry++;
-                                        } else {
-                                            const minNet = Math.min(...hS.map((s: any) => s.net));
-                                            const winners = hS.filter((s: any) => s.net === minNet);
-                                            if (winners.length === 1) {
-                                                const wId = winners[0].player_id;
-                                                skinCounts[wId] = (skinCounts[wId] || 0) + (1 + carry);
-                                                carry = 0;
-                                            } else carry++;
-                                        }
-                                    }
-
-                                    const mySkins = skinCounts[userId] || 0;
-                                    if (isTeam) {
-                                        const oppTeamMembers = mPlayers.filter(p => p.team === oppTeam);
-                                        const oppSkins = skinCounts[oppTeamMembers[0]?.user_id] || 0;
-                                        payout = (mySkins - oppSkins) * wager;
-                                    } else {
-                                        const totalSkinsWon = Object.values(skinCounts).reduce((a, b) => a + b, 0);
-                                        payout = (mySkins * (numPlayers - 1) * wager) - ((totalSkinsWon - mySkins) * wager);
-                                    }
-                                }
-                                return { ...match, payout };
-                            } else {
-                                // Default Nassau-style
-                                function nassauResult(holes: number[]) {
-                                    let myHoles = 0, oppHoles = 0;
-                                    for (const h of holes) {
-                                        const myHoleScores = mScores.filter((s: any) => s.hole_number === h && mPlayers.find(p => p.user_id === s.player_id)?.team === myTeam).map((s: any) => s.net);
-                                        const oppHoleScores = mScores.filter((s: any) => s.hole_number === h && mPlayers.find(p => p.user_id === s.player_id)?.team === oppTeam).map((s: any) => s.net);
-
-                                        if (myHoleScores.length > 0 && oppHoleScores.length > 0) {
-                                            const myNet = Math.min(...myHoleScores);
-                                            const oppNet = Math.min(...oppHoleScores);
-                                            if (myNet < oppNet) myHoles++;
-                                            else if (oppNet < myNet) oppHoles++;
-                                        }
-                                    }
-                                    if (myHoles > oppHoles) return wager;
-                                    if (oppHoles > myHoles) return -wager;
-                                    return 0;
-                                }
-                                const holesPlayed = [...new Set(mScores.map((s: any) => s.hole_number))];
-                                const validHoles = holesPlayed.filter(h => {
-                                    const hasMy = mScores.some((s: any) => s.hole_number === h && mPlayers.find(p => p.user_id === s.player_id)?.team === myTeam);
-                                    const hasOpp = mScores.some((s: any) => s.hole_number === h && mPlayers.find(p => p.user_id === s.player_id)?.team === oppTeam);
-                                    return hasMy && hasOpp;
-                                });
-                                const front = validHoles.filter(h => h <= 9);
-                                const back = validHoles.filter(h => h > 9);
-                                const payout = (front.length >= 9 ? nassauResult(front) : 0) +
-                                    (back.length >= 9 ? nassauResult(back) : 0) +
-                                    (validHoles.length >= 18 ? nassauResult(validHoles) : 0);
-                                return { ...match, payout };
-                            }
-                        } catch (err) {
-                            return match;
-                        }
-                    });
-                    setRecentMatches(calculatedMatches);
-                } else {
-                    setRecentMatches(rawMatches);
-                }
-            }
-
-            setLoadingMatches(false);
         }
 
         fetchData();
@@ -196,14 +65,6 @@ export default function Home() {
         await loadMatch(activeMatch.id);
         navigate('/play/1');
     };
-
-    const handleMatchClick = async (matchId: string) => {
-        localStorage.setItem('activeMatchId', matchId);
-        await loadMatch(matchId);
-        navigate('/play/1');
-    };
-
-
 
     const initials = profile?.fullName
         ? profile.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -332,60 +193,9 @@ export default function Home() {
 
             <section className="px-4">
                 <div className="flex items-center justify-between mb-4 ml-1">
-                    <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Recent Activity</h3>
-                    <Link to="/history" className="text-[10px] text-bloodRed font-black uppercase tracking-widest hover:underline">See All</Link>
+                    <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Activity Feed</h3>
                 </div>
-                <div className="space-y-3">
-                    {loadingMatches ? (
-                        <div className="flex items-center justify-center py-8">
-                            <div className="w-6 h-6 border-2 border-bloodRed border-t-transparent rounded-full animate-spin" />
-                        </div>
-                    ) : recentMatches.length > 0 ? (
-                        recentMatches.map((match) => (
-                            <Card
-                                key={match.id}
-                                className="p-4 bg-surface border-white/5 flex items-center justify-between group hover:border-bloodRed/30 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
-                                onClick={() => match.status === 'completed' ? navigate(`/history/${match.id}`) : handleMatchClick(match.id)}
-                            >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-bloodRed shrink-0 overflow-hidden">
-                                        {profile?.avatarUrl ? (
-                                            <img src={profile.avatarUrl} alt="Me" className="w-full h-full object-cover grayscale" />
-                                        ) : (
-                                            initials
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-white uppercase italic text-sm truncate">{match.courses?.name || 'Unknown Course'}</span>
-                                            {match.status === 'completed' ? (
-                                                <span className={`text-[10px] font-black italic shrink-0 ${match.payout > 0 ? 'text-neonGreen drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]' : match.payout < 0 ? 'text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.4)]' : 'text-secondaryText'}`}>
-                                                    {match.payout > 0 ? `+$${match.payout}` : match.payout < 0 ? `-$${Math.abs(match.payout)}` : '$0'}
-                                                </span>
-                                            ) : (
-                                                <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0 bg-neonGreen/20 text-neonGreen">
-                                                    {match.status}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest block mt-0.5 opacity-60">
-                                            {match.format === 'skins' ? (match.side_bets?.teamSkins ? '2v2 Skins' : 'Skins') : match.format} • {new Date(match.created_at).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                </div>
-                                <ChevronRight className="w-4 h-4 text-secondaryText group-hover:text-bloodRed group-hover:translate-x-1 transition-all shrink-0" />
-                            </Card>
-                        ))
-                    ) : (
-                        <EmptyState
-                            title="No Rounds"
-                            description="Your legends start here. Tee off for your first bloodsheet."
-                            actionLabel="Tee It Up"
-                            onAction={() => navigate('/setup')}
-                            accentColor="bloodRed"
-                        />
-                    )}
-                </div>
+                <ActivityFeed />
             </section>
         </>
     );

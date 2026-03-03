@@ -204,8 +204,8 @@ function calcSkinsStandings(
                 const bonusCount = pinBonus + birdieBonus + eagleBonus;
                 if (bonusCount === 0) continue;
                 // Bonus skins: only pay out from opponents, not teammates
-                const sTeam = hScores.find(x => x.playerId === s.playerId)?.team ?? playerTeam(s.playerId);
-                const oppPlayers = hScores.filter(x => (x.team ?? playerTeam(x.playerId)) !== sTeam);
+                const sTeam = playerTeam(s.playerId);
+                const oppPlayers = hScores.filter(x => playerTeam(x.playerId) !== sTeam);
                 const numOpponents = oppPlayers.length;
 
                 earned[s.playerId] = (earned[s.playerId] ?? 0) + bonusCount * skinValue * numOpponents;
@@ -1254,7 +1254,7 @@ export default function LeaderboardPage() {
                     </div>
 
                     {/* Scorecard Legend - Refined Guidance Card */}
-                    <div className="mt-6 mx-1 p-3 rounded-xl bg-surface/20 border border-borderColor/20 backdrop-blur-md relative overflow-hidden group">
+                    <div className="mt-3 mx-1 p-4 rounded-xl bg-surface/20 border border-borderColor/20 backdrop-blur-md relative overflow-hidden group">
                         {/* Background Decor */}
                         <div className="absolute top-0 right-0 w-24 h-24 bg-bloodRed/5 blur-3xl -mr-12 -mt-12 transition-colors group-hover:bg-bloodRed/10" />
 
@@ -1307,6 +1307,16 @@ export default function LeaderboardPage() {
                                 <div className="flex items-center gap-2">
                                     <Droplets className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.4)]" />
                                     <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Sandie</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 rounded-full bg-bloodRed/20 border border-bloodRed/40 flex items-center justify-center shadow-[0_0_5px_rgba(255,0,63,0.2)]">
+                                        <div className="w-1 h-1 rounded-full bg-bloodRed" />
+                                    </div>
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Stroke Hole</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Camera className="w-3.5 h-3.5 text-white/70" />
+                                    <span className="text-[9px] font-black text-secondaryText uppercase tracking-tight">Media</span>
                                 </div>
                             </div>
                         </div>
