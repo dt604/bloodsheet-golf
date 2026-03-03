@@ -18,10 +18,10 @@ export default function BottomNavigation() {
 
     return (
         <>
-            {/* Bottom Navigation Bar - Floating Design */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm z-40">
-                <nav className="bg-[#1C1C1E]/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2 shadow-[0_15px_35px_rgba(0,0,0,0.5)]">
-                    <div className="flex items-center justify-between h-14 relative">
+            {/* Bottom Navigation Bar - Native iOS Glass Dock Design */}
+            <div className="fixed bottom-0 left-0 w-full z-40 pb-safe">
+                <nav className="bg-[#1C1C1E]/85 backdrop-blur-2xl border-t border-white/10 px-6 py-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+                    <div className="flex items-center justify-between h-14 relative max-w-md mx-auto">
 
                         {/* Left Items */}
                         <div className="flex items-center gap-8">
