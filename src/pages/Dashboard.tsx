@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Settings, History, Users, Camera, Loader, ShieldCheck, Home, Clock, PenLine, Crown } from 'lucide-react';
-import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -652,16 +651,6 @@ export default function DashboardPage() {
                     )}
                 </section>
             </main>
-
-            {/* Primary Action Buttons - Stationary */}
-            <div className="bg-background border-t border-borderColor p-3 sm:p-4 flex gap-2 sm:gap-3 z-20 shrink-0 pb-safe">
-                <Button variant="outline" size="sm" className="flex-1 h-12 sm:h-14 font-bold uppercase tracking-wider text-sm sm:text-base" onClick={() => navigate('/join')}>
-                    Join Match
-                </Button>
-                <Button size="lg" className="flex-[2] h-12 sm:h-14 text-sm sm:text-base uppercase tracking-widest font-black shadow-[0_0_20px_rgba(255,0,63,0.4)]" onClick={() => navigate('/setup')}>
-                    Start New Match
-                </Button>
-            </div>
         </div>
     );
 }

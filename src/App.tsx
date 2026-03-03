@@ -30,6 +30,7 @@ import UserManagement from './pages/admin/UserManagement';
 import MatchManagement from './pages/admin/MatchManagement';
 import CourseManagement from './pages/admin/CourseManagement';
 import { AdminRoute } from './components/admin/AdminRoute';
+import MainLayout from './components/layout/MainLayout';
 
 // Full auth required — guests are redirected to welcome
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -84,7 +85,7 @@ function AppRoutes() {
         <Route path="/reset-password" element={<PageWrapper><ResetPasswordPage /></PageWrapper>} />
         <Route path="/auth/callback" element={<PageWrapper><AuthCallbackPage /></PageWrapper>} />
         <Route path="/onboarding" element={<ProtectedRoute><PageWrapper><OnboardingPage /></PageWrapper></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><PageWrapper><DashboardPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><PageWrapper><MainLayout><DashboardPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/setup" element={<ProtectedRoute><PageWrapper><MatchSetupPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/play/:hole" element={<ViewerRoute><PageWrapper><LiveScorecardPage /></PageWrapper></ViewerRoute>} />
         <Route path="/ledger" element={<ViewerRoute><PageWrapper><LedgerPage /></PageWrapper></ViewerRoute>} />
@@ -92,13 +93,13 @@ function AppRoutes() {
         <Route path="/add-player" element={<ProtectedRoute><PageWrapper><AddPlayerPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><PageWrapper><SettingsPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/join" element={<ViewerRoute><PageWrapper><JoinMatchPage /></PageWrapper></ViewerRoute>} />
-        <Route path="/money-leaders" element={<ProtectedRoute><PageWrapper><MoneyLeadersPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/money-leaders" element={<ProtectedRoute><PageWrapper><MainLayout><MoneyLeadersPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/qr" element={<ProtectedRoute><PageWrapper><QRPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/add-friend/:userId" element={<ProtectedRoute><PageWrapper><AddFriendQR /></PageWrapper></ProtectedRoute>} />
-        <Route path="/friends" element={<ProtectedRoute><PageWrapper><FriendsPage /></PageWrapper></ProtectedRoute>} />
-        <Route path="/history" element={<ProtectedRoute><PageWrapper><MatchHistoryPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/friends" element={<ProtectedRoute><PageWrapper><MainLayout><FriendsPage /></MainLayout></PageWrapper></ProtectedRoute>} />
+        <Route path="/history" element={<ProtectedRoute><PageWrapper><MainLayout><MatchHistoryPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/history/:matchId" element={<ProtectedRoute><PageWrapper><PastMatchScorecardPage /></PageWrapper></ProtectedRoute>} />
-        <Route path="/player/:userId" element={<ProtectedRoute><PageWrapper><PlayerProfilePage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/player/:userId" element={<ProtectedRoute><PageWrapper><MainLayout><PlayerProfilePage /></MainLayout></PageWrapper></ProtectedRoute>} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
