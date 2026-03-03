@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Camera } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight, Trash2, MessageSquare } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
 import { MediaLightbox } from '../components/ui/MediaLightbox';
+import { TrashTalkDrawer } from '../components/ui/TrashTalkDrawer';
 import { motion, AnimatePresence } from 'framer-motion';
 import SEO from '../components/SEO';
 
@@ -124,6 +125,9 @@ export default function LiveScorecardPage() {
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [lightboxInitialIndex, setLightboxInitialIndex] = useState(0);
     const [lightboxItems, setLightboxItems] = useState<any[]>([]);
+
+    // Trash Talk State
+    const [isTrashTalkOpen, setIsTrashTalkOpen] = useState(false);
 
     const holeMedia = useMemo(() => {
         return matchMedia.filter(m => m.hole_number === currentHole);
@@ -1245,6 +1249,23 @@ export default function LiveScorecardPage() {
                     />
                 )
             }
+
+            {/* Trash Talk FAB */}
+            <button
+                onClick={() => setIsTrashTalkOpen(true)}
+                className="fixed bottom-24 right-4 sm:right-6 lg:right-auto lg:translate-x-[180px] w-14 h-14 rounded-full bg-bloodRed text-white flex items-center justify-center shadow-[0_0_20px_rgba(255,0,63,0.5)] hover:scale-105 active:scale-95 transition-all z-40"
+            >
+                <MessageSquare className="w-6 h-6" />
+            </button>
+
+            {/* Trash Talk Drawer */}
+            {matchId && (
+                <TrashTalkDrawer
+                    matchId={matchId}
+                    isOpen={isTrashTalkOpen}
+                    onClose={() => setIsTrashTalkOpen(false)}
+                />
+            )}
         </div >
     );
 }
