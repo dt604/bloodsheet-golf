@@ -469,7 +469,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         course_id: course.id,
         format: 'skins',
         wager_amount: sharedData.wagerAmount,
-        wager_type: 'NASSAU', // sentinel; skins logic is driven by format
+        wager_type: 'SKINS', // driven by format
         status: 'in_progress',
         side_bets: sharedData.sideBets,
         created_by: createdBy,

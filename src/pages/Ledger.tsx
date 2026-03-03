@@ -309,10 +309,11 @@ export default function LedgerPage() {
                             const isUserWinner = winTeam === myTeam;
                             const numWinners = players.filter(p => p.team === winTeam).length;
                             const numLosers = players.filter(p => p.team === loseTeam).length;
-                            const baseAmount = isUserWinner ? potPerPlayer * numLosers : -potPerPlayer * numWinners;
+                            const individualReward = (potPerPlayer * numLosers) / (numWinners || 1);
+                            const baseAmount = isUserWinner ? individualReward : -individualReward;
                             const baseSublabel = isUserWinner
-                                ? `Team ${winTeam} wins — you collect $${potPerPlayer} from each opponent`
-                                : `Team ${winTeam} wins — you pay $${potPerPlayer} to each winner`;
+                                ? `Team ${winTeam} wins — you collect $${individualReward} total per skin`
+                                : `Team ${winTeam} wins — you pay $${individualReward} total per skin`;
                             const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
                             result.push({ label: rangeLabel, sublabel, amount: baseAmount + userBonusAmount });
                             carry = 0;

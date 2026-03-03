@@ -119,7 +119,7 @@ export default function DashboardPage() {
             if (allMatchIds.length > 0) {
                 const { data } = await supabase
                     .from('matches')
-                    .select('id, format, wager_type, wager_amount, status, created_at, created_by, courses(name)')
+                    .select('id, format, wager_type, wager_amount, status, created_at, created_by, side_bets, courses(name)')
                     .in('id', allMatchIds)
                     .in('status', ['completed', 'pending_attestation', 'in_progress'])
                     .order('created_at', { ascending: false })
@@ -202,11 +202,18 @@ export default function DashboardPage() {
                             .filter((p) => (p as Record<string, unknown>).team === myTeam)
                             .map((p) => firstName(p as Record<string, unknown>))
                             .join(' & ');
-                        const oppNames = matchPlayers
-                            .filter((p) => (p as Record<string, unknown>).team === oppTeam)
-                            .map((p) => firstName(p as Record<string, unknown>))
-                            .join(' & ');
-                        playerLabel = `${myNames} vs ${oppNames}`;
+                        const oppPlayers = matchPlayers.filter((p) => (p as Record<string, unknown>).team === oppTeam);
+                        if (oppPlayers.length > 0) {
+                            const oppNames = oppPlayers.map((p) => firstName(p as Record<string, unknown>)).join(' & ');
+                            playerLabel = `${myNames} vs ${oppNames}`;
+                        } else {
+                            // Individual mode: everyone on one team. Find others on the same team.
+                            const otherNames = matchPlayers
+                                .filter((p) => (p as Record<string, unknown>).user_id !== userId && (p as Record<string, unknown>).team === myTeam)
+                                .map((p) => firstName(p as Record<string, unknown>))
+                                .join(', ');
+                            playerLabel = `You vs ${otherNames || 'Others'}`;
+                        }
                     }
 
                     const course = m.courses as Record<string, unknown> | null;
@@ -215,7 +222,7 @@ export default function DashboardPage() {
                         courseName: course?.name as string ?? 'Unknown Course',
                         playerLabel,
                         format: m.format as string,
-                        wagerType: m.wager_type as string,
+                        wagerType: (m.format as string)?.toLowerCase() === 'skins' ? ((m as any).side_bets?.teamSkins ? '2V2 SKINS' : 'SKINS') : m.wager_type as string,
                         createdAt: m.created_at as string,
                         payout: 0,
                         holesUp: 0,
@@ -415,10 +422,10 @@ export default function DashboardPage() {
                                     if (aNet !== bNet) {
                                         const winTeam = aNet < bNet ? 'A' : 'B';
                                         const myScore = hScores.find(s => s.playerId === userId);
-                                        const numOpp = hScores.filter(s => s.team !== winTeam).length;
-                                        const numWin = hScores.filter(s => s.team === winTeam).length;
-                                        if (myScore?.team === winTeam) skinsPayout += potVal * numOpp;
-                                        else skinsPayout -= potVal * numWin;
+                                        const numOppTotal = matchPlayers.filter(p => (p as any).team !== winTeam).length;
+                                        const numWinTotal = matchPlayers.filter(p => (p as any).team === winTeam).length;
+                                        if (myScore?.team === winTeam) skinsPayout += (potVal * numOppTotal) / (numWinTotal || 1);
+                                        else skinsPayout -= (potVal * numWinTotal) / (numOppTotal || 1);
                                         carry2 = 0;
                                     } else carry2 += 1;
                                 } else {

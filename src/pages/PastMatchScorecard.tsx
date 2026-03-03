@@ -51,6 +51,8 @@ interface MatchScorecardData {
         snake?: boolean;
         birdiesDouble?: boolean;
         bonusSkins?: boolean;
+        teamSkins?: boolean;
+        potMode?: boolean;
         trashValue?: number;
     };
     holes: CourseHole[];
@@ -557,78 +559,164 @@ export default function PastMatchScorecardPage() {
     } else if (isSkins) {
         const numPlayers = players.length;
         const skinValue = wagerAmount;
+        const isTeamSkins = sideBets?.teamSkins ?? false;
+        const isPotMode = sideBets?.potMode ?? false;
         const earned: Record<string, number> = {};
         const skinsWon: Record<string, number> = {};
         const holeItems: SettlementLineItem[] = [];
-        let carry = 0;
         const myId = user?.id ?? '';
 
+        // First pass: compute skins won per player
+        const skinCountPerHole: Record<number, string[]> = {}; // Map of hole -> winners userIds
+        let carryCounter = 0;
         for (let h = 1; h <= 18; h++) {
             const hScores = players
                 .filter(p => p.scores[h]?.gross)
-                .map(p => ({ playerId: p.id, net: p.scores[h].net, gross: p.scores[h].gross, dots: p.scores[h].dots }));
+                .map(p => ({ playerId: p.id, net: p.scores[h].net, team: p.team }));
             if (hScores.length < numPlayers) continue;
 
-            // Bonus skins for this hole
-            const par = sideBets?.bonusSkins ? (holes.find(hole => hole.number === h)?.par ?? 4) : 4;
-            let userBonusAmount = 0;
-            const bonusNotes: string[] = [];
-            if (sideBets?.bonusSkins) {
-                for (const s of hScores) {
-                    const pinBonus = s.dots?.includes('pin') ? 1 : 0;
-                    const birdieBonus = s.gross === par - 1 ? 1 : 0;
-                    const eagleBonus = s.gross <= par - 2 ? 2 : 0;
-                    const bonusCount = pinBonus + birdieBonus + eagleBonus;
-                    if (bonusCount === 0) continue;
-                    const isMe = s.playerId === myId;
-                    userBonusAmount += isMe ? bonusCount * skinValue * (numPlayers - 1) : -bonusCount * skinValue;
-                    earned[s.playerId] = (earned[s.playerId] ?? 0) + (isMe ? bonusCount * skinValue * (numPlayers - 1) : -bonusCount * skinValue);
-                    skinsWon[s.playerId] = (skinsWon[s.playerId] ?? 0) + bonusCount;
-                    const pName = isMe ? 'You' : (players.find(p => p.id === s.playerId)?.fullName.split(' ')[0] ?? 'Player');
-                    const bl = [pinBonus > 0 ? 'Pin' : '', birdieBonus > 0 ? 'Birdie' : '', eagleBonus > 0 ? 'Eagle' : ''].filter(Boolean).join('+');
-                    bonusNotes.push(`${pName}: ${bl}`);
-                }
-            }
-
-            const holesInPot = 1 + carry;
-            const pot = holesInPot * skinValue;
-            const minNet = Math.min(...hScores.map(s => s.net));
-            const winners = hScores.filter(s => s.net === minNet);
-
-            if (winners.length === 1) {
-                const wId = winners[0].playerId;
-                const isUserWinner = wId === myId;
-                const baseAmount = isUserWinner ? pot * (numPlayers - 1) : -pot;
-                earned[wId] = (earned[wId] ?? 0) + pot * (numPlayers - 1);
-                hScores.filter(s => s.playerId !== wId).forEach(s => {
-                    earned[s.playerId] = (earned[s.playerId] ?? 0) - pot;
-                });
-                skinsWon[wId] = (skinsWon[wId] ?? 0) + holesInPot;
-                const winnerName = players.find(p => p.id === wId)?.fullName.split(' ')[0] ?? 'Player';
-                const rangeLabel = holesInPot > 1 ? `Holes ${h - holesInPot + 1}–${h}` : `Hole ${h}`;
-                const baseSublabel = isUserWinner ? `You win — $${pot} from each` : `${winnerName} wins — you pay $${pot}`;
-                const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
-                holeItems.push({ label: rangeLabel, sublabel, amount: baseAmount + userBonusAmount });
-                carry = 0;
+            const holesInPot = 1 + carryCounter;
+            if (isTeamSkins) {
+                const aNet = Math.min(...hScores.filter(s => s.team === 'A').map(s => s.net));
+                const bNet = Math.min(...hScores.filter(s => s.team === 'B').map(s => s.net));
+                if (aNet !== bNet) {
+                    const winTeam = aNet < bNet ? 'A' : 'B';
+                    const winners = hScores.filter(s => s.team === winTeam).map(s => s.playerId);
+                    winners.forEach(wId => {
+                        skinsWon[wId] = (skinsWon[wId] ?? 0) + holesInPot;
+                    });
+                    skinCountPerHole[h] = winners;
+                    carryCounter = 0;
+                } else carryCounter += 1;
             } else {
-                const baseSublabel = 'Tied — skin carries';
-                const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
-                holeItems.push({ label: `Hole ${h}`, sublabel, amount: userBonusAmount });
-                carry += 1;
+                const minNet = Math.min(...hScores.map(s => s.net));
+                const winners = hScores.filter(s => s.net === minNet);
+                if (winners.length === 1) {
+                    const wId = winners[0].playerId;
+                    skinsWon[wId] = (skinsWon[wId] ?? 0) + holesInPot;
+                    skinCountPerHole[h] = [wId];
+                    carryCounter = 0;
+                } else carryCounter += 1;
             }
         }
 
-        if (carry > 0) {
-            holeItems.push({ label: 'Final Carry', sublabel: `${carry} skin${carry > 1 ? 's' : ''} uncontested — returned`, amount: 0 });
+        // Build display items and final earned amounts
+        if (isPotMode) {
+            const totalPot = wagerAmount * numPlayers;
+            const maxSkins = Math.max(0, ...Object.values(skinsWon));
+            const potWinners = maxSkins > 0 ? Object.keys(skinsWon).filter(id => skinsWon[id] === maxSkins) : [];
+            const potShare = potWinners.length > 1 ? totalPot / potWinners.length : totalPot;
+
+            players.forEach(p => {
+                earned[p.id] = potWinners.includes(p.id) ? potShare - wagerAmount : -wagerAmount;
+            });
+
+            // Display individual hole outcomes in holeItems
+            let carryPot = 0;
+            for (let h = 1; h <= 18; h++) {
+                const winners = skinCountPerHole[h];
+                if (winners) {
+                    const holesInPot = 1 + carryPot;
+                    const rangeLabel = holesInPot > 1 ? `Holes ${h - holesInPot + 1}–${h}` : `Hole ${h}`;
+                    const winnersNames = winners.map(wId => players.find(p => p.id === wId)?.fullName.split(' ')[0] ?? 'Player').join(' & ');
+                    holeItems.push({ label: rangeLabel, sublabel: `${winnersNames} win ${holesInPot} skin${holesInPot > 1 ? 's' : ''}`, amount: 0 });
+                    carryPot = 0;
+                } else if (players.some(p => p.scores[h]?.gross)) {
+                    carryPot += 1;
+                }
+            }
+        } else {
+            // Per-skin payout mode
+            let currentCarry = 0;
+            for (let h = 1; h <= 18; h++) {
+                const hScores = players
+                    .filter(p => p.scores[h]?.gross)
+                    .map(p => ({ playerId: p.id, net: p.scores[h].net, team: p.team, dots: p.scores[h].dots, gross: p.scores[h].gross }));
+                if (hScores.length < numPlayers) continue;
+
+                const holesInPot = 1 + currentCarry;
+                const potVal = holesInPot * skinValue;
+
+                // Bonus skins logic
+                const par = sideBets?.bonusSkins ? (holes.find(hole => hole.number === h)?.par ?? 4) : 4;
+                const bonusNotes: string[] = [];
+                if (sideBets?.bonusSkins) {
+                    for (const s of hScores) {
+                        const pinBonus = s.dots?.includes('pin') ? 1 : 0;
+                        const birdieBonus = s.gross === par - 1 ? 1 : 0;
+                        const eagleBonus = s.gross <= par - 2 ? 2 : 0;
+                        const bonusCount = pinBonus + birdieBonus + eagleBonus;
+                        if (bonusCount === 0) continue;
+
+                        const bonusHoleVal = skinValue * bonusCount;
+                        const oppPlayers = players.filter(p => p.team !== s.team);
+                        const numOpps = oppPlayers.length;
+
+                        earned[s.playerId] = (earned[s.playerId] ?? 0) + (bonusHoleVal * numOpps);
+                        oppPlayers.forEach(o => {
+                            earned[o.id] = (earned[o.id] ?? 0) - bonusHoleVal;
+                        });
+                        const pName = players.find(p => p.id === s.playerId)?.fullName.split(' ')[0] ?? 'Player';
+                        bonusNotes.push(`${pName}: ${[pinBonus > 0 ? 'Pin' : '', birdieBonus > 0 ? 'Birdie' : '', eagleBonus > 0 ? 'Eagle' : ''].filter(Boolean).join('+')}`);
+                    }
+                }
+
+                if (isTeamSkins) {
+                    const aNet = Math.min(...hScores.filter(s => s.team === 'A').map(s => s.net));
+                    const bNet = Math.min(...hScores.filter(s => s.team === 'B').map(s => s.net));
+                    if (aNet !== bNet) {
+                        const winTeam = aNet < bNet ? 'A' : 'B';
+                        const oppTeam = winTeam === 'A' ? 'B' : 'A';
+                        const winPlayers = players.filter(p => p.team === winTeam);
+                        const oppPlayers = players.filter(p => p.team === oppTeam);
+                        const numWin = winPlayers.length;
+                        const numOpp = oppPlayers.length;
+
+                        const individualWin = (potVal * numOpp) / (numWin || 1);
+                        const individualLoss = (potVal * numWin) / (numOpp || 1);
+
+                        winPlayers.forEach(p => {
+                            earned[p.id] = (earned[p.id] ?? 0) + individualWin;
+                            skinsWon[p.id] = (skinsWon[p.id] ?? 0) + holesInPot;
+                        });
+                        oppPlayers.forEach(p => {
+                            earned[p.id] = (earned[p.id] ?? 0) - individualLoss;
+                        });
+
+                        const winnerNames = winPlayers.map(p => p.fullName.split(' ')[0]).join(' & ');
+                        const rangeLabel = holesInPot > 1 ? `Holes ${h - holesInPot + 1}–${h}` : `Hole ${h}`;
+                        const baseSub = `${winnerNames} win skin${holesInPot > 1 ? 's' : ''}`;
+                        holeItems.push({ label: rangeLabel, sublabel: bonusNotes.length > 0 ? `${baseSub} · ${bonusNotes.join(', ')}` : baseSub, amount: 0 });
+                        currentCarry = 0;
+                    } else currentCarry += 1;
+                } else {
+                    const minNet = Math.min(...hScores.map(s => s.net));
+                    const winners = hScores.filter(s => s.net === minNet);
+                    if (winners.length === 1) {
+                        const wId = winners[0].playerId;
+                        earned[wId] = (earned[wId] ?? 0) + (potVal * (numPlayers - 1));
+                        hScores.filter(s => s.playerId !== wId).forEach(s => {
+                            earned[s.playerId] = (earned[s.playerId] ?? 0) - potVal;
+                        });
+                        const winnerName = players.find(p => p.id === wId)?.fullName.split(' ')[0] ?? 'Player';
+                        const rangeLabel = holesInPot > 1 ? `Holes ${h - holesInPot + 1}–${h}` : `Hole ${h}`;
+                        const baseSub = `${winnerName} wins skin${holesInPot > 1 ? 's' : ''}`;
+                        holeItems.push({ label: rangeLabel, sublabel: bonusNotes.length > 0 ? `${baseSub} · ${bonusNotes.join(', ')}` : baseSub, amount: 0 });
+                        currentCarry = 0;
+                    } else currentCarry += 1;
+                }
+            }
+            if (currentCarry > 0) {
+                holeItems.push({ label: 'Final Carry', sublabel: `${currentCarry} skin${currentCarry > 1 ? 's' : ''} pushed · returned`, amount: 0 });
+            }
         }
 
         const sortedPlayers = [...players].sort((a, b) => (earned[b.id] ?? 0) - (earned[a.id] ?? 0));
         const playerItems: SettlementLineItem[] = sortedPlayers.map(p => {
             const net = earned[p.id] ?? 0;
             const skins = skinsWon[p.id] ?? 0;
-            const isMe = p.id === myId;
             return {
-                label: isMe ? 'You' : p.fullName.split(' ')[0],
+                label: p.id === myId ? 'You' : p.fullName.split(' ')[0],
                 sublabel: `${skins} skin${skins !== 1 ? 's' : ''} won`,
                 amount: net,
             };
@@ -640,7 +728,13 @@ export default function PastMatchScorecardPage() {
             ...playerItems,
         ];
         settlementTotal = earned[myId] ?? 0;
-        oppName = players.filter(p => p.id !== myId).map(p => p.fullName.split(' ')[0]).join(', ');
+        if (isTeamSkins && myTeam) {
+            const oppTeam = myTeam === 'A' ? 'B' : 'A';
+            const oppPlayers = players.filter(p => p.team === oppTeam);
+            oppName = oppPlayers.map(p => p.fullName.split(' ')[0]).join(' & ');
+        } else {
+            oppName = players.filter(p => p.id !== myId).map(p => p.fullName.split(' ')[0]).join(', ');
+        }
         skinsPlayerSummary = sortedPlayers.map(p => ({
             id: p.id,
             name: p.fullName.split(' ')[0],
@@ -660,12 +754,14 @@ export default function PastMatchScorecardPage() {
                     </button>
                     <div className="flex-1 ml-2 min-w-0">
                         <h2 className="text-xl font-black text-white tracking-tighter truncate">{data.courseName}</h2>
-                        <span className="text-xs font-bold text-bloodRed uppercase tracking-widest">{data.format}</span>
+                        <span className="text-xs font-bold text-bloodRed uppercase tracking-widest">
+                            {isSkins ? (sideBets?.teamSkins ? '2v2 Skins' : 'Individual Skins') : data.format}
+                        </span>
                     </div>
                 </div>
                 <div className="px-4 pb-3 flex items-center justify-between text-[11px] font-bold text-secondaryText uppercase tracking-wider">
                     <span>{new Date(data.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    <span>${data.wagerAmount} {format === 'skins' ? 'Skins' : data.wagerType === 'NASSAU' ? 'Nassau' : 'Per Hole'}</span>
+                    <span>${data.wagerAmount} {isSkins ? (sideBets?.teamSkins ? '2v2 Skins' : 'Skins') : data.wagerType === 'NASSAU' ? 'Nassau' : 'Per Hole'}</span>
                 </div>
             </header>
 

@@ -156,12 +156,14 @@ function calcSkinsStandings(
                 const loseTeam: 'A' | 'B' = winTeam === 'A' ? 'B' : 'A';
                 const winPlayers = hScores.filter(s => playerTeam(s.playerId) === winTeam);
                 const losePlayers = hScores.filter(s => playerTeam(s.playerId) === loseTeam);
+                const numWin = winPlayers.length;
+                const numLose = losePlayers.length;
                 for (const w of winPlayers) {
-                    earned[w.playerId] = (earned[w.playerId] ?? 0) + potPerPlayer * losePlayers.length;
+                    earned[w.playerId] = (earned[w.playerId] ?? 0) + (potPerPlayer * numLose) / (numWin || 1);
                     skinsWon[w.playerId] = (skinsWon[w.playerId] ?? 0) + holesInPot;
                 }
                 for (const l of losePlayers) {
-                    earned[l.playerId] = (earned[l.playerId] ?? 0) - potPerPlayer * winPlayers.length;
+                    earned[l.playerId] = (earned[l.playerId] ?? 0) - (potPerPlayer * numWin) / (numLose || 1);
                 }
                 holeResults.push({ hole: h, winnerId: null, winTeam, holesInPot, pot: potPerPlayer * numPlayers });
                 carry = 0;
@@ -201,8 +203,13 @@ function calcSkinsStandings(
                 const eagleBonus = s.gross !== undefined && s.gross <= par - 2 ? 2 : 0;
                 const bonusCount = pinBonus + birdieBonus + eagleBonus;
                 if (bonusCount === 0) continue;
-                earned[s.playerId] = (earned[s.playerId] ?? 0) + bonusCount * skinValue * (numPlayers - 1);
-                hScores.filter(x => x.playerId !== s.playerId).forEach(x => {
+                // Bonus skins: only pay out from opponents, not teammates
+                const sTeam = hScores.find(x => x.playerId === s.playerId)?.team ?? playerTeam(s.playerId);
+                const oppPlayers = hScores.filter(x => (x.team ?? playerTeam(x.playerId)) !== sTeam);
+                const numOpponents = oppPlayers.length;
+
+                earned[s.playerId] = (earned[s.playerId] ?? 0) + bonusCount * skinValue * numOpponents;
+                oppPlayers.forEach(x => {
                     earned[x.playerId] = (earned[x.playerId] ?? 0) - bonusCount * skinValue;
                 });
                 skinsWon[s.playerId] = (skinsWon[s.playerId] ?? 0) + bonusCount;
