@@ -110,16 +110,6 @@ export default function MatchSetupPage() {
         }));
     };
 
-    const [tooltips, setTooltips] = useState<Record<string, { strokes?: boolean, wager?: boolean }>>({});
-    const toggleTooltip = (slotId: string, type: 'strokes' | 'wager') => {
-        setTooltips(prev => ({
-            ...prev,
-            [slotId]: {
-                ...prev[slotId],
-                [type]: !prev[slotId]?.[type]
-            }
-        }));
-    };
 
     // Accordion state for Trash tooltips
     const [activeTrashTooltip, setActiveTrashTooltip] = useState<string | null>(null);
