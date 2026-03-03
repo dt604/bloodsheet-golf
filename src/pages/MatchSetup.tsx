@@ -103,14 +103,13 @@ export default function MatchSetupPage() {
     const canAdvance = () => {
         if (currentStep === 1) return true;
         if (currentStep === 2) {
-            if (format === 'skins') {
-                if (teamSkins) {
-                    // Team skins: need at least 1 player on Team A (besides creator) and 1 on Team B
-                    return stagedPlayers.filter(p => p.team === 'B').length >= 1;
-                }
+            if ((format === 'skins' || format === '1v1') && !teamSkins) {
                 return poolPlayers.length >= 1; // Need at least 1 other player
             }
-            if (format === '1v1') return true;
+            if (format === 'skins' && teamSkins) {
+                return stagedPlayers.filter(p => p.team === 'B').length >= 1;
+            }
+            // For 2v2 or standard matches, require at least one teammate/partner
             return stagedPlayers.filter(p => p.team === 'A').length >= 1;
         }
         if (currentStep === 3) {
