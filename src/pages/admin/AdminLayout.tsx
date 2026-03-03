@@ -5,7 +5,8 @@ import {
     Map,
     ChevronLeft,
     LayoutDashboard,
-    ShieldAlert
+    ShieldAlert,
+    Camera
 } from 'lucide-react';
 
 const navItems = [
@@ -13,6 +14,7 @@ const navItems = [
     { path: '/admin/users', label: 'Users', icon: Users },
     { path: '/admin/matches', label: 'Matches', icon: Trophy },
     { path: '/admin/courses', label: 'Courses', icon: Map },
+    { path: '/admin/media', label: 'Media', icon: Camera },
 ];
 
 export default function AdminLayout() {

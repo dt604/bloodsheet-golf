@@ -33,6 +33,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import MatchManagement from './pages/admin/MatchManagement';
 import CourseManagement from './pages/admin/CourseManagement';
+import MediaManagement from './pages/admin/MediaManagement';
 import { AdminRoute } from './components/admin/AdminRoute';
 import MainLayout from './components/layout/MainLayout';
 
@@ -115,6 +116,7 @@ function AppRoutes() {
           <Route path="users" element={<UserManagement />} />
           <Route path="matches" element={<MatchManagement />} />
           <Route path="courses" element={<CourseManagement />} />
+          <Route path="media" element={<MediaManagement />} />
         </Route>
 
         {/* Wildcard Catch-all */}
