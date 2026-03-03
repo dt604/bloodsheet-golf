@@ -81,7 +81,7 @@ function AppRoutes() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageWrapper><WelcomePage /></PageWrapper>} />
-        <Route path="/home" element={<ProtectedRoute><PageWrapper><HomePage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/home" element={<ProtectedRoute><PageWrapper><MainLayout><HomePage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/reset-password" element={<PageWrapper><ResetPasswordPage /></PageWrapper>} />
         <Route path="/auth/callback" element={<PageWrapper><AuthCallbackPage /></PageWrapper>} />
         <Route path="/onboarding" element={<ProtectedRoute><PageWrapper><OnboardingPage /></PageWrapper></ProtectedRoute>} />

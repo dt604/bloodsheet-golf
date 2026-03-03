@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, History, Users, Camera, Loader, ShieldCheck, Home, Clock, PenLine, Crown } from 'lucide-react';
+import { History, Camera, Loader, Clock, PenLine, Crown } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -486,31 +486,8 @@ export default function DashboardPage() {
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
             <SEO title="Dashboard" />
-            {/* Header - Stationary */}
-            <header className="flex items-center justify-between p-4 px-6 border-b border-borderColor bg-background/95 backdrop-blur z-20 shrink-0">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/home')} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors" title="Home Hub">
-                        <Home className="w-5 h-5" />
-                    </button>
-                    <span className="text-secondaryText text-[10px] font-black uppercase tracking-widest pt-0.5">PLAYER PROFILE</span>
-                </div>
-                <div className="flex items-center gap-2 -mr-2">
-                    {profile?.is_admin && (
-                        <button onClick={() => navigate('/admin')} className="p-2 text-bloodRed hover:text-white transition-colors" title="Admin Dashboard">
-                            <ShieldCheck className="w-6 h-6" />
-                        </button>
-                    )}
-                    <button onClick={() => navigate('/friends')} className="p-2 text-secondaryText hover:text-white transition-colors">
-                        <Users className="w-6 h-6" />
-                    </button>
-                    <button onClick={() => navigate('/settings')} className="p-2 text-secondaryText hover:text-white transition-colors">
-                        <Settings className="w-6 h-6" />
-                    </button>
-                </div>
-            </header>
-
             {/* Scrollable Content */}
-            <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6">
+            <main className="flex-1 overflow-y-auto px-4 mt-2">
                 {/* Ident & Ledger Bal */}
                 <section className="bg-surface rounded-2xl p-4 sm:p-6 border border-borderColor flex flex-col items-center">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden group cursor-pointer transition-transform hover:scale-105">

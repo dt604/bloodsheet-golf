@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Flag, ChevronRight, Zap, LogOut } from 'lucide-react';
+import { Flag, ChevronRight, Zap } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,7 +10,7 @@ import { useMatchStore } from '../store/useMatchStore';
 import SEO from '../components/SEO';
 
 export default function Home() {
-    const { user, profile, signOut } = useAuth();
+    const { user, profile } = useAuth();
     const navigate = useNavigate();
     const { loadMatch } = useMatchStore();
     const [activeMatch, setActiveMatch] = useState<any>(null);
@@ -90,10 +90,7 @@ export default function Home() {
         navigate('/play/1');
     };
 
-    const handleLogout = async () => {
-        await signOut();
-        navigate('/');
-    };
+
 
     const initials = profile?.fullName
         ? profile.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -102,23 +99,7 @@ export default function Home() {
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden font-sans">
             <SEO title="Home Dashboard" />
-            {/* Header */}
-            <header className="flex items-center justify-between p-4 px-6 border-b border-borderColor bg-background/95 backdrop-blur z-20 shrink-0">
-                <div className="flex items-center gap-2">
-                    <img src="/logo-final.png" alt="BSG" className="w-8 h-8 object-contain" />
-                    <span className="text-white font-black italic text-lg uppercase tracking-tighter">BloodSheet</span>
-                </div>
-                <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 text-secondaryText hover:text-bloodRed transition-colors"
-                    title="Log Out"
-                >
-                    <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">Log Out</span>
-                    <LogOut className="w-5 h-5" />
-                </button>
-            </header>
-
-            <div className="flex-1 overflow-y-auto overflow-x-hidden momentum-scroll space-y-8 pb-32 pt-6">
+            <div className="flex-1 overflow-y-auto px-4 mt-2">
                 {/* Dynamic Top Banner */}
                 <div className="px-4">
                     {activeMatch ? (
