@@ -110,6 +110,23 @@ export default function MatchSetupPage() {
         }));
     };
 
+    const [tooltips, setTooltips] = useState<Record<string, { strokes?: boolean, wager?: boolean }>>({});
+    const toggleTooltip = (slotId: string, type: 'strokes' | 'wager') => {
+        setTooltips(prev => ({
+            ...prev,
+            [slotId]: {
+                ...prev[slotId],
+                [type]: !prev[slotId]?.[type]
+            }
+        }));
+    };
+
+    // Accordion state for Trash tooltips
+    const [activeTrashTooltip, setActiveTrashTooltip] = useState<string | null>(null);
+    const toggleTrashTooltip = (id: string) => {
+        setActiveTrashTooltip(prev => prev === id ? null : id);
+    };
+
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
 
@@ -1118,23 +1135,43 @@ export default function MatchSetupPage() {
                                     <BottomSheet open={trashOpen} onClose={() => setTrashOpen(false)} title="Trash & Side Bets">
                                         <div className="divide-y divide-borderColor/50 px-2">
                                             {[
-                                                { id: 'greenies', label: 'Greenies', sub: 'Closest to pin, par+', state: greenies, set: setGreenies, skinsOnly: false },
-                                                { id: 'sandies', label: 'Sandies', sub: 'Par+ from bunker', state: sandies, set: setSandies, skinsOnly: false },
-                                                { id: 'snake', label: 'Snake', sub: '3-putt penalty', state: snake, set: setSnake, skinsOnly: false },
-                                                { id: 'autopress', label: 'Auto Press', sub: 'Press when 2 down', state: autoPress, set: setAutoPress, nassauOnly: true },
-                                                { id: 'birdies', label: 'Birdies Double', sub: 'Net Birdie = 2 pts', state: birdiesDouble, set: setBirdiesDouble, nassauOnly: true },
-                                                { id: 'bonusSkins', label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', state: bonusSkins, set: setBonusSkins, skinsOnly: true },
+                                                { id: 'greenies', label: 'Greenies', sub: 'Closest to pin, par+', desc: 'Awarded to the player whose tee shot is closest to the pin on a Par 3, provided they make par or better.', state: greenies, set: setGreenies, skinsOnly: false },
+                                                { id: 'sandies', label: 'Sandies', sub: 'Par+ from bunker', desc: 'Awarded to a player who makes par or better on a hole where they hit into a sand bunker.', state: sandies, set: setSandies, skinsOnly: false },
+                                                { id: 'snake', label: 'Snake', sub: '3-putt penalty', desc: 'The last player to 3-putt holds the snake. They owe the other players the trash value at the end of the round.', state: snake, set: setSnake, skinsOnly: false },
+                                                { id: 'autopress', label: 'Auto Press', sub: 'Press when 2 down', desc: 'Automatically triggers a new parallel bet for the remaining holes whenever a team falls 2 points behind.', state: autoPress, set: setAutoPress, nassauOnly: true },
+                                                { id: 'birdies', label: 'Birdies Double', sub: 'Net Birdie = 2 pts', desc: 'A net birdie wins the hole outright by immediately granting 2 points instead of 1 in the Match Play score.', state: birdiesDouble, set: setBirdiesDouble, nassauOnly: true },
+                                                { id: 'bonusSkins', label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', desc: 'Adds extra skins to the pot for feats: closest to pin (+1), gross birdie (+1), gross eagle (+2).', state: bonusSkins, set: setBonusSkins, skinsOnly: true },
                                             ].filter(item => {
                                                 if ((item as any).skinsOnly) return format === 'skins';
                                                 if ((item as any).nassauOnly) return format !== 'skins';
                                                 return true;
                                             }).map((item) => (
-                                                <div key={item.id} className="flex items-center justify-between p-4">
-                                                    <div>
-                                                        <span className="font-bold text-sm block text-white uppercase tracking-tight">{item.label}</span>
-                                                        <span className="text-[10px] text-secondaryText uppercase font-bold tracking-widest">{item.sub}</span>
+                                                <div key={item.id} className="flex flex-col p-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div
+                                                            className="flex flex-col cursor-pointer group pr-4"
+                                                            onClick={() => toggleTrashTooltip(item.id)}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-bold text-sm block text-white uppercase tracking-tight group-hover:text-bloodRed transition-colors">{item.label}</span>
+                                                                <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
+                                                            </div>
+                                                            <span className="text-[10px] text-secondaryText uppercase font-bold tracking-widest">{item.sub}</span>
+                                                        </div>
+                                                        <Toggle checked={item.state} onCheckedChange={item.set} />
                                                     </div>
-                                                    <Toggle checked={item.state} onCheckedChange={item.set} />
+                                                    <AnimatePresence>
+                                                        {activeTrashTooltip === item.id && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                animate={{ opacity: 1, height: 'auto', marginTop: 8 }}
+                                                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                className="text-xs text-secondaryText/90 font-medium leading-relaxed overflow-hidden"
+                                                            >
+                                                                {item.desc}
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
                                                 </div>
                                             ))}
 
