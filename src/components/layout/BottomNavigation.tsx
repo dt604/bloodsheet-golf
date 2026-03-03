@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Trophy, BookOpen, Play, Users } from 'lucide-react';
+import { Home, Trophy, MessageSquare, Play, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function BottomNavigation() {
@@ -12,7 +12,7 @@ export default function BottomNavigation() {
         { icon: Home, label: 'Home', path: '/home' },
         { icon: Trophy, label: 'Leaders', path: '/money-leaders' },
         // The center FAB occupies index 2 visually, but logically we push it to the middle
-        { icon: BookOpen, label: 'History', path: '/history' },
+        { icon: MessageSquare, label: 'Chat', path: '/messages' },
         { icon: Users, label: 'Friends', path: '/friends' }
     ];
 

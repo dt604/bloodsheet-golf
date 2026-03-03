@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Settings, ShieldCheck, QrCode, Bell, MessageSquare } from 'lucide-react';
+import { Settings, ShieldCheck, QrCode, Bell } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMatchStore } from '../../store/useMatchStore';
 import { supabase } from '../../lib/supabase';
@@ -90,13 +90,7 @@ export default function TopHeader() {
                     </button>
                 )}
 
-                <Link
-                    to="/messages"
-                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-secondaryText hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300 relative group"
-                    title="Locker Room"
-                >
-                    <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                </Link>
+
 
                 <Link
                     to={pendingCount > 0 ? "/notifications" : "/settings"}
