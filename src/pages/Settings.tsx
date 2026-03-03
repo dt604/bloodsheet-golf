@@ -156,7 +156,7 @@ export default function SettingsPage() {
                                         <img src={profile.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-borderColor" />
                                     ) : (
                                         <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center overflow-hidden">
-                                            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Golfer" alt="Default Golfer" className="w-full h-full object-cover opacity-80" />
+                                            <img src="/logo-final.png" alt="Default Avatar" className="w-full h-full object-cover opacity-60" />
                                         </div>
                                     )}
                                     <ChevronRight className={`w-4 h-4 text-secondaryText transition-transform ${showAvatarPicker ? 'rotate-90' : ''}`} />

@@ -102,7 +102,9 @@ export default function MatchSetupPage() {
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
 
-    const steps = format === 'skins'
+    const isSingle1v1 = format === '1v1' && poolPlayers.length === 1;
+
+    const steps = (format === 'skins' || isSingle1v1)
         ? [{ id: 1, label: 'Format' }, { id: 2, label: 'Players' }, { id: 4, label: 'Course', display: 3 }]
         : [{ id: 1, label: 'Format' }, { id: 2, label: 'Players' }, { id: 3, label: 'Matches' }, { id: 4, label: 'Course' }];
 
@@ -127,13 +129,23 @@ export default function MatchSetupPage() {
     };
 
     const nextStep = () => {
-        if (currentStep === 2 && format === 'skins') { setCurrentStep(4); return; } // skip Matches step
+        if (currentStep === 2 && (format === 'skins' || isSingle1v1)) {
+            if (isSingle1v1 && poolPlayers.length === 1) {
+                // Auto-configure the match slot to bypass step 3 seamlessly
+                setSlotOpponent(matchSlots[0].id, poolPlayers[0].userId);
+            }
+            setCurrentStep(4);
+            return;
+        }
         if (currentStep < 4) setCurrentStep(currentStep + 1);
         else handleStartMatch();
     };
 
     const prevStep = () => {
-        if (currentStep === 4 && format === 'skins') { setCurrentStep(2); return; } // skip back over Matches
+        if (currentStep === 4 && (format === 'skins' || isSingle1v1)) {
+            setCurrentStep(2);
+            return;
+        }
         if (currentStep > 1) setCurrentStep(currentStep - 1);
         else navigate(-1);
     };
