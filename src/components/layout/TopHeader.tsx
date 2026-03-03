@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Settings, UserPlus, ShieldCheck, QrCode } from 'lucide-react';
+import { Settings, ShieldCheck, QrCode } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMatchStore } from '../../store/useMatchStore';
 
@@ -45,13 +45,7 @@ export default function TopHeader() {
                     </button>
                 )}
 
-                <Link
-                    to="/friends"
-                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-secondaryText hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
-                    title="Friends"
-                >
-                    <UserPlus className="w-5 h-5" />
-                </Link>
+
 
                 <Link
                     to="/settings"
