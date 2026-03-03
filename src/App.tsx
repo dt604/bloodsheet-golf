@@ -24,6 +24,7 @@ import AddFriendQR from './pages/AddFriendQR';
 import ResetPasswordPage from './pages/ResetPassword';
 import AuthCallbackPage from './pages/AuthCallback';
 import OnboardingPage from './pages/Onboarding';
+import NotificationsPage from './pages/Notifications';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
@@ -92,6 +93,7 @@ function AppRoutes() {
         <Route path="/leaderboard" element={<ViewerRoute><PageWrapper><LeaderboardPage /></PageWrapper></ViewerRoute>} />
         <Route path="/add-player" element={<ProtectedRoute><PageWrapper><AddPlayerPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><PageWrapper><SettingsPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><PageWrapper><NotificationsPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/join" element={<ViewerRoute><PageWrapper><JoinMatchPage /></PageWrapper></ViewerRoute>} />
         <Route path="/money-leaders" element={<ProtectedRoute><PageWrapper><MainLayout><MoneyLeadersPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/qr" element={<ProtectedRoute><PageWrapper><QRPage /></PageWrapper></ProtectedRoute>} />

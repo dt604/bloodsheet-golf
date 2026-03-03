@@ -1004,7 +1004,10 @@ export default function LedgerPage() {
 
             {/* Stationary Footer */}
             <footer className="p-4 bg-background border-t border-borderColor shrink-0 pb-safe">
-                <Button size="lg" className="w-full font-black uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,63,0.4)]" onClick={() => navigate('/dashboard')}>
+                <Button size="lg" className="w-full font-black uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,63,0.4)]" onClick={() => {
+                    navigate('/dashboard');
+                    setTimeout(() => useMatchStore.getState().clearMatch(), 100);
+                }}>
                     Finish & Return to Dashboard
                 </Button>
             </footer>

@@ -1,14 +1,59 @@
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Settings, ShieldCheck, QrCode } from 'lucide-react';
+import { Settings, ShieldCheck, QrCode, Bell } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMatchStore } from '../../store/useMatchStore';
+import { supabase } from '../../lib/supabase';
 
 export default function TopHeader() {
     const navigate = useNavigate();
-    const { profile } = useAuth();
+    const { user, profile } = useAuth();
     const { activeMatchIds } = useMatchStore();
+    const [pendingCount, setPendingCount] = useState(0);
 
-    const hasNotifications = activeMatchIds.length > 0;
+    useEffect(() => {
+        if (!user) return;
+        async function checkPending() {
+            try {
+                // Find matches where user is player
+                const { data: userMatches } = await supabase
+                    .from('match_players')
+                    .select('match_id')
+                    .eq('user_id', user!.id);
+
+                const mIds = (userMatches ?? []).map((m: any) => m.match_id);
+                if (mIds.length === 0) { setPendingCount(0); return; }
+
+                // Matches in pending_attestation not created by user
+                const { data: pending } = await supabase
+                    .from('matches')
+                    .select('id')
+                    .in('id', mIds)
+                    .eq('status', 'pending_attestation')
+                    .neq('created_by', user!.id);
+
+                if (!pending || pending.length === 0) { setPendingCount(0); return; }
+
+                const pIds = pending.map((m: any) => m.id);
+
+                // Filter already attested
+                const { data: attested } = await supabase
+                    .from('match_attestations')
+                    .select('match_id')
+                    .eq('user_id', user!.id)
+                    .in('match_id', pIds);
+
+                const attestedIds = new Set((attested ?? []).map((a: any) => a.match_id));
+                const finalCount = pending.filter((m: any) => !attestedIds.has(m.id)).length;
+                setPendingCount(finalCount);
+            } catch (e) {
+                console.error('Error checking pending attestations:', e);
+            }
+        }
+        checkPending();
+    }, [user]);
+
+    const hasNotifications = pendingCount > 0 || activeMatchIds.length > 0;
 
     return (
         <header className="sticky top-0 z-40 bg-background/60 backdrop-blur-2xl border-b border-white/5 px-6 h-16 flex items-center justify-between">
@@ -33,7 +78,7 @@ export default function TopHeader() {
                 </Link>
             </div>
 
-            {/* Right Actions: Admin, Friends, Settings */}
+            {/* Right Actions: Admin, Notifications/Settings */}
             <div className="flex items-center gap-2">
                 {profile?.is_admin && (
                     <button
@@ -45,14 +90,16 @@ export default function TopHeader() {
                     </button>
                 )}
 
-
-
                 <Link
-                    to="/settings"
+                    to={pendingCount > 0 ? "/notifications" : "/settings"}
                     className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-secondaryText hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300 relative group"
-                    title="Settings"
+                    title={pendingCount > 0 ? "Notifications" : "Settings"}
                 >
-                    <Settings className="w-5 h-5 group-hover:rotate-45 transition-transform duration-500" />
+                    {pendingCount > 0 ? (
+                        <Bell className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    ) : (
+                        <Settings className="w-5 h-5 group-hover:rotate-45 transition-transform duration-500" />
+                    )}
                     {hasNotifications && (
                         <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-neonGreen rounded-full ring-2 ring-background ring-offset-0 shadow-[0_0_10px_rgba(0,255,102,0.6)] animate-pulse" />
                     )}
