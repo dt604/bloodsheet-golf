@@ -295,7 +295,7 @@ export default function SettingsPage() {
                         <div className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer">
                             <span className="font-semibold text-white">Default Wager</span>
                             <div className="flex items-center gap-2">
-                                <span className="text-secondaryText">$10 Nassau</span>
+                                <span className="text-secondaryText">$10 Match</span>
                                 <ChevronRight className="w-4 h-4 text-secondaryText" />
                             </div>
                         </div>

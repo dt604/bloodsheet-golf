@@ -102,9 +102,7 @@ export default function MatchSetupPage() {
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
 
-    const isSingle1v1 = format === '1v1' && poolPlayers.length === 1;
-
-    const steps = (format === 'skins' || isSingle1v1)
+    const steps = format === 'skins'
         ? [{ id: 1, label: 'Format' }, { id: 2, label: 'Players' }, { id: 4, label: 'Course', display: 3 }]
         : [{ id: 1, label: 'Format' }, { id: 2, label: 'Players' }, { id: 3, label: 'Matches' }, { id: 4, label: 'Course' }];
 
@@ -129,12 +127,14 @@ export default function MatchSetupPage() {
     };
 
     const nextStep = () => {
-        if (currentStep === 2 && (format === 'skins' || isSingle1v1)) {
-            if (isSingle1v1 && poolPlayers.length === 1) {
-                // Auto-configure the match slot to bypass step 3 seamlessly
-                setSlotOpponent(matchSlots[0].id, poolPlayers[0].userId);
+        if (currentStep === 2 && format === 'skins') { setCurrentStep(4); return; } // skip Matches step
+        if (currentStep === 2 && format === '1v1' && poolPlayers.length === 1) {
+            // Auto-configure the match slot to default to the selected player
+            const slot = matchSlots[0];
+            if (!slot.opponentId) {
+                setSlotOpponent(slot.id, poolPlayers[0].userId);
             }
-            setCurrentStep(4);
+            setCurrentStep(3);
             return;
         }
         if (currentStep < 4) setCurrentStep(currentStep + 1);
@@ -142,10 +142,7 @@ export default function MatchSetupPage() {
     };
 
     const prevStep = () => {
-        if (currentStep === 4 && (format === 'skins' || isSingle1v1)) {
-            setCurrentStep(2);
-            return;
-        }
+        if (currentStep === 4 && format === 'skins') { setCurrentStep(2); return; } // skip back over Matches
         if (currentStep > 1) setCurrentStep(currentStep - 1);
         else navigate(-1);
     };
@@ -328,7 +325,7 @@ export default function MatchSetupPage() {
                                         )}
                                     </div>
                                     <h3 className="text-xl font-black uppercase tracking-tight mb-1">1v1 Matches</h3>
-                                    <p className="text-sm text-secondaryText font-medium">Create one or multiple individual matches. Standard Nassau scoring.</p>
+                                    <p className="text-sm text-secondaryText font-medium">Create one or multiple individual matches. Standard match play scoring.</p>
 
                                     {format === '1v1' && (
                                         <div className="absolute right-0 bottom-0 p-4 opacity-20">
@@ -745,7 +742,7 @@ export default function MatchSetupPage() {
                                                                     })()}
                                                                 </div>
                                                                 <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30">
-                                                                    <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest mb-1">Nassau Wager</div>
+                                                                    <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest mb-1">Match Wager</div>
                                                                     <div className="flex items-center justify-between">
                                                                         <span className="text-lg font-black text-white">${slot.wager}</span>
                                                                         <div className="flex gap-1">
@@ -1003,7 +1000,7 @@ export default function MatchSetupPage() {
                                                     </div>
                                                     <div>
                                                         <span className="font-black text-xs uppercase tracking-tight block">Team Wager</span>
-                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Standard Nassau</span>
+                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Standard Match Play</span>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">

@@ -1092,7 +1092,7 @@ export default function LiveScorecardPage() {
                                             <div className="flex gap-2">
                                                 {(['NASSAU', 'PER_HOLE'] as const).map(t => (
                                                     <button key={t} onClick={() => setEditWagerType(t)} className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border transition-colors ${editWagerType === t ? 'bg-bloodRed border-bloodRed text-white' : 'border-borderColor text-secondaryText'}`}>
-                                                        {t === 'NASSAU' ? 'Nassau' : 'Per Hole'}
+                                                        {t === 'NASSAU' ? 'Match Play' : 'Per Hole'}
                                                     </button>
                                                 ))}
                                             </div>

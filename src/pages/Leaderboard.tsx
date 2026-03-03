@@ -1015,7 +1015,7 @@ export default function LeaderboardPage() {
                             )}
                         </Card>
                     ) : (
-                        /* ── Nassau Hero Card ── */
+                        /* ── Match Hero Card ── */
                         <Card className="flex items-center justify-between p-5 py-8 border border-borderColor/50 shadow-2xl relative overflow-hidden group">
                             {/* Inner Background Decor */}
                             <div className="absolute inset-0 bg-gradient-to-br from-surface to-background transition-colors" />
@@ -1053,7 +1053,7 @@ export default function LeaderboardPage() {
                         </Card>
                     )}
 
-                    {/* Nassau Splits Tracker — hidden for skins */}
+                    {/* Match Splits Tracker — hidden for skins */}
                     {!isSkins && matchPlaySplits && (
                         <div className="mt-3 grid grid-cols-3 gap-2">
                             {[

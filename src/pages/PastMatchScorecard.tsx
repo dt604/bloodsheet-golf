@@ -761,7 +761,7 @@ export default function PastMatchScorecardPage() {
                 </div>
                 <div className="px-4 pb-3 flex items-center justify-between text-[11px] font-bold text-secondaryText uppercase tracking-wider">
                     <span>{new Date(data.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    <span>${data.wagerAmount} {isSkins ? (sideBets?.teamSkins ? '2v2 Skins' : 'Skins') : data.wagerType === 'NASSAU' ? 'Nassau' : 'Per Hole'}</span>
+                    <span>${data.wagerAmount} {isSkins ? (sideBets?.teamSkins ? '2v2 Skins' : 'Skins') : data.wagerType === 'NASSAU' ? 'Match Play' : 'Per Hole'}</span>
                 </div>
             </header>
 
