@@ -273,7 +273,7 @@ export default function MatchSetupPage() {
                 </div>
 
                 {/* Progress Tracker */}
-                <div className="px-4 pb-2">
+                <div className="px-4 pb-6">
                     <StepTracker
                         steps={steps}
                         currentStep={currentStep}
