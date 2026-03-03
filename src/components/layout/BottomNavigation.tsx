@@ -11,7 +11,7 @@ export default function BottomNavigation() {
     const isActive = (path: string) => location.pathname === path;
 
     const navItems = [
-        { icon: Home, label: 'Home', path: '/dashboard' },
+        { icon: Home, label: 'Home', path: '/home' },
         { icon: Trophy, label: 'Leaders', path: '/money-leaders' },
         // The center FAB occupies index 2 visually, but logically we push it to the middle
         { icon: BookOpen, label: 'History', path: '/history' },

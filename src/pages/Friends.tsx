@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, UserPlus, Check, X, Search, Loader } from 'lucide-react';
+import { UserPlus, Check, X, Search, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFriendsStore } from '../store/useFriendsStore';
 import { supabase } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 export default function FriendsPage() {
     const navigate = useNavigate();
@@ -66,15 +67,9 @@ export default function FriendsPage() {
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
-            {/* Header */}
-            <header className="flex items-center justify-between p-4 border-b border-borderColor bg-background/95 backdrop-blur shrink-0 z-20">
-                <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
-                    <ChevronLeft className="w-6 h-6" />
-                </button>
-                <span className="font-bold text-lg tracking-wide uppercase">Friends Hub</span>
-                <div className="w-10" /> {/* Spacer */}
-            </header>
+        <div className="space-y-6">
+            <SEO title="Friends Hub" />
+
 
             {/* Tabs */}
             <div className="flex p-2 bg-background border-b border-borderColor/50 shrink-0">
@@ -103,7 +98,7 @@ export default function FriendsPage() {
                 </button>
             </div>
 
-            <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-4">
+            <div className="space-y-4">
                 {loading && <div className="flex justify-center p-8"><Loader className="w-8 h-8 animate-spin text-bloodRed" /></div>}
 
                 {!loading && activeTab === 'friends' && (
@@ -255,7 +250,7 @@ export default function FriendsPage() {
                         )}
                     </div>
                 )}
-            </main>
+            </div>
         </div>
     );
 }

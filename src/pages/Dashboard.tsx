@@ -484,150 +484,148 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+        <div className="space-y-12">
             <SEO title="Dashboard" />
             {/* Scrollable Content */}
-            <main className="flex-1 overflow-y-auto px-4 mt-2">
-                {/* Ident & Ledger Bal */}
-                <section className="bg-surface rounded-2xl p-4 sm:p-6 border border-borderColor flex flex-col items-center">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden group cursor-pointer transition-transform hover:scale-105">
-                        {profile?.avatarUrl ? (
-                            <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                            initials
-                        )}
-                        <label className="absolute inset-0 bg-background/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity z-10 w-full h-full">
-                            {uploadingImage ? <Loader className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" /> : <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-bloodRed" />}
-                            <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingImage} />
-                        </label>
-                    </div>
-                    <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5 sm:mb-1 truncate max-w-full px-2">{profile?.fullName ?? '…'}</h2>
-                    {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
-                        <div className="flex items-center justify-center gap-1.5 mt-1 mb-2 px-3 py-1 rounded-full bg-bloodRed/10 border border-bloodRed/30 shadow-[0_0_10px_rgba(255,0,63,0.15)]">
-                            <Crown className="w-4 h-4 text-bloodRed" />
-                            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-bloodRed">BloodSheet Legend</span>
-                        </div>
-                    )}
-                    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8 mt-1 block">Member since {memberYear}</span>
-
-                    <div className="w-full flex">
-                        <div className="flex-1 border-r border-borderColor flex flex-col items-center justify-center py-1 sm:py-2 px-1">
-                            <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 leading-tight">Index</span>
-                            <span className="text-3xl sm:text-4xl font-black font-sans">{profile?.handicap ?? '—'}</span>
-                        </div>
-                        <div className="flex-1 flex flex-col items-center justify-center py-1 sm:py-2 px-1">
-                            <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 whitespace-nowrap leading-tight text-center">BloodSheet Total</span>
-                            <span className={`text-2xl sm:text-4xl font-black font-sans ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
-                                {stats.lifetimePayout >= 0 ? '+' : ''}${stats.lifetimePayout}
-                            </span>
-                        </div>
-                    </div>
-                </section>
-
-
-                {/* 2x2 Stats Grid */}
-                <section className="grid grid-cols-2 gap-2 sm:gap-3">
-                    <StatBox label="Total Matches" value={String(stats.totalMatches)} className="px-1" />
-                    <StatBox label="Win Rate" value={winRate} className="px-1" />
-                </section>
-
-                {/* Action Required — matches needing the current user's attestation */}
-                {needsAttestation.length > 0 && (
-                    <section>
-                        <div className="flex items-center gap-2 mb-3 px-2">
-                            <PenLine className="w-5 h-5 text-yellow-400" />
-                            <h3 className="text-sm font-bold tracking-widest uppercase text-yellow-400">Action Required</h3>
-                        </div>
-                        <Card className="divide-y divide-borderColor/50">
-                            {needsAttestation.map((item) => (
-                                <div
-                                    key={item.matchId}
-                                    className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
-                                    onClick={async () => {
-                                        useMatchStore.setState({ matchId: item.matchId, match: null });
-                                        localStorage.setItem('activeMatchId', item.matchId);
-                                        navigate('/ledger');
-                                    }}
-                                >
-                                    <div>
-                                        <span className="font-bold text-white block">{item.courseName}</span>
-                                        <span className="text-xs text-yellow-400 font-bold uppercase tracking-wider">Your signature is needed</span>
-                                    </div>
-                                    <Clock className="w-5 h-5 text-yellow-400 shrink-0 ml-3" />
-                                </div>
-                            ))}
-                        </Card>
-                    </section>
-                )}
-
-                {/* Recent Matches */}
-                <section>
-                    <div className="flex items-center justify-between mb-3 px-2 mt-4">
-                        <div className="flex items-center gap-2">
-                            <History className="w-5 h-5 text-secondaryText" />
-                            <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText">Recent History</h3>
-                        </div>
-                        <button onClick={() => navigate('/history')} className="text-xs font-bold text-bloodRed uppercase tracking-widest hover:opacity-70 transition-opacity">View All</button>
-                    </div>
-                    {history.length === 0 ? (
-                        <div className="mt-4">
-                            <EmptyState
-                                title="No Rounds Recorded"
-                                description="Your status isn't built in a day. Tee off to start your legacy."
-                                actionLabel="Tee It Up"
-                                onAction={() => navigate('/setup')}
-                                accentColor="bloodRed"
-                            />
-                        </div>
+            {/* Ident & Ledger Bal */}
+            <section className="bg-surface rounded-2xl p-4 sm:p-6 border border-borderColor flex flex-col items-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden group cursor-pointer transition-transform hover:scale-105">
+                    {profile?.avatarUrl ? (
+                        <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                     ) : (
-                        <Card className="divide-y divide-borderColor/50">
-                            {history.slice(0, 5).map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
-                                    onClick={() => {
-                                        if (item.status === 'in_progress') {
-                                            navigate(`/play/1`);
-                                        } else {
-                                            navigate(`/history/${item.id}`);
-                                        }
-                                    }}
-                                >
-                                    <div>
-                                        <span className="font-bold text-white block">{item.courseName} • {item.format}</span>
-                                        <span className="text-xs text-secondaryText block mt-0.5">{item.playerLabel}</span>
-                                        <span className="text-xs text-secondaryText uppercase tracking-wider">
-                                            {formatDate(item.createdAt)} • {item.wagerType}
-                                        </span>
-                                    </div>
-                                    <div className="text-right shrink-0 ml-3">
-                                        {item.status === 'pending_attestation' ? (
-                                            <div className="flex flex-col items-end gap-1">
-                                                <Clock className="w-4 h-4 text-yellow-400" />
-                                                <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Unattested</span>
-                                            </div>
-                                        ) : item.status === 'in_progress' ? (
-                                            <div className="flex flex-col items-end gap-1">
-                                                <div className="w-2 h-2 rounded-full bg-neonGreen animate-pulse shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
-                                                <span className="text-[10px] font-bold text-neonGreen uppercase tracking-widest">Live Round</span>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className={`font-black text-base leading-tight ${item.payout > 0 ? 'text-neonGreen' : item.payout < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                    {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
-                                                </div>
-                                                <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                    {item.format === 'skins' ? 'SKINS' : item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </Card>
+                        initials
                     )}
+                    <label className="absolute inset-0 bg-background/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity z-10 w-full h-full">
+                        {uploadingImage ? <Loader className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" /> : <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-bloodRed" />}
+                        <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingImage} />
+                    </label>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5 sm:mb-1 truncate max-w-full px-2">{profile?.fullName ?? '…'}</h2>
+                {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
+                    <div className="flex items-center justify-center gap-1.5 mt-1 mb-2 px-3 py-1 rounded-full bg-bloodRed/10 border border-bloodRed/30 shadow-[0_0_10px_rgba(255,0,63,0.15)]">
+                        <Crown className="w-4 h-4 text-bloodRed" />
+                        <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-bloodRed">BloodSheet Legend</span>
+                    </div>
+                )}
+                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8 mt-1 block">Member since {memberYear}</span>
+
+                <div className="w-full flex">
+                    <div className="flex-1 border-r border-borderColor flex flex-col items-center justify-center py-1 sm:py-2 px-1">
+                        <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 leading-tight">Index</span>
+                        <span className="text-3xl sm:text-4xl font-black font-sans">{profile?.handicap ?? '—'}</span>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center justify-center py-1 sm:py-2 px-1">
+                        <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 whitespace-nowrap leading-tight text-center">BloodSheet Total</span>
+                        <span className={`text-2xl sm:text-4xl font-black font-sans ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
+                            {stats.lifetimePayout >= 0 ? '+' : ''}${stats.lifetimePayout}
+                        </span>
+                    </div>
+                </div>
+            </section>
+
+
+            {/* 2x2 Stats Grid */}
+            <section className="grid grid-cols-2 gap-2 sm:gap-3">
+                <StatBox label="Total Matches" value={String(stats.totalMatches)} className="px-1" />
+                <StatBox label="Win Rate" value={winRate} className="px-1" />
+            </section>
+
+            {/* Action Required — matches needing the current user's attestation */}
+            {needsAttestation.length > 0 && (
+                <section>
+                    <div className="flex items-center gap-2 mb-3 px-2">
+                        <PenLine className="w-5 h-5 text-yellow-400" />
+                        <h3 className="text-sm font-bold tracking-widest uppercase text-yellow-400">Action Required</h3>
+                    </div>
+                    <Card className="divide-y divide-borderColor/50">
+                        {needsAttestation.map((item) => (
+                            <div
+                                key={item.matchId}
+                                className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
+                                onClick={async () => {
+                                    useMatchStore.setState({ matchId: item.matchId, match: null });
+                                    localStorage.setItem('activeMatchId', item.matchId);
+                                    navigate('/ledger');
+                                }}
+                            >
+                                <div>
+                                    <span className="font-bold text-white block">{item.courseName}</span>
+                                    <span className="text-xs text-yellow-400 font-bold uppercase tracking-wider">Your signature is needed</span>
+                                </div>
+                                <Clock className="w-5 h-5 text-yellow-400 shrink-0 ml-3" />
+                            </div>
+                        ))}
+                    </Card>
                 </section>
-            </main>
+            )}
+
+            {/* Recent Matches */}
+            <section>
+                <div className="flex items-center justify-between mb-3 px-2 mt-4">
+                    <div className="flex items-center gap-2">
+                        <History className="w-5 h-5 text-secondaryText" />
+                        <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText">Recent History</h3>
+                    </div>
+                    <button onClick={() => navigate('/history')} className="text-xs font-bold text-bloodRed uppercase tracking-widest hover:opacity-70 transition-opacity">View All</button>
+                </div>
+                {history.length === 0 ? (
+                    <div className="mt-4">
+                        <EmptyState
+                            title="No Rounds Recorded"
+                            description="Your status isn't built in a day. Tee off to start your legacy."
+                            actionLabel="Tee It Up"
+                            onAction={() => navigate('/setup')}
+                            accentColor="bloodRed"
+                        />
+                    </div>
+                ) : (
+                    <Card className="divide-y divide-borderColor/50">
+                        {history.slice(0, 5).map((item) => (
+                            <div
+                                key={item.id}
+                                className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
+                                onClick={() => {
+                                    if (item.status === 'in_progress') {
+                                        navigate(`/play/1`);
+                                    } else {
+                                        navigate(`/history/${item.id}`);
+                                    }
+                                }}
+                            >
+                                <div>
+                                    <span className="font-bold text-white block">{item.courseName} • {item.format}</span>
+                                    <span className="text-xs text-secondaryText block mt-0.5">{item.playerLabel}</span>
+                                    <span className="text-xs text-secondaryText uppercase tracking-wider">
+                                        {formatDate(item.createdAt)} • {item.wagerType}
+                                    </span>
+                                </div>
+                                <div className="text-right shrink-0 ml-3">
+                                    {item.status === 'pending_attestation' ? (
+                                        <div className="flex flex-col items-end gap-1">
+                                            <Clock className="w-4 h-4 text-yellow-400" />
+                                            <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Unattested</span>
+                                        </div>
+                                    ) : item.status === 'in_progress' ? (
+                                        <div className="flex flex-col items-end gap-1">
+                                            <div className="w-2 h-2 rounded-full bg-neonGreen animate-pulse shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
+                                            <span className="text-[10px] font-bold text-neonGreen uppercase tracking-widest">Live Round</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className={`font-black text-base leading-tight ${item.payout > 0 ? 'text-neonGreen' : item.payout < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
+                                            </div>
+                                            <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
+                                                {item.format === 'skins' ? 'SKINS' : item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </Card>
+                )}
+            </section>
         </div>
     );
 }

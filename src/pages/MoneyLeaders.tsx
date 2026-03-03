@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Crown } from 'lucide-react';
+import { Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import SEO from '../components/SEO';
 
@@ -240,19 +240,10 @@ export default function MoneyLeaders() {
         i === 0 ? 'border-yellow-500/40' : i === 1 ? 'border-white/10' : i === 2 ? 'border-amber-700/30' : 'border-borderColor';
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-background overflow-hidden">
+        <div className="space-y-6">
             <SEO title="Money Leaders" />
-            <header className="flex items-center gap-3 p-4 border-b border-borderColor shrink-0 bg-background z-20">
-                <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
-                    <ChevronLeft className="w-6 h-6" />
-                </button>
-                <div>
-                    <h1 className="font-black text-lg uppercase italic tracking-tight leading-none">Money Leaders</h1>
-                    <p className="text-[10px] text-secondaryText font-black uppercase tracking-widest mt-0.5">All-Time Earnings</p>
-                </div>
-            </header>
 
-            <div className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-2 pb-8">
+            <div className="space-y-4">
                 {loading ? (
                     <div className="flex items-center justify-center py-16">
                         <div className="w-6 h-6 border-2 border-bloodRed border-t-transparent rounded-full animate-spin" />
