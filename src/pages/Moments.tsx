@@ -42,7 +42,7 @@ export default function MomentsPage() {
 
             const { data, error } = await supabase
                 .from('match_media')
-                .select('id, media_url, media_type, hole_number, player_id, uploader_id, created_at, matches(id, courses(name)), players:player_id(id, raw_user_meta_data)')
+                .select('id, media_url, media_type, hole_number, player_id, uploader_id, created_at, matches(id, courses(name))')
                 .or(orQuery)
                 .order('created_at', { ascending: false })
                 .limit(50);
@@ -113,57 +113,68 @@ export default function MomentsPage() {
                     ) : (
                         <div className="columns-2 gap-4 space-y-4">
                             <AnimatePresence>
-                                {mediaItems.map((item, idx) => (
-                                    <motion.div
-                                        key={item.id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: idx * 0.05 }}
-                                        className="relative break-inside-avoid shadow-lg group cursor-pointer"
-                                        onClick={() => {
-                                            setLightboxMedia(mediaItems.map(m => ({
-                                                id: m.id,
-                                                url: m.media_url,
-                                                type: m.media_type,
-                                                playerId: m.player_id,
-                                                uploaderId: m.uploader_id,
-                                                holeNumber: m.hole_number,
-                                                context: m.matches?.courses?.name
-                                            })));
-                                            setLightboxIndex(idx);
-                                            setIsLightboxOpen(true);
-                                        }}
-                                    >
-                                        <div className="rounded-2xl overflow-hidden border border-borderColor/50 relative bg-surface">
-                                            {item.media_type === 'video' ? (
-                                                <>
-                                                    <video src={item.media_url} className="w-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-300 pointer-events-none" />
-                                                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center border border-white/20 z-10 shadow-lg">
-                                                        <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-white border-b-[4px] border-b-transparent ml-0.5" />
+                                {mediaItems.map((item, idx) => {
+                                    const isMe = item.player_id === user?.id;
+                                    let playerName = 'Someone';
+                                    if (isMe) {
+                                        playerName = 'Me';
+                                    } else {
+                                        const f = friendships.find(f => f.requesterId === item.player_id || f.addresseeId === item.player_id);
+                                        if (f && f.friendProfile) playerName = f.friendProfile.fullName;
+                                    }
+
+                                    return (
+                                        <motion.div
+                                            key={item.id}
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: idx * 0.05 }}
+                                            className="relative break-inside-avoid shadow-lg group cursor-pointer"
+                                            onClick={() => {
+                                                setLightboxMedia(mediaItems.map(m => ({
+                                                    id: m.id,
+                                                    url: m.media_url,
+                                                    type: m.media_type,
+                                                    playerId: m.player_id,
+                                                    uploaderId: m.uploader_id,
+                                                    holeNumber: m.hole_number,
+                                                    context: m.matches?.courses?.name
+                                                })));
+                                                setLightboxIndex(idx);
+                                                setIsLightboxOpen(true);
+                                            }}
+                                        >
+                                            <div className="rounded-2xl overflow-hidden border border-borderColor/50 relative bg-surface">
+                                                {item.media_type === 'video' ? (
+                                                    <>
+                                                        <video src={item.media_url} className="w-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-300 pointer-events-none" />
+                                                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center border border-white/20 z-10 shadow-lg">
+                                                            <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-white border-b-[4px] border-b-transparent ml-0.5" />
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <img src={item.media_url} alt="Match Moment" className="w-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-300" />
+                                                )}
+
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+
+                                                <div className="absolute bottom-3 left-3 right-3 text-left">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[10px] font-black text-neonGreen uppercase tracking-widest drop-shadow-sm px-1.5 py-0.5 bg-neonGreen/10 rounded backdrop-blur">
+                                                            Hole {item.hole_number}
+                                                        </span>
                                                     </div>
-                                                </>
-                                            ) : (
-                                                <img src={item.media_url} alt="Match Moment" className="w-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-300" />
-                                            )}
-
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
-
-                                            <div className="absolute bottom-3 left-3 right-3 text-left">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-black text-neonGreen uppercase tracking-widest drop-shadow-sm px-1.5 py-0.5 bg-neonGreen/10 rounded backdrop-blur">
-                                                        Hole {item.hole_number}
+                                                    <span className="block text-xs font-bold text-white line-clamp-1 drop-shadow-md">
+                                                        {item.matches?.courses?.name || 'Unknown Course'}
+                                                    </span>
+                                                    <span className="block text-[9px] font-medium text-white/70 mt-0.5">
+                                                        {playerName}
                                                     </span>
                                                 </div>
-                                                <span className="block text-xs font-bold text-white line-clamp-1 drop-shadow-md">
-                                                    {item.matches?.courses?.name || 'Unknown Course'}
-                                                </span>
-                                                <span className="block text-[9px] font-medium text-white/70 mt-0.5">
-                                                    {item.players?.raw_user_meta_data?.full_name || 'Player'}
-                                                </span>
                                             </div>
-                                        </div>
-                                    </motion.div>
-                                ))}
+                                        </motion.div>
+                                    );
+                                })}
                             </AnimatePresence>
                         </div>
                     )}

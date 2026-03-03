@@ -126,6 +126,7 @@ interface MatchStoreState {
   setSlotPlayer1: (slotId: string, player1Id: string | null) => void;
   setSlotOpponent: (slotId: string, opponentId: string | null) => void;
   setSlotWager: (slotId: string, wager: number) => void;
+  setSlotStrokes: (slotId: string, strokes: number) => void;
   createMatchGroup: (
     sharedData: { courseId: string; wagerType: 'NASSAU'; status: 'in_progress'; sideBets: Match['sideBets']; createdBy: string },
     course: Course,
@@ -145,7 +146,8 @@ interface MatchStoreState {
     matchData: Omit<Match, 'id'>,
     course: Course,
     createdBy: string,
-    creatorHandicapOverride?: number
+    creatorHandicapOverride?: number,
+    teamStrokeOverride?: number
   ) => Promise<string>;
 
   loadMatch: (matchId: string) => Promise<void>;
@@ -293,7 +295,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   setSlotOpponent(slotId, opponentId) {
     set((state) => ({
       matchSlots: state.matchSlots.map((s) =>
-        s.id === slotId ? { ...s, opponentId } : s
+        s.id === slotId ? { ...s, opponentId, strokeOverride: undefined } : s
       ),
     }));
   },
@@ -302,6 +304,14 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     set((state) => ({
       matchSlots: state.matchSlots.map((s) =>
         s.id === slotId ? { ...s, wager } : s
+      ),
+    }));
+  },
+
+  setSlotStrokes(slotId, strokes) {
+    set((state) => ({
+      matchSlots: state.matchSlots.map((s) =>
+        s.id === slotId ? { ...s, strokeOverride: strokes } : s
       ),
     }));
   },
@@ -361,11 +371,23 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
 
       const match = dbToMatch(data as Record<string, unknown>);
 
+      // Apply stroke override if set, otherwise use natural handicaps
+      let effectiveP1Hcp: number;
+      let effectiveOppHcp: number;
+      if (slot.strokeOverride !== undefined) {
+        const ov = slot.strokeOverride;
+        effectiveP1Hcp = ov >= 0 ? ov : 0;
+        effectiveOppHcp = ov < 0 ? -ov : 0;
+      } else {
+        effectiveP1Hcp = p1Hcp;
+        effectiveOppHcp = opponent.handicap;
+      }
+
       await supabase.from('match_players').insert({
         match_id: match.id,
         user_id: p1Id,
         team: 'A',
-        initial_handicap: p1Hcp,
+        initial_handicap: effectiveP1Hcp,
         guest_name: p1GuestName,
         avatar_url: p1AvatarUrl,
       });
@@ -374,7 +396,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         match_id: match.id,
         user_id: opponent.userId,
         team: 'B',
-        initial_handicap: opponent.handicap,
+        initial_handicap: effectiveOppHcp,
         guest_name: opponent.isGuest ? opponent.fullName : null,
         avatar_url: opponent.avatarUrl ?? null,
       });
@@ -382,14 +404,14 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       const creatorPlayer: MatchPlayer = {
         userId: p1Id,
         team: 'A',
-        initialHandicap: p1Hcp,
+        initialHandicap: effectiveP1Hcp,
         ...(p1IsGuest && p1GuestName ? { guestName: p1GuestName } : {}),
         ...(p1AvatarUrl ? { avatarUrl: p1AvatarUrl } : {}),
       };
       const opponentPlayer: MatchPlayer = {
         userId: opponent.userId,
         team: 'B',
-        initialHandicap: opponent.handicap,
+        initialHandicap: effectiveOppHcp,
         ...(opponent.isGuest ? { guestName: opponent.fullName } : {}),
         ...(opponent.avatarUrl ? { avatarUrl: opponent.avatarUrl } : {}),
       };
@@ -607,7 +629,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   },
 
   // ── Create a new match row in Supabase ──────────────────────
-  async createMatch(matchData, course, createdBy, creatorHandicapOverride) {
+  async createMatch(matchData, course, createdBy, creatorHandicapOverride, teamStrokeOverride) {
     set({ loading: true, error: null });
 
     // Upsert course cache
@@ -652,6 +674,15 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         .eq('id', createdBy)
         .single();
       creatorHandicap = (creatorProfile as { handicap: number } | null)?.handicap ?? 0;
+    }
+
+    // Apply team stroke override: adjust creator's handicap so team diff matches override
+    if (teamStrokeOverride !== undefined) {
+      const staged = get().stagedPlayers;
+      const naturalTeamAHcp = Math.round(creatorHandicap + staged.filter(p => p.team === 'A').reduce((s, p) => s + p.handicap, 0));
+      const naturalTeamBHcp = Math.round(staged.filter(p => p.team === 'B').reduce((s, p) => s + p.handicap, 0));
+      const naturalDiff = naturalTeamAHcp - naturalTeamBHcp;
+      creatorHandicap += (teamStrokeOverride - naturalDiff);
     }
 
     // Add the creator as Team A player

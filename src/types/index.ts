@@ -23,6 +23,7 @@ export interface MatchSlot {
   player1Id: string | null; // null = creator (current user)
   opponentId: string | null;
   wager: number;
+  strokeOverride?: number;  // net strokes from player1's POV; undefined = use calculated diff
 }
 
 export interface GroupMatchEntry {

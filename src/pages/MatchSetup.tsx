@@ -31,6 +31,7 @@ export default function MatchSetupPage() {
     const setSlotPlayer1 = useMatchStore((s) => s.setSlotPlayer1);
     const setSlotOpponent = useMatchStore((s) => s.setSlotOpponent);
     const setSlotWager = useMatchStore((s) => s.setSlotWager);
+    const setSlotStrokes = useMatchStore((s) => s.setSlotStrokes);
     const updateStagedPlayerTeam = useMatchStore((s) => s.updateStagedPlayerTeam);
     const format = useMatchStore((s) => s.pendingFormat);
     const setFormat = useMatchStore((s) => s.setPendingFormat);
@@ -44,6 +45,11 @@ export default function MatchSetupPage() {
     useEffect(() => {
         if (profile?.handicap !== undefined) setCreatorHcp(profile.handicap);
     }, [profile?.handicap]);
+
+    // 2v2 team stroke override (signed: positive = Team A spotted)
+    const [teamStrokeOverride, setTeamStrokeOverride] = useState<number | undefined>(undefined);
+    // Reset when players change
+    useEffect(() => { setTeamStrokeOverride(undefined); }, [stagedPlayers]);
 
     // Course search
     const [courseQuery, setCourseQuery] = useState('');
@@ -234,7 +240,8 @@ export default function MatchSetupPage() {
                     { courseId: selectedCourse.id, format, wagerAmount: wager, wagerType: 'NASSAU', status: 'in_progress', sideBets, createdBy: user.id },
                     selectedCourse,
                     user.id,
-                    creatorHcp
+                    creatorHcp,
+                    teamStrokeOverride
                 );
             }
             navigate(`/play/${startingHole}`);
@@ -707,16 +714,23 @@ export default function MatchSetupPage() {
                                                             <div className="grid grid-cols-2 gap-3 pt-2">
                                                                 <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30">
                                                                     <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest mb-1">Strokes</div>
-                                                                    <div className="text-lg font-black text-neonGreen">
-                                                                        {(() => {
-                                                                            const p1Id = slot.player1Id || user?.id;
-                                                                            const p1 = p1Id === user?.id ? { handicap: creatorHcp } : poolPlayers.find(p => p.userId === p1Id);
-                                                                            const opp = poolPlayers.find((p) => p.userId === slot.opponentId);
-                                                                            if (!p1 || !opp) return '0';
-                                                                            const diff = p1.handicap - opp.handicap;
-                                                                            return diff > 0 ? `+${diff.toFixed(1)}` : diff < 0 ? `${diff.toFixed(1)}` : 'Even';
-                                                                        })()}
-                                                                    </div>
+                                                                    {(() => {
+                                                                        const p1Id = slot.player1Id || user?.id;
+                                                                        const p1 = p1Id === user?.id ? { handicap: creatorHcp } : poolPlayers.find(p => p.userId === p1Id);
+                                                                        const opp = poolPlayers.find((p) => p.userId === slot.opponentId);
+                                                                        const calcStrokes = (p1 && opp) ? Math.round(p1.handicap - opp.handicap) : 0;
+                                                                        const strokes = slot.strokeOverride !== undefined ? slot.strokeOverride : calcStrokes;
+                                                                        const label = strokes > 0 ? `+${strokes}` : strokes < 0 ? `${strokes}` : 'Even';
+                                                                        return (
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="text-lg font-black text-neonGreen">{label}</span>
+                                                                                <div className="flex gap-1">
+                                                                                    <button onClick={() => setSlotStrokes(slot.id, strokes - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed">−</button>
+                                                                                    <button onClick={() => setSlotStrokes(slot.id, strokes + 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen">+</button>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })()}
                                                                 </div>
                                                                 <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30">
                                                                     <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest mb-1">Nassau Wager</div>
@@ -784,16 +798,22 @@ export default function MatchSetupPage() {
                                             if (teamB.length === 0) return null;
                                             const teamAHcp = Math.round(creatorHcp + (partnerA?.handicap ?? 0));
                                             const teamBHcp = Math.round(teamB.reduce((sum, p) => sum + p.handicap, 0));
-                                            const diff = Math.abs(teamAHcp - teamBHcp);
+                                            const calcDiff = teamAHcp - teamBHcp; // signed: positive = Team A has higher hcp
+                                            const effectiveDiff = teamStrokeOverride !== undefined ? teamStrokeOverride : calcDiff;
+                                            const absDiff = Math.abs(effectiveDiff);
                                             const nameA = 'Team A';
                                             const nameB = 'Team B';
-                                            if (diff === 0) return (
+                                            if (absDiff === 0) return (
                                                 <div className="p-3 border-t border-borderColor/50 text-center bg-surfaceHover/10">
-                                                    <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Scratch Match • No Strokes Given</span>
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <button onClick={() => setTeamStrokeOverride(effectiveDiff - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed">−</button>
+                                                        <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Scratch Match • No Strokes Given</span>
+                                                        <button onClick={() => setTeamStrokeOverride(effectiveDiff + 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen">+</button>
+                                                    </div>
                                                 </div>
                                             );
-                                            const spottedName = teamAHcp > teamBHcp ? nameA : nameB;
-                                            const spottingName = teamAHcp > teamBHcp ? nameB : nameA;
+                                            const spottedName = effectiveDiff > 0 ? nameA : nameB;
+                                            const spottingName = effectiveDiff > 0 ? nameB : nameA;
                                             return (
                                                 <div className="p-4 bg-gradient-to-b from-transparent to-bloodRed/[0.03] border-t border-borderColor/50">
                                                     <div className="flex justify-between items-center mb-3">
@@ -808,9 +828,13 @@ export default function MatchSetupPage() {
                                                         </div>
                                                     </div>
                                                     <div className="bg-background/80 rounded-xl p-3 border border-bloodRed/20 flex items-center justify-center shadow-[0_4px_12px_rgba(255,0,63,0.1)]">
-                                                        <p className="text-xs font-black uppercase tracking-widest text-white text-center">
-                                                            {spottingName} spots {spottedName} <span className="text-sm text-bloodRed px-1">{diff}</span> stroke{diff !== 1 ? 's' : ''}
-                                                        </p>
+                                                        <div className="flex items-center gap-2">
+                                                            <button onClick={() => setTeamStrokeOverride(effectiveDiff - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed shrink-0">−</button>
+                                                            <p className="text-xs font-black uppercase tracking-widest text-white text-center">
+                                                                {spottingName} spots {spottedName} <span className="text-sm text-bloodRed px-1">{absDiff}</span> stroke{absDiff !== 1 ? 's' : ''}
+                                                            </p>
+                                                            <button onClick={() => setTeamStrokeOverride(effectiveDiff + 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen shrink-0">+</button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );

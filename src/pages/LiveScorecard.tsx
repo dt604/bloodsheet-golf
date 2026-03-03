@@ -266,20 +266,19 @@ export default function LiveScorecardPage() {
 
             const map: Record<string, { fullName: string; handicap: number; avatarUrl?: string }> = {};
 
-            // Seed map from store first — covers Grint/guest players who have no DB profile
+            // Seed ALL players with their match-time handicaps (respects stroke overrides)
             for (const p of players) {
-                if (p.guestName || p.avatarUrl) {
-                    map[p.userId] = {
-                        fullName: p.guestName ?? p.userId,
-                        handicap: p.initialHandicap,
-                        avatarUrl: p.avatarUrl,
-                    };
-                }
+                map[p.userId] = {
+                    fullName: p.guestName ?? p.userId,
+                    handicap: p.initialHandicap,
+                    avatarUrl: p.avatarUrl,
+                };
             }
 
-            // DB profiles overwrite where they exist (registered users)
+            // DB profiles overwrite name & avatar only (NOT handicap — match-time value is authoritative)
             for (const row of (data ?? []) as { id: string; full_name: string; handicap: number; avatar_url: string | null }[]) {
-                map[row.id] = { fullName: row.full_name, handicap: row.handicap, avatarUrl: row.avatar_url ?? undefined };
+                const existing = map[row.id];
+                map[row.id] = { fullName: row.full_name, handicap: existing?.handicap ?? row.handicap, avatarUrl: row.avatar_url ?? undefined };
             }
 
             setPlayerProfiles(map);
