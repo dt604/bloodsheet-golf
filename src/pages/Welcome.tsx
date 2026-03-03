@@ -21,7 +21,7 @@ type AuthMode = 'welcome' | 'login' | 'signup' | 'grint' | 'forgot';
 
 export default function WelcomePage() {
     const navigate = useNavigate();
-    const { signIn, signUp, signInAsGuest, sendPasswordReset, signInWithGoogle } = useAuth();
+    const { signIn, signUp, sendPasswordReset, signInWithGoogle } = useAuth();
 
     const [authMode, setAuthMode] = useState<AuthMode>('welcome');
     const [email, setEmail] = useState('');
@@ -102,14 +102,7 @@ export default function WelcomePage() {
         navigate('/home');
     }
 
-    async function handleGuestAccess() {
-        setError('');
-        setLoading(true);
-        const err = await signInAsGuest();
-        setLoading(false);
-        if (err) { setError(err); return; }
-        navigate('/join');
-    }
+
 
     const [resetSent, setResetSent] = useState(false);
 
@@ -163,13 +156,7 @@ export default function WelcomePage() {
                             <GoogleIcon />
                             Continue with Google
                         </button>
-                        <button
-                            className="w-full text-secondaryText text-sm font-semibold py-2 hover:text-white transition-colors"
-                            onClick={handleGuestAccess}
-                            disabled={loading}
-                        >
-                            Watch a Live Match →
-                        </button>
+
                     </>
                 )}
 

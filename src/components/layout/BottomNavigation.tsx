@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Trophy, BookOpen, Play, Plus, Users, LayoutGrid } from 'lucide-react';
+import { Home, Trophy, BookOpen, Play, Plus, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function BottomNavigation() {
@@ -29,45 +29,43 @@ export default function BottomNavigation() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsMenuOpen(false)}
-                            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+                            className="fixed inset-0 bg-black/60 backdrop-blur-md z-40"
                         />
                         <motion.div
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
+                            initial={{ y: '100%', scale: 0.95 }}
+                            animate={{ y: 0, scale: 1 }}
+                            exit={{ y: '100%', scale: 0.95 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed bottom-[90px] left-4 right-4 z-50 bg-surface border border-borderColor rounded-3xl p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] safe-bottom"
+                            className="fixed bottom-[100px] left-4 right-4 z-50 bg-[#1C1C1E]/95 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] safe-bottom"
                         >
-                            <h3 className="font-black text-xl text-white uppercase tracking-widest mb-6 text-center">
-                                Start Round
-                            </h3>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col items-center gap-6">
+                                <div className="text-center">
+                                    <h3 className="font-black text-2xl text-white uppercase italic tracking-tighter mb-1">
+                                        Match Center
+                                    </h3>
+                                    <p className="text-[10px] text-secondaryText font-black uppercase tracking-[0.2em]">Start Your Legend</p>
+                                </div>
+
                                 <button
                                     onClick={() => {
                                         setIsMenuOpen(false);
                                         navigate('/setup');
                                     }}
-                                    className="flex flex-col items-center justify-center p-6 bg-background rounded-2xl border border-bloodRed/30 hover:border-bloodRed transition-colors group relative overflow-hidden"
+                                    className="w-full flex items-center justify-between p-6 bg-surfaceHover/50 rounded-3xl border border-bloodRed/20 hover:border-bloodRed transition-all group relative overflow-hidden active:scale-[0.98]"
                                 >
-                                    <div className="absolute inset-0 bg-bloodRed/5 group-hover:bg-bloodRed/10 transition-colors" />
-                                    <Plus className="w-10 h-10 text-white mb-3 relative z-10" />
-                                    <span className="font-black text-sm text-bloodRed uppercase tracking-widest relative z-10 text-center">
-                                        Host Match
-                                    </span>
-                                </button>
-
-                                <button
-                                    onClick={() => {
-                                        setIsMenuOpen(false);
-                                        navigate('/join');
-                                    }}
-                                    className="flex flex-col items-center justify-center p-6 bg-background rounded-2xl border border-neonGreen/30 hover:border-neonGreen transition-colors group relative overflow-hidden"
-                                >
-                                    <div className="absolute inset-0 bg-neonGreen/5 group-hover:bg-neonGreen/10 transition-colors" />
-                                    <LayoutGrid className="w-10 h-10 text-white mb-3 relative z-10" />
-                                    <span className="font-black text-sm text-neonGreen uppercase tracking-widest relative z-10 text-center">
-                                        Join Match
-                                    </span>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="flex items-center gap-4 relative z-10">
+                                        <div className="w-12 h-12 rounded-2xl bg-bloodRed/20 flex items-center justify-center text-bloodRed group-hover:scale-110 transition-transform">
+                                            <Plus className="w-7 h-7" strokeWidth={3} />
+                                        </div>
+                                        <div className="text-left">
+                                            <span className="block font-black text-lg text-white uppercase italic leading-none group-hover:text-bloodRed transition-colors">
+                                                Host Match
+                                            </span>
+                                            <span className="text-[10px] text-secondaryText font-black uppercase tracking-[0.1em] mt-1">Create a new ledger</span>
+                                        </div>
+                                    </div>
+                                    <Play className="w-5 h-5 text-bloodRed/40 group-hover:text-bloodRed group-hover:translate-x-1 transition-all" fill="currentColor" />
                                 </button>
                             </div>
                         </motion.div>
@@ -75,53 +73,80 @@ export default function BottomNavigation() {
                 )}
             </AnimatePresence>
 
-            {/* Bottom Navigation Bar */}
-            <nav className="fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-borderColor/50 px-2 pb-safe shadow-[0_-5px_30px_rgba(0,0,0,0.3)] safe-x max-w-md landscape:max-w-none lg:landscape:max-w-md mx-auto">
-                <div className="flex items-center justify-between h-[72px] relative">
+            {/* Bottom Navigation Bar - Floating Design */}
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm z-40">
+                <nav className="bg-[#1C1C1E]/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2 shadow-[0_15px_35px_rgba(0,0,0,0.5)]">
+                    <div className="flex items-center justify-between h-14 relative">
 
-                    {/* Left Items */}
-                    <div className="flex-1 flex justify-around">
-                        {navItems.slice(0, 2).map((item) => (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${isActive(item.path) ? 'text-neonGreen' : 'text-secondaryText hover:text-white'
-                                    }`}
+                        {/* Left Items */}
+                        <div className="flex items-center gap-8">
+                            {navItems.slice(0, 2).map((item) => {
+                                const active = isActive(item.path);
+                                return (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 relative group ${active ? 'text-bloodRed scale-110' : 'text-secondaryText hover:text-white'}`}
+                                    >
+                                        <item.icon className="w-6 h-6" strokeWidth={active ? 2.5 : 2} />
+                                        <span className="text-[8px] font-black uppercase tracking-widest">{item.label}</span>
+                                        {active && (
+                                            <motion.div
+                                                layoutId="active-nav"
+                                                className="absolute -bottom-1.5 w-1 h-1 bg-bloodRed rounded-full"
+                                            />
+                                        )}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+
+                        {/* Center FAB - Polished */}
+                        <div className="absolute left-1/2 -translate-x-1/2 -top-10">
+                            <button
+                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                className={`w-16 h-16 rounded-full bg-[#1C1C1E] border-4 border-[#121214] flex items-center justify-center shadow-[0_8px_25px_rgba(255,0,63,0.3)] transition-all duration-500 active:scale-90 group relative overflow-hidden ${isMenuOpen ? 'rotate-45 scale-110 border-bloodRed/20' : 'hover:scale-105'}`}
                             >
-                                <item.icon className="w-6 h-6" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
-                            </Link>
-                        ))}
-                    </div>
+                                <div className={`absolute inset-0 bg-bloodRed transition-all duration-500 ${isMenuOpen ? 'opacity-20' : 'opacity-100 group-hover:bg-bloodRed/90'}`} />
+                                <div className="absolute inset-0 bg-gradient-to-tr from-black/20 to-transparent opacity-50" />
 
-                    {/* Center FAB Space */}
-                    <div className="flex-shrink-0 w-[80px] flex items-center justify-center -mt-8 relative z-50">
-                        <button
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="w-[68px] h-[68px] rounded-full bg-surface border-4 border-background flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-transform active:scale-95 group overflow-hidden"
-                        >
-                            <div className="absolute inset-0 bg-bloodRed transition-colors group-hover:bg-bloodRed/90" />
-                            <Play className="w-8 h-8 text-white ml-1 relative z-10" fill="currentColor" />
-                        </button>
-                    </div>
+                                {isMenuOpen ? (
+                                    <Plus className="w-8 h-8 text-bloodRed relative z-10" strokeWidth={3} />
+                                ) : (
+                                    <Play className="w-7 h-7 text-white ml-0.5 relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" fill="currentColor" />
+                                )}
 
-                    {/* Right Items */}
-                    <div className="flex-1 flex justify-around">
-                        {navItems.slice(2, 4).map((item) => (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${isActive(item.path) ? 'text-neonGreen' : 'text-secondaryText hover:text-white'
-                                    }`}
-                            >
-                                <item.icon className="w-6 h-6" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
-                            </Link>
-                        ))}
-                    </div>
+                                {/* Subtle Pulse Effect */}
+                                <div className="absolute inset-0 rounded-full border border-white/20 scale-110 opacity-0 group-hover:animate-ping" />
+                            </button>
+                        </div>
 
-                </div>
-            </nav>
+                        {/* Right Items */}
+                        <div className="flex items-center gap-8">
+                            {navItems.slice(2, 4).map((item) => {
+                                const active = isActive(item.path);
+                                return (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 relative group ${active ? 'text-bloodRed scale-110' : 'text-secondaryText hover:text-white'}`}
+                                    >
+                                        <item.icon className="w-6 h-6" strokeWidth={active ? 2.5 : 2} />
+                                        <span className="text-[8px] font-black uppercase tracking-widest">{item.label}</span>
+                                        {active && (
+                                            <motion.div
+                                                layoutId="active-nav"
+                                                className="absolute -bottom-1.5 w-1 h-1 bg-bloodRed rounded-full"
+                                            />
+                                        )}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+
+                    </div>
+                </nav>
+            </div>
         </>
     );
 }
