@@ -1,18 +1,35 @@
+import { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Wallet, MessageSquare, Play, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMatchStore } from '../../store/useMatchStore';
+import { useSocialStore } from '../../store/useSocialStore';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function BottomNavigation() {
     const location = useLocation();
     const navigate = useNavigate();
     const resetSetup = useMatchStore((s) => s.resetSetup);
+    const { user } = useAuth();
+    const { hasUnseenActivity, checkUnseenActivity, clearUnseenActivity } = useSocialStore();
+
+    // Check for unseen social activity on mount
+    useEffect(() => {
+        if (user) checkUnseenActivity(user.id);
+    }, [user]);
+
+    // Clear notification dot when user navigates to Home
+    useEffect(() => {
+        if (location.pathname === '/home' && hasUnseenActivity) {
+            clearUnseenActivity();
+        }
+    }, [location.pathname, hasUnseenActivity, clearUnseenActivity]);
 
     // Check if path is active
     const isActive = (path: string) => location.pathname === path;
 
     const navItems = [
-        { icon: Home, label: 'Home', path: '/home' },
+        { icon: Home, label: 'Home', path: '/home', showDot: hasUnseenActivity },
         { icon: Wallet, label: 'Wallet', path: '/balances' },
         { icon: MessageSquare, label: 'Chat', path: '/messages' },
         { icon: Users, label: 'Friends', path: '/friends' }
@@ -47,8 +64,11 @@ export default function BottomNavigation() {
                                             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                         />
                                     )}
-                                    <div className={`transition-all duration-500 flex flex-col items-center gap-1.5 ${active ? '-translate-y-1' : ''}`}>
+                                    <div className={`relative transition-all duration-500 flex flex-col items-center gap-1.5 ${active ? '-translate-y-1' : ''}`}>
                                         <item.icon className="w-5 h-5" strokeWidth={active ? 2.5 : 2} />
+                                        {'showDot' in item && item.showDot && !active && (
+                                            <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-bloodRed rounded-full ring-2 ring-[#0B0B0C] shadow-[0_0_8px_rgba(255,0,63,0.6)] animate-pulse" />
+                                        )}
                                         <span className={`text-[9px] font-black uppercase tracking-[0.15em] ${active ? 'text-bloodRed' : ''}`}>
                                             {item.label}
                                         </span>
@@ -106,8 +126,11 @@ export default function BottomNavigation() {
                                             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                         />
                                     )}
-                                    <div className={`transition-all duration-500 flex flex-col items-center gap-1.5 ${active ? '-translate-y-1' : ''}`}>
+                                    <div className={`relative transition-all duration-500 flex flex-col items-center gap-1.5 ${active ? '-translate-y-1' : ''}`}>
                                         <item.icon className="w-5 h-5" strokeWidth={active ? 2.5 : 2} />
+                                        {'showDot' in item && item.showDot && !active && (
+                                            <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-bloodRed rounded-full ring-2 ring-[#0B0B0C] shadow-[0_0_8px_rgba(255,0,63,0.6)] animate-pulse" />
+                                        )}
                                         <span className={`text-[9px] font-black uppercase tracking-[0.15em] ${active ? 'text-bloodRed' : ''}`}>
                                             {item.label}
                                         </span>
