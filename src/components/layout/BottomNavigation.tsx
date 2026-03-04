@@ -1,10 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Trophy, MessageSquare, Play, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useMatchStore } from '../../store/useMatchStore';
 
 export default function BottomNavigation() {
     const location = useLocation();
     const navigate = useNavigate();
+    const resetSetup = useMatchStore((s) => s.resetSetup);
 
     const isActive = (path: string) => location.pathname === path;
 
@@ -49,7 +51,10 @@ export default function BottomNavigation() {
                         {/* Center FAB - Polished */}
                         <div className="absolute left-1/2 -translate-x-1/2 -top-10">
                             <button
-                                onClick={() => navigate('/setup')}
+                                onClick={() => {
+                                    resetSetup();
+                                    navigate('/setup');
+                                }}
                                 className="w-16 h-16 rounded-full bg-[#1C1C1E] border-4 border-[#121214] flex items-center justify-center shadow-[0_8px_25px_rgba(255,0,63,0.3)] transition-all duration-500 active:scale-90 group relative overflow-hidden hover:scale-105"
                             >
                                 <div className="absolute inset-0 bg-bloodRed transition-all duration-500 opacity-100 group-hover:bg-bloodRed/90" />

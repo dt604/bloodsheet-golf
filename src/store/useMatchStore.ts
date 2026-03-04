@@ -179,6 +179,7 @@ interface MatchStoreState {
   unsubscribe: () => void;
 
   clearMatch: () => void;
+  resetSetup: () => void;
 }
 
 export const useMatchStore = create<MatchStoreState>((set, get) => ({
@@ -214,6 +215,17 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   }),
 
   setCurrentStep: (step) => set({ currentStep: step }),
+
+  resetSetup: () => set({
+    currentStep: 1,
+    pendingFormat: '1v1',
+    pendingTeamSkins: false,
+    stagedPlayers: [],
+    poolPlayers: [],
+    matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }],
+    groupState: null,
+    activeMatchIds: [],
+  }),
 
   setPendingTeamSkins: (enabled) => set({ pendingTeamSkins: enabled }),
 

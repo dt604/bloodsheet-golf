@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Camera } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight, Trash2, MessageSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight, Trash2, MessageSquare, Info } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
@@ -114,6 +114,9 @@ export default function LiveScorecardPage() {
     const [editBirdiesDouble, setEditBirdiesDouble] = useState(false);
     const [editTrashValue, setEditTrashValue] = useState(5);
     const [editBonusSkins, setEditBonusSkins] = useState(false);
+    const [showWagerHelp, setShowWagerHelp] = useState(false);
+    const [showSideBetsHelp, setShowSideBetsHelp] = useState(false);
+    const [showTrashValueHelp, setShowTrashValueHelp] = useState(false);
     const [settingsSaving, setSettingsSaving] = useState(false);
     const [pingMessage, setPingMessage] = useState<{ message: string; timestamp: number } | null>(null);
     const [focusedMatchIdx, setFocusedMatchIdx] = useState(0);
@@ -128,6 +131,26 @@ export default function LiveScorecardPage() {
 
     // Trash Talk State
     const [isTrashTalkOpen, setIsTrashTalkOpen] = useState(false);
+
+    // Initialise edit states from match
+    useEffect(() => {
+        if (showEditSettings && match) {
+            setEditWager(match.wagerAmount);
+            setEditWagerType((match.wagerType as 'PER_HOLE' | 'NASSAU') || 'NASSAU');
+            setEditGreenies(match.sideBets?.greenies ?? false);
+            setEditSandies(match.sideBets?.sandies ?? false);
+            setEditSnake(match.sideBets?.snake ?? false);
+            setEditAutoPress(match.sideBets?.autoPress ?? false);
+            setEditBirdiesDouble(match.sideBets?.birdiesDouble ?? false);
+            setEditTrashValue(match.sideBets?.trashValue ?? 5);
+            setEditBonusSkins(match.sideBets?.bonusSkins ?? false);
+        } else if (!showEditSettings) {
+            // Reset help states when closing
+            setShowWagerHelp(false);
+            setShowSideBetsHelp(false);
+            setShowTrashValueHelp(false);
+        }
+    }, [showEditSettings, match]);
 
     const holeMedia = useMemo(() => {
         return matchMedia.filter(m => m.hole_number === currentHole);
@@ -1074,10 +1097,30 @@ export default function LiveScorecardPage() {
                                 <button onClick={() => setShowEditSettings(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
                             </div>
                             {/* Scrollable body */}
-                            <div className="overflow-y-auto flex-1 p-5 space-y-6">
+                            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-7">
                                 {/* Wager */}
                                 <div className="space-y-3">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText">Wager</p>
+                                    <div
+                                        className="flex items-center gap-2 cursor-pointer group w-fit"
+                                        onClick={() => setShowWagerHelp(!showWagerHelp)}
+                                    >
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText group-hover:text-bloodRed transition-colors">Wager</p>
+                                        <Info className="w-3 h-3 text-secondaryText/50 group-hover:text-bloodRed transition-colors" />
+                                    </div>
+
+                                    <AnimatePresence>
+                                        {showWagerHelp && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pb-2"
+                                            >
+                                                Adjust the stakes for the remaining segments. For Match Play, this updates the Front, Back, and Overall values. For Skins, it changes the value of all upcoming holes.
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm font-bold text-white">Amount</span>
                                         <div className="flex items-center gap-3">
@@ -1101,7 +1144,27 @@ export default function LiveScorecardPage() {
                                 </div>
                                 {/* Side Bets */}
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText mb-2">Side Bets</p>
+                                    <div
+                                        className="flex items-center gap-2 cursor-pointer group w-fit mb-2"
+                                        onClick={() => setShowSideBetsHelp(!showSideBetsHelp)}
+                                    >
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText group-hover:text-bloodRed transition-colors">Side Bets</p>
+                                        <Info className="w-3 h-3 text-secondaryText/50 group-hover:text-bloodRed transition-colors" />
+                                    </div>
+
+                                    <AnimatePresence>
+                                        {showSideBetsHelp && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pb-2"
+                                            >
+                                                Enable or disable specific side contests mid-match. Results already recorded on previous holes will be preserved in the final calculations.
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
                                     {[
                                         { label: 'Greenies', sub: 'Closest to pin on par 3', val: editGreenies, set: setEditGreenies },
                                         { label: 'Sandies', sub: 'Par+ from bunker', val: editSandies, set: setEditSandies },
@@ -1114,69 +1177,99 @@ export default function LiveScorecardPage() {
                                             { label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', val: editBonusSkins, set: setEditBonusSkins },
                                         ] : []),
                                     ].map(({ label, sub, val, set }) => (
-                                        <div key={label} className="flex items-center justify-between py-2.5 border-b border-borderColor/50">
-                                            <div>
+                                        <div key={label} className="flex items-center justify-between py-3 border-b border-borderColor/30">
+                                            <div className="pr-4">
                                                 <p className="text-sm font-bold text-white">{label}</p>
-                                                <p className="text-[10px] text-secondaryText">{sub}</p>
+                                                <p className="text-[10px] text-secondaryText leading-tight">{sub}</p>
                                             </div>
-                                            <button onClick={() => set(!val)} className={`w-11 h-6 rounded-full border transition-colors relative ${val ? 'bg-bloodRed border-bloodRed' : 'bg-surfaceHover border-borderColor'}`}>
-                                                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${val ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                            <button
+                                                onClick={() => set(!val)}
+                                                className={`w-11 h-6 rounded-full border transition-all relative shrink-0 ${val ? 'bg-bloodRed border-bloodRed shadow-[0_0_12px_rgba(255,0,63,0.3)]' : 'bg-surfaceHover border-borderColor'}`}
+                                            >
+                                                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-transform duration-300 ${val ? 'translate-x-[20px]' : 'translate-x-0'}`} />
                                             </button>
                                         </div>
                                     ))}
                                     {/* Trash Value */}
-                                    <div className="flex items-center justify-between py-2.5">
-                                        <div>
-                                            <p className="text-sm font-bold text-white">Trash Value</p>
-                                            <p className="text-[10px] text-secondaryText">Payout per dot</p>
+                                    <div className="flex flex-col pt-3">
+                                        <div className="flex items-center justify-between">
+                                            <div
+                                                className="flex items-center gap-2 cursor-pointer group"
+                                                onClick={() => setShowTrashValueHelp(!showTrashValueHelp)}
+                                            >
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm font-bold text-white group-hover:text-bloodRed transition-colors">Trash Value</p>
+                                                        <Info className="w-3 h-3 text-secondaryText/50 group-hover:text-bloodRed transition-colors" />
+                                                    </div>
+                                                    <p className="text-[10px] text-secondaryText">Payout per dot</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => setEditTrashValue(v => Math.max(0, v - 5))} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
+                                                <span className="text-sm font-black w-8 text-center tabular-nums">${editTrashValue}</span>
+                                                <button onClick={() => setEditTrashValue(v => v + 5)} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => setEditTrashValue(v => Math.max(0, v - 5))} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
-                                            <span className="text-sm font-black w-8 text-center tabular-nums">${editTrashValue}</span>
-                                            <button onClick={() => setEditTrashValue(v => v + 5)} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
-                                        </div>
+
+                                        <AnimatePresence>
+                                            {showTrashValueHelp && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pt-2"
+                                                >
+                                                    The monetary value assigned to each 'dot' earned. This amount is multiplied by the total dots at the end of the round to settle side-bets.
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
                                 </div>
 
-                                {/* Danger Zone */}
                                 {isScorekeeper && (
-                                    <div className="pt-4 border-t border-borderColor/50">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-bloodRed mb-4">Danger Zone</p>
+                                    <div className="pt-6 pb-2">
                                         <button
                                             onClick={() => {
                                                 setShowEditSettings(false);
                                                 setShowQuitConfirm(true);
                                             }}
-                                            className="w-full py-4 rounded-xl border border-bloodRed/30 bg-bloodRed/10 text-bloodRed font-black uppercase italic tracking-wider text-xs hover:bg-bloodRed hover:text-white transition-all shadow-[0_0_15px_rgba(255,0,63,0.1)] flex items-center justify-center gap-2"
+                                            className="group flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-bloodRed/20 hover:border-bloodRed/50 hover:bg-bloodRed/5 transition-all"
                                         >
-                                            <Trash2 className="w-4 h-4" /> Delete Match
+                                            <Trash2 className="w-3.5 h-3.5 text-bloodRed/60 group-hover:text-bloodRed" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-bloodRed/60 group-hover:text-bloodRed">Delete Match</span>
                                         </button>
                                     </div>
                                 )}
                             </div>
                             {/* Save */}
-                            <div className="p-5 border-t border-borderColor shrink-0">
-                                <Button size="lg" className="w-full" disabled={settingsSaving} onClick={async () => {
-                                    if (!matchId) return;
-                                    setSettingsSaving(true);
-                                    await updateMatchSettings(matchId, {
-                                        wagerAmount: editWager,
-                                        wagerType: editWagerType,
-                                        sideBets: {
-                                            ...(match?.sideBets ?? {}),
-                                            greenies: editGreenies,
-                                            sandies: editSandies,
-                                            snake: editSnake,
-                                            autoPress: editAutoPress,
-                                            birdiesDouble: editBirdiesDouble,
-                                            trashValue: editTrashValue,
-                                            bonusSkins: editBonusSkins,
-                                        },
-                                    });
-                                    setSettingsSaving(false);
-                                    setShowEditSettings(false);
-                                }}>
-                                    {settingsSaving ? <Loader className="w-4 h-4 animate-spin" /> : 'Save Changes'}
+                            <div className="p-5 border-t border-borderColor shrink-0 bg-surface/50 backdrop-blur-md">
+                                <Button
+                                    size="lg"
+                                    className="w-full bg-neonGreen hover:bg-neonGreen/90 text-black font-black italic border-none shadow-[0_0_20px_rgba(0,255,102,0.2)]"
+                                    disabled={settingsSaving}
+                                    onClick={async () => {
+                                        if (!matchId) return;
+                                        setSettingsSaving(true);
+                                        await updateMatchSettings(matchId, {
+                                            wagerAmount: editWager,
+                                            wagerType: editWagerType,
+                                            sideBets: {
+                                                ...(match?.sideBets ?? {}),
+                                                greenies: editGreenies,
+                                                sandies: editSandies,
+                                                snake: editSnake,
+                                                autoPress: editAutoPress,
+                                                birdiesDouble: editBirdiesDouble,
+                                                trashValue: editTrashValue,
+                                                bonusSkins: editBonusSkins,
+                                            },
+                                        });
+                                        setSettingsSaving(false);
+                                        setShowEditSettings(false);
+                                    }}
+                                >
+                                    {settingsSaving ? <Loader className="w-4 h-4 animate-spin" /> : 'SAVE CHANGES'}
                                 </Button>
                             </div>
                         </div>

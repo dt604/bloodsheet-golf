@@ -42,6 +42,7 @@ export default function MatchSetupPage() {
 
     const [wager, setWager] = useState(10);
     const [creatorHcp, setCreatorHcp] = useState<number>(0);
+
     useEffect(() => {
         if (profile?.handicap !== undefined) setCreatorHcp(profile.handicap);
     }, [profile?.handicap]);
@@ -117,6 +118,10 @@ export default function MatchSetupPage() {
 
     // Accordion state for Trash tooltips
     const [activeTrashTooltip, setActiveTrashTooltip] = useState<string | null>(null);
+    const [showTeamWagerHelp, setShowTeamWagerHelp] = useState(false);
+    const [showSkinsWagerHelp, setShowSkinsWagerHelp] = useState(false);
+    const [showPotSkinsHelp, setShowPotSkinsHelp] = useState(false);
+    const [showTeamSkinsHelp, setShowTeamSkinsHelp] = useState(false);
     const toggleTrashTooltip = (id: string) => {
         setActiveTrashTooltip(prev => prev === id ? null : id);
     };
@@ -428,12 +433,33 @@ export default function MatchSetupPage() {
 
                             {/* Team Skins toggle — shown at top of player step for skins format */}
                             {format === 'skins' && (
-                                <div className="flex items-center justify-between p-4 rounded-xl border border-borderColor/50 bg-surface/50">
-                                    <div>
-                                        <span className="font-black text-xs uppercase tracking-tight block text-white">Team Skins</span>
-                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Team A vs Team B · Best ball</span>
+                                <div className="p-4 rounded-xl border border-borderColor/50 bg-surface/50">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div
+                                            className="flex flex-col cursor-pointer group"
+                                            onClick={() => setShowTeamSkinsHelp(!showTeamSkinsHelp)}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-black text-xs uppercase tracking-tight block text-white group-hover:text-bloodRed transition-colors">Team Skins</span>
+                                                <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
+                                            </div>
+                                            <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Team A vs Team B · Best ball</span>
+                                        </div>
+                                        <Toggle checked={teamSkins} onCheckedChange={handleTeamSkinsToggle} />
                                     </div>
-                                    <Toggle checked={teamSkins} onCheckedChange={handleTeamSkinsToggle} />
+
+                                    <AnimatePresence>
+                                        {showTeamSkinsHelp && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pt-1 italic"
+                                            >
+                                                Combines 2v2 team play with Skins rules. Team A and Team B compare their best individual score on each hole. If the hole is tied, the skin carries over to the next hole.
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             )}
 
@@ -679,10 +705,12 @@ export default function MatchSetupPage() {
                                             <div className="text-sm font-black text-white uppercase tracking-wider">Match Configuration</div>
                                             <div className="text-[10px] text-bloodRed font-bold uppercase tracking-widest pb-0.5">Live Odds</div>
                                         </div>
-                                        <button onClick={() => addMatchSlot(10)} className="flex items-center gap-1.5 text-xs font-black text-neonGreen uppercase tracking-tighter hover:opacity-80 transition-opacity p-1 px-2 border border-neonGreen/20 rounded-lg bg-neonGreen/5">
-                                            <Plus className="w-3 h-3" />
-                                            <span>Add Match</span>
-                                        </button>
+                                        {poolPlayers.length > 1 && matchSlots.length < poolPlayers.length && (
+                                            <button onClick={() => addMatchSlot(10)} className="flex items-center gap-1.5 text-xs font-black text-neonGreen uppercase tracking-tighter hover:opacity-80 transition-opacity p-1 px-2 border border-neonGreen/20 rounded-lg bg-neonGreen/5">
+                                                <Plus className="w-3 h-3" />
+                                                <span>Add Match</span>
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="space-y-4">
@@ -833,6 +861,7 @@ export default function MatchSetupPage() {
                                                         {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : initials}
                                                     </div>
                                                     <span className="text-xs font-bold truncate">{profile?.fullName.split(' ')[0] || 'Me'}</span>
+                                                    <span className="text-[10px] font-black text-neonGreen/60">({creatorHcp})</span>
                                                 </div>
                                                 {stagedPlayers.filter((p) => p.team === 'A').map((p) => (
                                                     <div key={p.userId} className="flex items-center gap-2">
@@ -840,6 +869,7 @@ export default function MatchSetupPage() {
                                                             {p.fullName.split(' ').map((n) => n[0]).join('').toUpperCase()}
                                                         </div>
                                                         <span className="text-xs font-bold truncate">{p.fullName.split(' ')[0]}</span>
+                                                        <span className="text-[10px] font-black text-neonGreen/60">({p.handicap})</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -856,6 +886,7 @@ export default function MatchSetupPage() {
                                                                 {p.fullName.split(' ').map((n) => n[0]).join('').toUpperCase()}
                                                             </div>
                                                             <span className="text-xs font-bold truncate">{p.fullName.split(' ')[0]}</span>
+                                                            <span className="text-[10px] font-black text-bloodRed/60">({p.handicap})</span>
                                                         </div>
                                                     ))
                                                 )}
@@ -867,9 +898,9 @@ export default function MatchSetupPage() {
                                             const partnerA = stagedPlayers.find((p) => p.team === 'A');
                                             const teamB = stagedPlayers.filter((p) => p.team === 'B');
                                             if (teamB.length === 0) return null;
-                                            const teamAHcp = Math.round(creatorHcp + (partnerA?.handicap ?? 0));
-                                            const teamBHcp = Math.round(teamB.reduce((sum, p) => sum + p.handicap, 0));
-                                            const calcDiff = teamAHcp - teamBHcp; // signed: positive = Team A has higher hcp
+                                            const teamAExact = creatorHcp + (partnerA?.handicap ?? 0);
+                                            const teamBExact = teamB.reduce((sum, p) => sum + p.handicap, 0);
+                                            const calcDiff = Math.round(teamAExact - teamBExact); // signed: positive = Team A has higher hcp
                                             const effectiveDiff = teamStrokeOverride !== undefined ? teamStrokeOverride : calcDiff;
                                             const absDiff = Math.abs(effectiveDiff);
                                             const nameA = 'Team A';
@@ -892,12 +923,12 @@ export default function MatchSetupPage() {
                                                     <div className="flex justify-between items-center mb-3">
                                                         <div className="text-center flex-1">
                                                             <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest block">Combined HCP</span>
-                                                            <span className="text-sm font-black text-neonGreen">{teamAHcp}</span>
+                                                            <span className="text-sm font-black text-neonGreen">{teamAExact.toFixed(1)}</span>
                                                         </div>
                                                         <div className="w-[1px] h-6 bg-borderColor/50" />
                                                         <div className="text-center flex-1">
                                                             <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest block">Combined HCP</span>
-                                                            <span className="text-sm font-black text-bloodRed">{teamBHcp}</span>
+                                                            <span className="text-sm font-black text-bloodRed">{teamBExact.toFixed(1)}</span>
                                                         </div>
                                                     </div>
                                                     <div className="bg-background/80 rounded-xl p-3 border border-bloodRed/20 flex items-center justify-center shadow-[0_4px_12px_rgba(255,0,63,0.1)]">
@@ -1055,40 +1086,21 @@ export default function MatchSetupPage() {
                                     <div className="text-[10px] font-black text-secondaryText uppercase tracking-[0.2em] mb-3 ml-1">The Stakes</div>
                                     <Card className="p-0 border-borderColor/50 overflow-hidden bg-background/30">
                                         {format === '2v2' && (
-                                            <div className="p-4 border-b border-borderColor/30 flex justify-between items-center">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center">
-                                                        <span className="text-neonGreen font-black">$</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="font-black text-xs uppercase tracking-tight block">Team Wager</span>
-                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Standard Match Play</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <button onClick={() => setWager(Math.max(5, wager - 5))} className="w-8 h-8 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all">-</button>
-                                                    <span className="text-xl font-black w-10 text-center tabular-nums">${wager}</span>
-                                                    <button onClick={() => setWager(wager + 5)} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {format === 'skins' && (
-                                            <>
-                                                <div className="p-4 border-b border-borderColor/30 flex justify-between items-center">
+                                            <div className="p-4 border-b border-borderColor/30">
+                                                <div className="flex justify-between items-center mb-1">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center">
                                                             <span className="text-neonGreen font-black">$</span>
                                                         </div>
-                                                        <div>
-                                                            <span className="font-black text-xs uppercase tracking-tight block">
-                                                                {potMode ? 'Buy-in Per Player' : 'Skin Value'}
-                                                            </span>
-                                                            <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
-                                                                {potMode
-                                                                    ? `Total Pot: $${wager * ((teamSkins ? stagedPlayers.length : poolPlayers.length) + 1)}`
-                                                                    : '$ per skin'
-                                                                }
-                                                            </span>
+                                                        <div
+                                                            className="flex flex-col cursor-pointer group"
+                                                            onClick={() => setShowTeamWagerHelp(!showTeamWagerHelp)}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-black text-xs uppercase tracking-tight block text-white group-hover:text-bloodRed transition-colors">Team Wager</span>
+                                                                <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
+                                                            </div>
+                                                            <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Standard Match Play</span>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-3">
@@ -1097,12 +1109,111 @@ export default function MatchSetupPage() {
                                                         <button onClick={() => setWager(wager + 5)} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center justify-between p-4 border-b border-borderColor/30">
-                                                    <div>
-                                                        <span className="font-black text-xs uppercase tracking-tight block text-white">Pot Skins</span>
-                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Most skins wins the pot</span>
+
+                                                <AnimatePresence>
+                                                    {showTeamWagerHelp && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, height: 0 }}
+                                                            animate={{ opacity: 1, height: 'auto' }}
+                                                            exit={{ opacity: 0, height: 0 }}
+                                                            className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pl-13 pt-1"
+                                                        >
+                                                            <p className="mb-1.5 opacity-80 italic">This amount is wagered across three separate matches:</p>
+                                                            <div className="grid grid-cols-1 gap-1 pl-2 border-l border-white/10">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-1 h-1 rounded-full bg-neonGreen/40" />
+                                                                    <span>Front 9: <span className="text-white font-bold">"${wager}"</span></span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-1 h-1 rounded-full bg-neonGreen/40" />
+                                                                    <span>Back 9: <span className="text-white font-bold">"${wager}"</span></span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-1 h-1 rounded-full bg-neonGreen/40" />
+                                                                    <span>Overall 18: <span className="text-white font-bold">"${wager}"</span></span>
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        )}
+                                        {format === 'skins' && (
+                                            <>
+                                                <div className="p-4 border-b border-borderColor/30">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <div
+                                                            className="flex flex-col cursor-pointer group"
+                                                            onClick={() => setShowPotSkinsHelp(!showPotSkinsHelp)}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-black text-xs uppercase tracking-tight block text-white group-hover:text-bloodRed transition-colors">Pot Skins</span>
+                                                                <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
+                                                            </div>
+                                                            <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Most skins wins the pot</span>
+                                                        </div>
+                                                        <Toggle checked={potMode} onCheckedChange={setPotMode} />
                                                     </div>
-                                                    <Toggle checked={potMode} onCheckedChange={setPotMode} />
+
+                                                    <AnimatePresence>
+                                                        {showPotSkinsHelp && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, height: 0 }}
+                                                                animate={{ opacity: 1, height: 'auto' }}
+                                                                exit={{ opacity: 0, height: 0 }}
+                                                                className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pt-1"
+                                                            >
+                                                                Changes scoring from per-skin payouts to a winner-take-all pot based on total skins won.
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+
+                                                <div className="p-4 border-b border-borderColor/30">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center">
+                                                                <span className="text-neonGreen font-black">$</span>
+                                                            </div>
+                                                            <div
+                                                                className="flex flex-col cursor-pointer group"
+                                                                onClick={() => setShowSkinsWagerHelp(!showSkinsWagerHelp)}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-black text-xs uppercase tracking-tight block text-white group-hover:text-bloodRed transition-colors">
+                                                                        {potMode ? 'Buy-in Per Player' : 'Skin Value'}
+                                                                    </span>
+                                                                    <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
+                                                                </div>
+                                                                <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
+                                                                    {potMode
+                                                                        ? `Total Pot: $${wager * ((teamSkins ? stagedPlayers.length : poolPlayers.length) + 1)}`
+                                                                        : '$ per skin'
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <button onClick={() => setWager(Math.max(5, wager - 5))} className="w-8 h-8 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all">-</button>
+                                                            <span className="text-xl font-black w-10 text-center tabular-nums">${wager}</span>
+                                                            <button onClick={() => setWager(wager + 5)} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
+                                                        </div>
+                                                    </div>
+
+                                                    <AnimatePresence>
+                                                        {showSkinsWagerHelp && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, height: 0 }}
+                                                                animate={{ opacity: 1, height: 'auto' }}
+                                                                exit={{ opacity: 0, height: 0 }}
+                                                                className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pl-13 pt-1"
+                                                            >
+                                                                {potMode
+                                                                    ? "Every player contributes this amount to the final pot. The player with the most skins at the end wins it all."
+                                                                    : "The cash value for each individual skin. At the end, losers pay winners based on the skin difference."}
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
                                                 </div>
                                             </>
                                         )}
@@ -1133,7 +1244,7 @@ export default function MatchSetupPage() {
                                                 { id: 'sandies', label: 'Sandies', sub: 'Par+ from bunker', desc: 'Awarded to a player who makes par or better on a hole where they hit into a sand bunker.', state: sandies, set: setSandies, skinsOnly: false },
                                                 { id: 'snake', label: 'Snake', sub: '3-putt penalty', desc: 'The last player to 3-putt holds the snake. They owe the other players the trash value at the end of the round.', state: snake, set: setSnake, skinsOnly: false },
                                                 { id: 'autopress', label: 'Auto Press', sub: 'Press when 2 down', desc: 'Automatically triggers a new parallel bet for the remaining holes whenever a team falls 2 points behind.', state: autoPress, set: setAutoPress, nassauOnly: true },
-                                                { id: 'birdies', label: 'Birdies Double', sub: 'Net Birdie = 2 pts', desc: 'A net birdie wins the hole outright by immediately granting 2 points instead of 1 in the Match Play score.', state: birdiesDouble, set: setBirdiesDouble, nassauOnly: true },
+                                                { id: 'birdies', label: 'Birdies Double', sub: 'Gross Birdie = 2 pts', desc: 'A gross birdie wins the hole outright by immediately granting 2 points instead of 1 in the Match Play score. Net birdies from handicap strokes do not qualify.', state: birdiesDouble, set: setBirdiesDouble, nassauOnly: true },
                                                 { id: 'bonusSkins', label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', desc: 'Adds extra skins to the pot for feats: closest to pin (+1), gross birdie (+1), gross eagle (+2).', state: bonusSkins, set: setBonusSkins, skinsOnly: true },
                                             ].filter(item => {
                                                 if ((item as any).skinsOnly) return format === 'skins';
@@ -1186,29 +1297,46 @@ export default function MatchSetupPage() {
                                             </div>
 
                                             {[
-                                                { id: 'par3', label: 'Par 3 Contest', sub: 'Lowest gross on par 3s', state: par3Contest, set: setPar3Contest, pot: par3Pot, setPot: setPar3Pot },
-                                                { id: 'par5', label: 'Par 5 Contest', sub: 'Lowest gross on par 5s', state: par5Contest, set: setPar5Contest, pot: par5Pot, setPot: setPar5Pot }
+                                                { id: 'par3', label: 'Par 3 Contest', sub: 'Lowest gross on par 3s', desc: 'The golfer with the lowest combined score for all Par 3 holes is the winner.', state: par3Contest, set: setPar3Contest, pot: par3Pot, setPot: setPar3Pot },
+                                                { id: 'par5', label: 'Par 5 Contest', sub: 'Lowest gross on par 5s', desc: 'The golfer with the lowest combined score for all Par 5 holes is the winner.', state: par5Contest, set: setPar5Contest, pot: par5Pot, setPot: setPar5Pot }
                                             ].map(item => (
-                                                <div key={item.id} className="space-y-0 text-white">
-                                                    <div className="flex items-center justify-between p-4">
-                                                        <div>
-                                                            <span className="font-bold text-sm block text-white uppercase tracking-tight">{item.label}</span>
+                                                <div key={item.id} className="flex flex-col p-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div
+                                                            className="flex flex-col cursor-pointer group pr-4"
+                                                            onClick={() => toggleTrashTooltip(item.id)}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-bold text-sm block text-white uppercase tracking-tight group-hover:text-bloodRed transition-colors">{item.label}</span>
+                                                                <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
+                                                            </div>
                                                             <span className="text-[10px] text-secondaryText uppercase font-bold tracking-widest">{item.sub}</span>
                                                         </div>
-                                                        <Toggle checked={item.state} onCheckedChange={item.set} />
+                                                        <Toggle checked={item.state} onCheckedChange={(val) => item.set(val)} />
                                                     </div>
-                                                    {item.state && (
-                                                        <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2">
-                                                            <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30 flex justify-between items-center">
-                                                                <span className="text-[10px] font-black text-bloodRed uppercase tracking-widest">Ante Amount</span>
-                                                                <div className="flex items-center gap-3">
-                                                                    <button onClick={() => item.setPot(Math.max(5, item.pot - 5))} className="w-6 h-6 rounded-full border border-borderColor flex items-center justify-center text-xs">-</button>
-                                                                    <span className="text-sm font-black tabular-nums">${item.pot}</span>
-                                                                    <button onClick={() => item.setPot(item.pot + 5)} className="w-6 h-6 rounded-full border border-borderColor flex items-center justify-center text-xs">+</button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
+
+                                                    <AnimatePresence>
+                                                        {(activeTrashTooltip === item.id || item.state) && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                animate={{ opacity: 1, height: 'auto', marginTop: 8 }}
+                                                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                className="text-xs text-secondaryText/90 font-medium leading-relaxed overflow-hidden"
+                                                            >
+                                                                {activeTrashTooltip === item.id && <p className="mb-3">{item.desc}</p>}
+                                                                {item.state && (
+                                                                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
+                                                                        <span className="text-[10px] font-black uppercase text-secondaryText">Pot Value</span>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <button onClick={() => item.setPot(Math.max(5, item.pot - 5))} className="w-6 h-6 rounded-full border border-borderColor flex items-center justify-center text-xs">-</button>
+                                                                            <span className="text-sm font-black w-8 text-center tabular-nums">${item.pot}</span>
+                                                                            <button onClick={() => item.setPot(item.pot + 5)} className="w-6 h-6 rounded-full border border-borderColor flex items-center justify-center text-xs">+</button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
                                                 </div>
                                             ))}
                                         </div>
