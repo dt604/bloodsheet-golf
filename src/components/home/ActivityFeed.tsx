@@ -38,7 +38,7 @@ interface TrophyFeedItem extends BaseFeedItem {
 
 type FeedItem = MatchFeedItem | MediaFeedItem | TrophyFeedItem;
 
-export function ActivityFeed() {
+export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { friendships } = useFriendsStore();
@@ -59,13 +59,18 @@ export function ActivityFeed() {
                 const items: FeedItem[] = [];
                 const profileIdsToFetch = new Set<string>();
 
-                // 1. Fetch Completed Matches for target users
-                const { data: mps } = await supabase.from('match_players')
+                // 1. Fetch Completed Matches
+                let matchQuery = supabase.from('match_players')
                     .select('match_id, user_id, matches!inner(id, status, created_at, format, side_bets, courses(name))')
-                    .in('user_id', targetUserIds)
                     .eq('matches.status', 'completed')
                     .order('matches(created_at)', { ascending: false })
-                    .limit(10);
+                    .limit(isGlobal ? 20 : 10);
+
+                if (!isGlobal) {
+                    matchQuery = matchQuery.in('user_id', targetUserIds);
+                }
+
+                const { data: mps } = await matchQuery;
 
                 if (mps && mps.length > 0) {
                     // Deduplicate matches (since multiple friends could be in the same match)
@@ -74,7 +79,7 @@ export function ActivityFeed() {
                         const m = mp.matches;
                         if (!uniqueMatches.has(m.id)) {
                             uniqueMatches.set(m.id, m);
-                            // We associate this match with the first target user we found
+                            // We associate this match with the primary user found for it
                             const pId = mp.user_id;
                             profileIdsToFetch.add(pId);
 
@@ -93,10 +98,15 @@ export function ActivityFeed() {
 
                     // For the unique matches, let's fetch trophies (hole scores with trash dots)
                     const matchIds = Array.from(uniqueMatches.keys());
-                    const { data: scores } = await supabase.from('hole_scores')
+                    let trophyQuery = supabase.from('hole_scores')
                         .select('match_id, hole_number, player_id, trash_dots')
-                        .in('match_id', matchIds)
-                        .in('player_id', targetUserIds);
+                        .in('match_id', matchIds);
+
+                    if (!isGlobal) {
+                        trophyQuery = trophyQuery.in('player_id', targetUserIds);
+                    }
+
+                    const { data: scores } = await trophyQuery;
 
                     if (scores) {
                         for (const score of scores as any[]) {
@@ -122,11 +132,16 @@ export function ActivityFeed() {
                 }
 
                 // 2. Fetch Media
-                const { data: media } = await supabase.from('match_media')
+                let mediaQuery = supabase.from('match_media')
                     .select('id, created_at, media_url, media_type, hole_number, player_id, uploader_id, matches!inner(id, courses(name))')
-                    .in('player_id', targetUserIds)
                     .order('created_at', { ascending: false })
-                    .limit(15);
+                    .limit(isGlobal ? 30 : 15);
+
+                if (!isGlobal) {
+                    mediaQuery = mediaQuery.in('player_id', targetUserIds);
+                }
+
+                const { data: media } = await mediaQuery;
 
                 if (media) {
                     for (const m of media as any[]) {
