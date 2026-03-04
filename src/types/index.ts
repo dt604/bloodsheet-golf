@@ -95,6 +95,7 @@ export interface Match {
   wagerCurrency?: 'USD' | 'BLOOD_COINS';
   wagerType: WagerType;
   status: 'setup' | 'in_progress' | 'pending_attestation' | 'completed';
+  bloodCoinsSettled?: boolean;
   sideBets: {
     greenies: boolean;
     sandies: boolean;

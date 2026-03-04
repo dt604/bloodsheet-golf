@@ -33,6 +33,7 @@ function dbToMatch(row: Record<string, unknown>): Match {
     wagerCurrency: row.wager_currency as Match['wagerCurrency'],
     wagerType: row.wager_type as Match['wagerType'],
     status: row.status as Match['status'],
+    bloodCoinsSettled: row.blood_coins_settled as boolean,
     sideBets: row.side_bets as Match['sideBets'],
     createdBy: row.created_by as string,
   };

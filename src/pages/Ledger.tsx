@@ -10,6 +10,8 @@ import { supabase } from '../lib/supabase';
 import confetti from 'canvas-confetti';
 import SEO from '../components/SEO';
 import { BloodCoin } from '../components/ui/BloodCoin';
+import { PresenceIndicator } from '../components/ui/PresenceIndicator';
+import { autoSettleBloodCoins } from '../lib/settlement';
 
 interface LineItem {
     label: string;
@@ -808,6 +810,16 @@ export default function LedgerPage() {
         calculateGroup();
         return () => { cancelled = true; };
     }, [isGroupMode, groupState, user, course]);
+
+    useEffect(() => {
+        if (!match || match.status !== 'completed') return;
+        if (!user || user.id !== match.createdBy) return; // Only scorekeeper acts as the single source of truth for settlement
+        // Small delay to ensure state and DB are current before calculating payouts
+        const timer = setTimeout(() => {
+            autoSettleBloodCoins(match, players, scores, groupSettlements, groupState);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [match?.status, match?.id, user?.id]);
 
     const total = isGroupMode
         ? groupSettlements.filter((s) => s.userInMatch !== false).reduce((sum, s) => sum + s.total, 0)
