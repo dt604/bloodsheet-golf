@@ -82,7 +82,7 @@ export default function CourseManagement() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-20">
             <header className="px-2">
                 <div className="flex justify-between items-start">
                     <div>
@@ -178,26 +178,24 @@ export default function CourseManagement() {
                 </div>
             </div>
 
-            {/* Bulk Action Bar */}
+            {/* Bulk Action Bar - Fixed to Bottom of App Shell */}
             {selectedIds.size > 0 && (
-                <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-surface border-t border-bloodRed shadow-[0_-8px_32px_rgba(0,0,0,0.5)] p-4 z-[100] animate-in slide-in-from-bottom-full duration-300 flex items-center justify-between backdrop-blur-md bg-opacity-95">
+                <div className="absolute bottom-0 left-0 right-0 w-full bg-surface border-t border-bloodRed shadow-[0_-8px_32px_rgba(0,0,0,0.5)] p-4 pb-safe z-50 animate-in slide-in-from-bottom-full duration-300 flex items-center justify-between backdrop-blur-md bg-opacity-95">
                     <div className="flex flex-col">
-                        <span className="text-white font-black text-sm uppercase tracking-tight">{selectedIds.size} Courses Selected</span>
+                        <span className="text-neonGreen font-black text-sm uppercase tracking-tight">{selectedIds.size} Courses Selected</span>
                         <span className="text-[10px] text-secondaryText uppercase font-bold tracking-widest">Bulk Management</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-[10px] py-1 h-8"
+                            className="text-[10px] py-1 h-8 px-4"
                             onClick={() => setSelectedIds(new Set())}
                         >
                             Cancel
                         </Button>
                         <Button
-                            variant="primary"
-                            size="sm"
-                            className="bg-bloodRed hover:bg-bloodRed/80 text-[10px] py-1 h-8 flex items-center gap-2"
+                            className="bg-bloodRed hover:bg-bloodRed/80 text-white text-[10px] py-1 h-8 px-4 flex items-center gap-2 font-black uppercase tracking-widest"
                             onClick={handleBulkDelete}
                         >
                             <Trash2 className="w-3 h-3" />
@@ -207,5 +205,6 @@ export default function CourseManagement() {
                 </div>
             )}
         </div>
+
     );
 }
