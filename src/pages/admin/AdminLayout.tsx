@@ -12,6 +12,7 @@ import {
 const navItems = [
     { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/admin/users', label: 'Users', icon: Users },
+    { path: '/admin/blood-coins', label: 'Coins', icon: ShieldAlert },
     { path: '/admin/matches', label: 'Matches', icon: Trophy },
     { path: '/admin/courses', label: 'Courses', icon: Map },
     { path: '/admin/media', label: 'Media', icon: Camera },

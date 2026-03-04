@@ -37,6 +37,7 @@ import UserManagement from './pages/admin/UserManagement';
 import MatchManagement from './pages/admin/MatchManagement';
 import CourseManagement from './pages/admin/CourseManagement';
 import MediaManagement from './pages/admin/MediaManagement';
+import BloodCoinManagement from './pages/admin/BloodCoinManagement';
 import { AdminRoute } from './components/admin/AdminRoute';
 import MainLayout from './components/layout/MainLayout';
 
@@ -120,6 +121,7 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<UserManagement />} />
+          <Route path="blood-coins" element={<BloodCoinManagement />} />
           <Route path="matches" element={<MatchManagement />} />
           <Route path="courses" element={<CourseManagement />} />
           <Route path="media" element={<MediaManagement />} />
