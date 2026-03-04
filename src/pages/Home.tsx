@@ -33,9 +33,10 @@ export default function Home() {
                 // 1b. Check for pending attestation match
                 supabase
                     .from('match_players')
-                    .select('match_id, matches!inner(id, status, created_at, courses(name))')
+                    .select('match_id, matches!inner(id, status, created_at, created_by, courses(name))')
                     .eq('user_id', userId)
                     .eq('matches.status', 'pending_attestation')
+                    .neq('matches.created_by', userId)
                     .order('matches(created_at)', { ascending: false })
                     .limit(1)
             ]);
