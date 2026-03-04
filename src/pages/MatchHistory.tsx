@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { History as HistoryIcon } from 'lucide-react';
 
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../contexts/AuthContext';
@@ -248,40 +249,91 @@ export default function MatchHistoryPage() {
     }, [profile]);
 
     return (
-        <div className="space-y-6">
+        <div className="flex-1 flex flex-col min-h-0 bg-background">
             <SEO title="Match History" />
 
-            <div className="space-y-4">
+            {/* Premium Header */}
+            <header className="px-6 py-8 flex items-end justify-between border-b border-white/5">
+                <div>
+                    <div className="flex items-center gap-2 mb-1.5 grayscale opacity-50">
+                        <HistoryIcon className="w-3.5 h-3.5 text-bloodRed" strokeWidth={3} />
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white leading-none">The Ledger</span>
+                    </div>
+                    <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
+                        MATCH <span className="text-bloodRed italic">HISTORIES</span>
+                    </h2>
+                </div>
+                {!loading && history.length > 0 && (
+                    <div className="text-right">
+                        <span className="block text-[8px] text-secondaryText font-black uppercase tracking-widest opacity-60">Total Rounds</span>
+                        <span className="text-2xl font-black text-white italic">{history.length}</span>
+                    </div>
+                )}
+            </header>
+
+            <div className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-4">
                 {loading ? (
-                    <p className="text-center text-secondaryText mt-8">Loading...</p>
+                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                        <div className="w-10 h-10 border-4 border-bloodRed border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(255,0,63,0.4)]" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-secondaryText animate-pulse">Retrieving History...</span>
+                    </div>
                 ) : history.length === 0 ? (
-                    <p className="text-center text-secondaryText mt-8">No completed matches yet.</p>
+                    <div className="flex flex-col items-center justify-center py-20 text-center px-8 border border-white/5 bg-[#1a1a1c] rounded-[2.5rem] shadow-2xl">
+                        <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-secondaryText mb-6">
+                            <HistoryIcon className="w-8 h-8 opacity-20" />
+                        </div>
+                        <h3 className="text-xl font-black text-white uppercase italic mb-2 tracking-tight">The Ledger is Empty</h3>
+                        <p className="text-xs text-secondaryText font-medium leading-relaxed">You haven't completed any recorded rounds yet. Get out there and make some history.</p>
+                    </div>
                 ) : (
-                    <Card className="divide-y divide-borderColor/50">
+                    <div className="space-y-3">
                         {history.map((item) => (
-                            <div
+                            <Card
                                 key={item.id}
-                                className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
+                                className="overflow-hidden border-white/5 hover:border-bloodRed/30 transition-all duration-300 group shadow-lg"
                                 onClick={() => navigate(`/history/${item.id}`)}
                             >
-                                <div>
-                                    <span className="font-bold text-white block">{item.courseName} • {item.format}</span>
-                                    <span className="text-xs text-secondaryText block mt-0.5">{item.playerLabel}</span>
-                                    <span className="text-xs text-secondaryText uppercase tracking-wider">
-                                        {formatDate(item.createdAt)} • {item.wagerType}
-                                    </span>
-                                </div>
-                                <div className="text-right shrink-0 ml-3">
-                                    <div className={`font-black text-base leading-tight ${item.payout > 0 ? 'text-neonGreen' : item.payout < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                        {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
+                                <div className="p-5 flex items-center justify-between cursor-pointer">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-2xl bg-surfaceHover border border-borderColor flex items-center justify-center relative shrink-0 overflow-hidden shadow-inner group-hover:border-bloodRed/20 transition-colors">
+                                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
+                                            <span className="text-lg font-black text-bloodRed relative z-10 opacity-70 italic">
+                                                {item.courseName.charAt(0)}
+                                            </span>
+                                            <div className="absolute inset-x-0 bottom-0 h-1 bg-bloodRed/30 group-hover:bg-bloodRed transition-colors" />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <h4 className="font-black text-white text-base leading-tight uppercase italic group-hover:text-bloodRed transition-colors tracking-tight">
+                                                {item.courseName}
+                                            </h4>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest block">{item.playerLabel}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] text-secondaryText/60 font-black uppercase tracking-[0.15em]">
+                                                        {formatDate(item.createdAt)}
+                                                    </span>
+                                                    <span className="w-1 h-1 rounded-full bg-white/10" />
+                                                    <span className="text-[9px] text-bloodRed font-black uppercase tracking-[0.15em]">
+                                                        {item.format} • {item.wagerType}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                        {item.format === 'skins' ? 'SKINS' : item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
+
+                                    <div className="text-right shrink-0">
+                                        <div className={`text-2xl font-black leading-none italic ${item.payout > 0 ? 'text-neonGreen drop-shadow-[0_0_10px_rgba(0,255,102,0.3)]' : item.payout < 0 ? 'text-bloodRed drop-shadow-[0_0_10px_rgba(255,0,63,0.3)]' : 'text-white/40'}`}>
+                                            {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
+                                        </div>
+                                        <div className={`text-[10px] font-black uppercase tracking-[0.2em] mt-2 inline-flex items-center px-2 py-0.5 rounded-full border ${item.holesUp > 0 ? 'bg-neonGreen/10 text-neonGreen border-neonGreen/20' : item.holesUp < 0 ? 'bg-bloodRed/10 text-bloodRed border-bloodRed/20' : 'bg-white/5 text-secondaryText border-white/10'}`}>
+                                            {item.format === 'skins' ? 'SKINS' : item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            </Card>
                         ))}
-                    </Card>
+                    </div>
                 )}
             </div>
         </div>
