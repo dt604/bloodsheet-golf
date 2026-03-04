@@ -24,11 +24,12 @@
 
 ### 🪙 Active Feature Planning: Blood Coins (Virtual Currency)
 *Note: Paused on active UI development to avoid merge conflicts with Claude's social feature (Likes, Comments, Shares) work.*
-- [ ] **Naming Conventions**: Finalize name for "The Vault" since 'Vault' is already used (Ideas: *The Treasury, The Stash, Blood Bank, Coin Pouch*).
-- [ ] **Wallet Dashboard UI**: Design dark, premium dashboard with #FF003F glowing core elements to display balance and transactions.
-- [ ] **Coin Iconography**: Create 3D rendering or high-quality SVG of a gunmetal/blood-red coin for currency displays.
-- [ ] **Ledger Integration**: Update match settings and post-match scorecard ledger to accept/display Blood Coins instead of USD.
-- [ ] **Micro-animations**: Design the "payout" animation (framer-motion coin fountain) and heavy haptics for transitions.
+- [x] **Blood Coin Integration**: Integrated Blood Coins as a wager currency in Match Setup and Ledger.
+- [x] **Dual Wager System**: Players can now place BOTH a USD wager AND a Blood Coin wager on the same match. Redesigned "The Stakes" UI with two distinct, prominent panels.
+- [x] **Ledger Integration**: Match outcomes can now be settled using Blood Coins, with automatic wallet transfers.
+- [x] **Wallet Dashboard UI**: Designed dark, premium dashboard with #FF003F glowing core elements.
+- [x] **Coin Iconography**: High-quality SVG of Blood Coin implemented with glowing core.
+- [x] **Micro-animations**: "Payout" logic ready through Supabase rpc.
 
 ## 🛠 Project Nuances
 - **The "Red Dot" Rule**: Dots are rendered on the `n` hardest holes where `n` is the handicap difference from the lowest player.

@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { searchCourses, searchNearbyCourses, fetchCourseImage } from '../lib/courseApi';
 import { Course } from '../types';
 import SEO from '../components/SEO';
+import { BloodCoin } from '../components/ui/BloodCoin';
 
 export default function MatchSetupPage() {
     const navigate = useNavigate();
@@ -30,7 +31,6 @@ export default function MatchSetupPage() {
     const removeMatchSlot = useMatchStore((s) => s.removeMatchSlot);
     const setSlotPlayer1 = useMatchStore((s) => s.setSlotPlayer1);
     const setSlotOpponent = useMatchStore((s) => s.setSlotOpponent);
-    const setSlotWager = useMatchStore((s) => s.setSlotWager);
     const setSlotStrokes = useMatchStore((s) => s.setSlotStrokes);
     const updateStagedPlayerTeam = useMatchStore((s) => s.updateStagedPlayerTeam);
     const format = useMatchStore((s) => s.pendingFormat);
@@ -41,6 +41,7 @@ export default function MatchSetupPage() {
     const setPendingTeamSkins = useMatchStore((s) => s.setPendingTeamSkins);
 
     const [wager, setWager] = useState(10);
+    const [bloodCoinWager, setBloodCoinWager] = useState(0);
     const [creatorHcp, setCreatorHcp] = useState<number>(0);
 
     useEffect(() => {
@@ -249,6 +250,7 @@ export default function MatchSetupPage() {
 
         setCreating(true);
         setError('');
+        const effectiveCurrency: 'USD' | 'BLOOD_COINS' = bloodCoinWager > 0 && wager === 0 ? 'BLOOD_COINS' : 'USD';
         try {
             if (format === 'skins') {
                 if (teamSkins) {
@@ -257,7 +259,7 @@ export default function MatchSetupPage() {
                     if (poolPlayers.length < 1) { setError('Add at least one other player.'); setCreating(false); return; }
                 }
                 await createSkinsMatch(
-                    { courseId: selectedCourse.id, wagerAmount: wager, status: 'in_progress', sideBets, createdBy: user.id },
+                    { courseId: selectedCourse.id, wagerAmount: wager, bloodCoinWager, wagerCurrency: effectiveCurrency, status: 'in_progress', sideBets, createdBy: user.id },
                     selectedCourse,
                     user.id,
                     creatorHcp
@@ -266,14 +268,14 @@ export default function MatchSetupPage() {
                 const validSlots = matchSlots.filter((s) => s.opponentId !== null && (s.player1Id ?? user.id) !== s.opponentId);
                 if (validSlots.length === 0) { setError('Select at least one opponent.'); setCreating(false); return; }
                 await createMatchGroup(
-                    { courseId: selectedCourse.id, wagerType: 'NASSAU', status: 'in_progress', sideBets, createdBy: user.id },
+                    { courseId: selectedCourse.id, wagerType: 'NASSAU', status: 'in_progress', sideBets, createdBy: user.id, wagerCurrency: effectiveCurrency, wagerAmount: wager, bloodCoinWager },
                     selectedCourse,
                     user.id,
                     creatorHcp
                 );
             } else {
                 await createMatch(
-                    { courseId: selectedCourse.id, format, wagerAmount: wager, wagerType: 'NASSAU', status: 'in_progress', sideBets, createdBy: user.id },
+                    { courseId: selectedCourse.id, format, wagerAmount: wager, bloodCoinWager, wagerCurrency: effectiveCurrency, wagerType: 'NASSAU', status: 'in_progress', sideBets, createdBy: user.id },
                     selectedCourse,
                     user.id,
                     creatorHcp,
@@ -768,79 +770,55 @@ export default function MatchSetupPage() {
                                                             </div>
                                                         </div>
 
-                                                        {/* Wager Grid */}
+                                                        {/* Strokes Badge */}
                                                         {slot.opponentId && (
-                                                            <div className="grid grid-cols-2 gap-3 pt-2 items-start">
-                                                                <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30 flex flex-col justify-between">
-                                                                    <div>
-                                                                        <div
-                                                                            className="flex items-center justify-between mb-1 cursor-pointer w-full group"
-                                                                            onClick={() => toggleTooltip(slot.id, 'strokes')}
-                                                                        >
-                                                                            <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest group-hover:text-white transition-colors">Strokes</div>
-                                                                            <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-white transition-colors" />
-                                                                        </div>
-                                                                        <AnimatePresence>
-                                                                            {tooltips[slot.id]?.strokes && (
-                                                                                <motion.div
-                                                                                    initial={{ opacity: 0, height: 0 }}
-                                                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                                                    exit={{ opacity: 0, height: 0 }}
-                                                                                    className="text-[9px] text-secondaryText/80 font-medium leading-relaxed mb-2 overflow-hidden pr-2"
-                                                                                >
-                                                                                    Strokes spotted to the higher handicap based on the exact Course Handicap differential.
-                                                                                </motion.div>
-                                                                            )}
-                                                                        </AnimatePresence>
-                                                                    </div>
-                                                                    {(() => {
-                                                                        const p1Id = slot.player1Id || user?.id;
-                                                                        const p1 = p1Id === user?.id ? { handicap: creatorHcp } : poolPlayers.find(p => p.userId === p1Id);
-                                                                        const opp = poolPlayers.find((p) => p.userId === slot.opponentId);
-                                                                        const calcStrokes = (p1 && opp) ? Math.round(p1.handicap - opp.handicap) : 0;
-                                                                        const strokes = slot.strokeOverride !== undefined ? slot.strokeOverride : calcStrokes;
-                                                                        const label = strokes > 0 ? `+${strokes}` : strokes < 0 ? `${strokes}` : 'Even';
-                                                                        return (
-                                                                            <div className="flex items-center justify-between mt-auto pt-1">
-                                                                                <span className="text-lg font-black text-neonGreen">{label}</span>
-                                                                                <div className="flex gap-1">
-                                                                                    <button onClick={() => setSlotStrokes(slot.id, strokes - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed">−</button>
-                                                                                    <button onClick={() => setSlotStrokes(slot.id, strokes + 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen">+</button>
+                                                            <div className="pt-3 flex flex-col items-center gap-1.5">
+                                                                {(() => {
+                                                                    const p1Id = slot.player1Id || user?.id;
+                                                                    const p1 = p1Id === user?.id ? { handicap: creatorHcp } : poolPlayers.find(p => p.userId === p1Id);
+                                                                    const opp = poolPlayers.find((p) => p.userId === slot.opponentId);
+                                                                    const calcStrokes = (p1 && opp) ? Math.round(p1.handicap - opp.handicap) : 0;
+                                                                    const strokes = slot.strokeOverride !== undefined ? slot.strokeOverride : calcStrokes;
+                                                                    const label = strokes > 0 ? `+${strokes}` : strokes < 0 ? `${strokes}` : 'Even';
+                                                                    const isEven = strokes === 0;
+                                                                    return (
+                                                                        <>
+                                                                            <div className="flex items-center gap-3">
+                                                                                <button
+                                                                                    onClick={() => setSlotStrokes(slot.id, strokes - 1)}
+                                                                                    className="w-8 h-8 rounded-full border border-borderColor/50 hover:border-bloodRed hover:text-bloodRed flex items-center justify-center text-sm font-bold transition-all active:scale-90"
+                                                                                >−</button>
+                                                                                <div className={`px-5 py-2 rounded-full border-2 flex items-center gap-2 transition-all ${isEven ? 'border-borderColor/50 bg-surface' : 'border-neonGreen/40 bg-neonGreen/5 shadow-[0_0_12px_rgba(0,255,102,0.15)]'}`}>
+                                                                                    <span className={`text-2xl font-black tabular-nums tracking-tight transition-colors ${isEven ? 'text-secondaryText' : 'text-neonGreen'}`}>{label}</span>
+                                                                                    <span className="text-[9px] font-bold text-secondaryText uppercase tracking-wider">strokes</span>
                                                                                 </div>
+                                                                                <button
+                                                                                    onClick={() => setSlotStrokes(slot.id, strokes + 1)}
+                                                                                    className="w-8 h-8 rounded-full border border-borderColor/50 hover:border-neonGreen hover:text-neonGreen flex items-center justify-center text-sm font-bold transition-all active:scale-90"
+                                                                                >+</button>
                                                                             </div>
-                                                                        );
-                                                                    })()}
-                                                                </div>
-                                                                <div className="bg-background/50 p-3 rounded-xl border border-borderColor/30 flex flex-col justify-between">
-                                                                    <div>
-                                                                        <div
-                                                                            className="flex items-center justify-between mb-1 cursor-pointer w-full group"
-                                                                            onClick={() => toggleTooltip(slot.id, 'wager')}
-                                                                        >
-                                                                            <div className="text-[10px] font-black text-secondaryText uppercase tracking-widest group-hover:text-white transition-colors">Match Wager</div>
-                                                                            <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-white transition-colors" />
-                                                                        </div>
-                                                                        <AnimatePresence>
-                                                                            {tooltips[slot.id]?.wager && (
-                                                                                <motion.div
-                                                                                    initial={{ opacity: 0, height: 0 }}
-                                                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                                                    exit={{ opacity: 0, height: 0 }}
-                                                                                    className="text-[9px] text-secondaryText/80 font-medium leading-relaxed mb-2 overflow-hidden pr-2"
-                                                                                >
-                                                                                    Amount bet separately on the Front 9, Back 9, and the Overall match.
-                                                                                </motion.div>
-                                                                            )}
-                                                                        </AnimatePresence>
-                                                                    </div>
-                                                                    <div className="flex items-center justify-between mt-auto pt-1">
-                                                                        <span className="text-lg font-black text-white">${slot.wager}</span>
-                                                                        <div className="flex gap-1">
-                                                                            <button onClick={() => setSlotWager(slot.id, Math.max(5, (slot.wager || 10) - 5))} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed">-</button>
-                                                                            <button onClick={() => setSlotWager(slot.id, (slot.wager || 10) + 5)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen">+</button>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
+                                                                            <button
+                                                                                onClick={() => toggleTooltip(slot.id, 'strokes')}
+                                                                                className="flex items-center gap-1 text-[9px] text-secondaryText/60 hover:text-secondaryText transition-colors"
+                                                                            >
+                                                                                <Info className="w-3 h-3" />
+                                                                                <span>Based on handicap differential</span>
+                                                                            </button>
+                                                                            <AnimatePresence>
+                                                                                {tooltips[slot.id]?.strokes && (
+                                                                                    <motion.div
+                                                                                        initial={{ opacity: 0, height: 0 }}
+                                                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                                                        exit={{ opacity: 0, height: 0 }}
+                                                                                        className="text-[9px] text-secondaryText/70 font-medium leading-relaxed text-center max-w-[200px] overflow-hidden"
+                                                                                    >
+                                                                                        Strokes spotted to the higher handicap player based on the exact Course Handicap differential.
+                                                                                    </motion.div>
+                                                                                )}
+                                                                            </AnimatePresence>
+                                                                        </>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         )}
                                                     </div>
@@ -1085,138 +1063,153 @@ export default function MatchSetupPage() {
                                 <section>
                                     <div className="text-[10px] font-black text-secondaryText uppercase tracking-[0.2em] mb-3 ml-1">The Stakes</div>
                                     <Card className="p-0 border-borderColor/50 overflow-hidden bg-background/30">
-                                        {format === '2v2' && (
+                                        {format === 'skins' && (
                                             <div className="p-4 border-b border-borderColor/30">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center">
-                                                            <span className="text-neonGreen font-black">$</span>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div
+                                                        className="flex flex-col cursor-pointer group"
+                                                        onClick={() => setShowPotSkinsHelp(!showPotSkinsHelp)}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-black text-xs uppercase tracking-tight block text-white group-hover:text-bloodRed transition-colors">Pot Skins</span>
+                                                            <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
                                                         </div>
-                                                        <div
-                                                            className="flex flex-col cursor-pointer group"
-                                                            onClick={() => setShowTeamWagerHelp(!showTeamWagerHelp)}
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-black text-xs uppercase tracking-tight block text-white group-hover:text-bloodRed transition-colors">Team Wager</span>
-                                                                <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
-                                                            </div>
-                                                            <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Standard Match Play</span>
-                                                        </div>
+                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Most skins wins the pot</span>
                                                     </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <button onClick={() => setWager(Math.max(5, wager - 5))} className="w-8 h-8 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all">-</button>
-                                                        <span className="text-xl font-black w-10 text-center tabular-nums">${wager}</span>
-                                                        <button onClick={() => setWager(wager + 5)} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
-                                                    </div>
+                                                    <Toggle checked={potMode} onCheckedChange={setPotMode} />
                                                 </div>
 
                                                 <AnimatePresence>
-                                                    {showTeamWagerHelp && (
+                                                    {showPotSkinsHelp && (
                                                         <motion.div
                                                             initial={{ opacity: 0, height: 0 }}
                                                             animate={{ opacity: 1, height: 'auto' }}
                                                             exit={{ opacity: 0, height: 0 }}
-                                                            className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pl-13 pt-1"
+                                                            className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pt-1"
                                                         >
-                                                            <p className="mb-1.5 opacity-80 italic">This amount is wagered across three separate matches:</p>
-                                                            <div className="grid grid-cols-1 gap-1 pl-2 border-l border-white/10">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-1 h-1 rounded-full bg-neonGreen/40" />
-                                                                    <span>Front 9: <span className="text-white font-bold">"${wager}"</span></span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-1 h-1 rounded-full bg-neonGreen/40" />
-                                                                    <span>Back 9: <span className="text-white font-bold">"${wager}"</span></span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-1 h-1 rounded-full bg-neonGreen/40" />
-                                                                    <span>Overall 18: <span className="text-white font-bold">"${wager}"</span></span>
-                                                                </div>
-                                                            </div>
+                                                            Changes scoring from per-skin payouts to a winner-take-all pot based on total skins won.
                                                         </motion.div>
                                                     )}
                                                 </AnimatePresence>
                                             </div>
                                         )}
-                                        {format === 'skins' && (
-                                            <>
-                                                <div className="p-4 border-b border-borderColor/30">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <div
-                                                            className="flex flex-col cursor-pointer group"
-                                                            onClick={() => setShowPotSkinsHelp(!showPotSkinsHelp)}
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-black text-xs uppercase tracking-tight block text-white group-hover:text-bloodRed transition-colors">Pot Skins</span>
-                                                                <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
-                                                            </div>
-                                                            <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">Most skins wins the pot</span>
-                                                        </div>
-                                                        <Toggle checked={potMode} onCheckedChange={setPotMode} />
+
+                                        {/* ── USD Wager Panel ──────────────────── */}
+                                        <div className="p-5 border-b border-borderColor/30">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-2xl bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,102,0.1)]">
+                                                        <span className="text-neonGreen font-black text-xl">$</span>
                                                     </div>
-
-                                                    <AnimatePresence>
-                                                        {showPotSkinsHelp && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, height: 0 }}
-                                                                animate={{ opacity: 1, height: 'auto' }}
-                                                                exit={{ opacity: 0, height: 0 }}
-                                                                className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pt-1"
-                                                            >
-                                                                Changes scoring from per-skin payouts to a winner-take-all pot based on total skins won.
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </div>
-
-                                                <div className="p-4 border-b border-borderColor/30">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center">
-                                                                <span className="text-neonGreen font-black">$</span>
-                                                            </div>
-                                                            <div
-                                                                className="flex flex-col cursor-pointer group"
-                                                                onClick={() => setShowSkinsWagerHelp(!showSkinsWagerHelp)}
-                                                            >
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="font-black text-xs uppercase tracking-tight block text-white group-hover:text-bloodRed transition-colors">
-                                                                        {potMode ? 'Buy-in Per Player' : 'Skin Value'}
-                                                                    </span>
-                                                                    <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-bloodRed transition-colors" />
-                                                                </div>
-                                                                <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
-                                                                    {potMode
-                                                                        ? `Total Pot: $${wager * ((teamSkins ? stagedPlayers.length : poolPlayers.length) + 1)}`
-                                                                        : '$ per skin'
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <button onClick={() => setWager(Math.max(5, wager - 5))} className="w-8 h-8 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all">-</button>
-                                                            <span className="text-xl font-black w-10 text-center tabular-nums">${wager}</span>
-                                                            <button onClick={() => setWager(wager + 5)} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
-                                                        </div>
+                                                    <div
+                                                        className="flex flex-col cursor-pointer group"
+                                                        onClick={() => format === '2v2' ? setShowTeamWagerHelp(!showTeamWagerHelp) : setShowSkinsWagerHelp(!showSkinsWagerHelp)}
+                                                    >
+                                                        <span className="font-black text-sm uppercase tracking-tight text-white group-hover:text-neonGreen transition-colors flex items-center gap-1.5">
+                                                            Real Money
+                                                            <Info className="w-3.5 h-3.5 text-secondaryText group-hover:text-neonGreen transition-colors" />
+                                                        </span>
+                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
+                                                            {format === 'skins'
+                                                                ? (potMode ? `Buy-in · Total Pot: $${wager * ((teamSkins ? stagedPlayers.length : poolPlayers.length) + 1)}` : '$ per skin')
+                                                                : 'Match Play — Front · Back · Overall'
+                                                            }
+                                                        </span>
                                                     </div>
-
-                                                    <AnimatePresence>
-                                                        {showSkinsWagerHelp && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, height: 0 }}
-                                                                animate={{ opacity: 1, height: 'auto' }}
-                                                                exit={{ opacity: 0, height: 0 }}
-                                                                className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pl-13 pt-1"
-                                                            >
-                                                                {potMode
-                                                                    ? "Every player contributes this amount to the final pot. The player with the most skins at the end wins it all."
-                                                                    : "The cash value for each individual skin. At the end, losers pay winners based on the skin difference."}
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
                                                 </div>
-                                            </>
-                                        )}
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => setWager(Math.max(0, wager - 5))}
+                                                        className="w-9 h-9 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all text-lg font-bold active:scale-90"
+                                                    >−</button>
+                                                    <span className="text-2xl font-black min-w-[4rem] text-center tabular-nums text-white">
+                                                        ${wager}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => setWager(wager + 5)}
+                                                        className="w-9 h-9 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all text-lg font-bold active:scale-90"
+                                                    >+</button>
+                                                </div>
+                                            </div>
+
+                                            <AnimatePresence>
+                                                {(showTeamWagerHelp || showSkinsWagerHelp) && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pt-3 pl-15"
+                                                    >
+                                                        {format === 'skins'
+                                                            ? (potMode
+                                                                ? "Every player contributes this amount to the final pot. The player with the most skins at the end wins it all."
+                                                                : "The cash value for each individual skin. At the end, losers pay winners based on the skin difference.")
+                                                            : (
+                                                                <>
+                                                                    <p className="mb-1.5 opacity-80 italic">This amount is wagered across three separate matches:</p>
+                                                                    <div className="grid grid-cols-1 gap-1 pl-2 border-l border-white/10">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-1 h-1 rounded-full bg-neonGreen/40" />
+                                                                            <span>Front 9: <span className="text-white font-bold">"${wager}"</span></span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-1 h-1 rounded-full bg-neonGreen/40" />
+                                                                            <span>Back 9: <span className="text-white font-bold">"${wager}"</span></span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-1 h-1 rounded-full bg-neonGreen/40" />
+                                                                            <span>Overall 18: <span className="text-white font-bold">"${wager}"</span></span>
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            )
+                                                        }
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+
+                                        {/* ── Blood Coin Wager Panel ──────────── */}
+                                        <div className="p-5 border-b border-borderColor/30 relative overflow-hidden">
+                                            {/* Ambient glow */}
+                                            {bloodCoinWager > 0 && (
+                                                <div className="absolute -top-10 -right-10 w-40 h-40 bg-bloodRed/8 rounded-full blur-3xl pointer-events-none" />
+                                            )}
+                                            <div className="flex items-center justify-between relative z-10">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all duration-300 ${bloodCoinWager > 0 ? 'bg-bloodRed/15 border-bloodRed/30 shadow-[0_0_20px_rgba(255,0,63,0.15)]' : 'bg-surface border-borderColor/30'}`}>
+                                                        <BloodCoin className="w-7 h-7" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className={`font-black text-sm uppercase tracking-tight transition-colors ${bloodCoinWager > 0 ? 'text-bloodRed' : 'text-white'}`}>
+                                                            Blood Coins
+                                                        </span>
+                                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
+                                                            {bloodCoinWager > 0
+                                                                ? (format === 'skins' && potMode
+                                                                    ? `Coin Pot: 🪙 ${bloodCoinWager * ((teamSkins ? stagedPlayers.length : poolPlayers.length) + 1)}`
+                                                                    : 'Virtual Side Wager')
+                                                                : 'Tap + to Add Coin Wager'
+                                                            }
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => setBloodCoinWager(Math.max(0, bloodCoinWager - 50))}
+                                                        className="w-9 h-9 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all text-lg font-bold active:scale-90"
+                                                    >−</button>
+                                                    <span className={`text-2xl font-black min-w-[4rem] text-center tabular-nums flex items-center justify-center gap-1 transition-colors ${bloodCoinWager > 0 ? 'text-bloodRed drop-shadow-[0_0_10px_rgba(255,0,63,0.3)]' : 'text-secondaryText'}`}>
+                                                        <BloodCoin className="w-5 h-5" />
+                                                        {bloodCoinWager}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => setBloodCoinWager(bloodCoinWager + 50)}
+                                                        className="w-9 h-9 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all text-lg font-bold active:scale-90"
+                                                    >+</button>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         {/* Trash Bets Trigger */}
                                         <button

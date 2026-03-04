@@ -8,7 +8,8 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import SEO from '../components/SEO';
 import { supabase } from '../lib/supabase';
-import { Debt } from '../types';
+import { Debt, Payment } from '../types';
+import { BloodCoin } from '../components/ui/BloodCoin';
 
 type Tab = 'owed_by_me' | 'owed_to_me' | 'history';
 
@@ -43,6 +44,23 @@ export default function BalancesPage() {
     const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
 
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const renderAmount = (amount: number, currency?: 'USD' | 'BLOOD_COINS', colorClass?: string) => {
+        const isUSD = currency === 'USD' || !currency;
+        if (isUSD) {
+            return (
+                <span className={colorClass}>
+                    ${amount.toFixed(2)}
+                </span>
+            );
+        }
+        return (
+            <span className={`flex items-center gap-1 ${colorClass}`}>
+                <BloodCoin size="xs" className="mb-0.5" />
+                {amount}
+            </span>
+        );
+    };
 
     // Initial load
     useEffect(() => {
@@ -228,7 +246,7 @@ export default function BalancesPage() {
                         </button>
                         <div className="text-right flex flex-col items-end justify-center gap-2 shrink-0">
                             <span className="font-black text-xl text-neonGreen leading-none drop-shadow-[0_0_8px_rgba(0,255,102,0.3)]">
-                                ${debt.remainingAmount.toFixed(2)}
+                                {renderAmount(debt.remainingAmount, debt.currency)}
                             </span>
                             {payment?.status === 'requested_info' && !payment.paymentAddress && (
                                 <Button size="sm" onClick={() => handleProvideInfoClick(debt)} className="h-7 text-[10px] px-3">
@@ -291,7 +309,7 @@ export default function BalancesPage() {
                         </button>
                         <div className="text-right flex flex-col items-end justify-center gap-2 shrink-0">
                             <span className="font-black text-xl text-bloodRed leading-none drop-shadow-[0_0_8px_rgba(255,0,63,0.3)]">
-                                ${debt.remainingAmount.toFixed(2)}
+                                {renderAmount(debt.remainingAmount, debt.currency)}
                             </span>
                             {!payment ? (
                                 <Button size="sm" variant="outline" onClick={() => handleSettleUpClick(debt)} className="h-7 text-[10px] px-3">
@@ -392,7 +410,7 @@ export default function BalancesPage() {
                                 </div>
                                 <div className="text-right flex flex-col items-end justify-center gap-2 shrink-0">
                                     <span className={`font-black text-xl leading-none transition-colors ${isSelected ? 'text-white' : 'text-secondaryText'}`}>
-                                        ${payment.amount.toFixed(2)}
+                                        {renderAmount(payment.amount, payment.currency)}
                                     </span>
                                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-secondaryText uppercase font-bold tracking-widest">
                                         Settled

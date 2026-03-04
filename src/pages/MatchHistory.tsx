@@ -315,7 +315,7 @@ export default function MatchHistoryPage() {
                                                     </span>
                                                     <span className="w-1 h-1 rounded-full bg-white/10" />
                                                     <span className="text-[9px] text-bloodRed font-black uppercase tracking-[0.15em]">
-                                                        {item.format} • {item.wagerType}
+                                                        {item.format} • {item.wagerType === 'NASSAU' ? 'Match Play' : item.wagerType}
                                                     </span>
                                                 </div>
                                             </div>

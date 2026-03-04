@@ -25,6 +25,7 @@ import PlayerProfilePage from './pages/PlayerProfile';
 import MoneyLeadersPage from './pages/MoneyLeaders';
 import QRPage from './pages/QRPage';
 import BalancesPage from './pages/Balances';
+import BloodBankPage from './pages/BloodBank';
 import AddFriendQR from './pages/AddFriendQR';
 import ResetPasswordPage from './pages/ResetPassword';
 import AuthCallbackPage from './pages/AuthCallback';
@@ -94,6 +95,7 @@ function AppRoutes() {
         <Route path="/onboarding" element={<ProtectedRoute><PageWrapper><OnboardingPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><PageWrapper><MainLayout><DashboardPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/balances" element={<ProtectedRoute><PageWrapper><MainLayout><BalancesPage /></MainLayout></PageWrapper></ProtectedRoute>} />
+        <Route path="/blood-bank" element={<ProtectedRoute><PageWrapper><MainLayout><BloodBankPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/setup" element={<ProtectedRoute><PageWrapper><MatchSetupPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/play/:hole" element={<ViewerRoute><PageWrapper><LiveScorecardPage /></PageWrapper></ViewerRoute>} />
         <Route path="/ledger" element={<ViewerRoute><PageWrapper><LedgerPage /></PageWrapper></ViewerRoute>} />

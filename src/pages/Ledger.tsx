@@ -9,11 +9,13 @@ import { useLedgerStore } from '../store/useLedgerStore';
 import { supabase } from '../lib/supabase';
 import confetti from 'canvas-confetti';
 import SEO from '../components/SEO';
+import { BloodCoin } from '../components/ui/BloodCoin';
 
 interface LineItem {
     label: string;
     sublabel: string;
     amount: number;
+    bloodCoinAmount?: number;
     isPress?: boolean;
 }
 
@@ -21,6 +23,7 @@ interface Settlement {
     opponentName: string;
     opponentIds: string[];
     total: number;
+    bloodCoinTotal?: number;
     items: LineItem[];
     userInMatch?: boolean;
 }
@@ -101,6 +104,9 @@ export default function LedgerPage() {
             const teamBPlayer = players.find((p) => p.team === 'B');
             const teamAName = teamAPlayer?.guestName ?? nameMap[teamAPlayer?.userId ?? ''] ?? 'Player A';
             const teamBName = teamBPlayer?.guestName ?? nameMap[teamBPlayer?.userId ?? ''] ?? 'Player B';
+            const isUSD = match?.wagerCurrency === 'USD' || !match?.wagerCurrency;
+            const currencySymbol = isUSD ? '$' : '🪙 '; // Fallback text for sublabels
+
             const oppName = match!.format === 'skins'
                 ? players.map(p => (p.guestName ?? nameMap[p.userId] ?? 'Player').split(' ')[0]).join(' vs. ')
                 : `${teamAName} vs ${teamBName}`;
@@ -186,7 +192,7 @@ export default function LedgerPage() {
             }
 
             // Nassau: whichever team has more points in the segment wins the bet
-            function nassauResult(holes: number[]): number {
+            function nassauResult(holes: number[]): { usd: number; bc: number } {
                 let myPts = 0, oppPts = 0;
                 for (const h of holes) {
                     const { my, opp } = holePoints(h);
@@ -194,14 +200,17 @@ export default function LedgerPage() {
                     oppPts += opp;
                 }
                 const oppTeamSize = oppTeamPlayers.length > 0 ? oppTeamPlayers.length : 1;
-                if (myPts > oppPts) return match!.wagerAmount * (match!.format === '2v2' ? oppTeamSize : 1);
-                if (oppPts > myPts) return -match!.wagerAmount * (match!.format === '2v2' ? oppTeamSize : 1);
-                return 0;
+                const multiplier = match!.format === '2v2' ? oppTeamSize : 1;
+                let mult = 0;
+                if (myPts > oppPts) mult = multiplier;
+                else if (oppPts > myPts) mult = -multiplier;
+                return { usd: mult * match!.wagerAmount, bc: mult * (match!.bloodCoinWager ?? 0) };
             }
 
             // ── Skins settlement (only when format === 'skins') ──────────
             function skinsSettlement(): LineItem[] {
                 const skinValue = match!.wagerAmount;
+                const skinValueBC = match!.bloodCoinWager ?? 0;
                 const numPlayers = players.length;
                 const bonusSkins = match!.sideBets?.bonusSkins ?? false;
                 const isTeamSkins = match!.sideBets?.teamSkins ?? false;
@@ -223,6 +232,7 @@ export default function LedgerPage() {
                 // ── Path 2: Individual Pot Skins ──────────────────────────
                 if (isPotMode && !isTeamSkins) {
                     const pot = skinValue * numPlayers;
+                    const potBC = skinValueBC * numPlayers;
                     const skinCounts: Record<string, number> = {};
                     let carry = 0;
                     for (let h = 1; h <= 18; h++) {
@@ -260,12 +270,13 @@ export default function LedgerPage() {
 
                     const winnerNames = potWinners.map(p => (p.guestName ?? nameMap[p.userId] ?? 'Player').split(' ')[0]).join(', ');
                     const netAmount = isUserWinner ? potShare - skinValue : -skinValue;
+                    const netAmountBC = isUserWinner ? (isTie ? potBC / potWinners.length : potBC) - skinValueBC : -skinValueBC;
                     const sublabel = isUserWinner
                         ? isTie
                             ? `Tied ${maxSkins} skins — split $${pot} pot (${potWinners.length} ways)`
                             : `${maxSkins} skins — you win $${pot} pot`
                         : `You: ${userSkins} skin${userSkins !== 1 ? 's' : ''} — ${isTie ? `${winnerNames} split pot` : `${winnerNames} wins $${pot} pot`}`;
-                    return [{ label: 'Pot Skins', sublabel, amount: netAmount }];
+                    return [{ label: 'Pot Skins', sublabel, amount: netAmount, bloodCoinAmount: netAmountBC }];
                 }
 
                 // ── Path 3: Team Per-Skin ─────────────────────────────────
@@ -300,6 +311,7 @@ export default function LedgerPage() {
 
                         const holesInPot = 1 + carry;
                         const potPerPlayer = holesInPot * skinValue;
+                        const potPerPlayerBC = holesInPot * skinValueBC;
 
                         // Best-ball net per team
                         const teamAScores = hScores.filter(s => playerTeam(s.playerId) === 'A');
@@ -317,12 +329,14 @@ export default function LedgerPage() {
                             const numWinners = players.filter(p => p.team === winTeam).length;
                             const numLosers = players.filter(p => p.team === loseTeam).length;
                             const individualReward = (potPerPlayer * numLosers) / (numWinners || 1);
+                            const individualRewardBC = (potPerPlayerBC * numLosers) / (numWinners || 1);
                             const baseAmount = isUserWinner ? individualReward : -individualReward;
+                            const baseAmountBC = isUserWinner ? individualRewardBC : -individualRewardBC;
                             const baseSublabel = isUserWinner
-                                ? `Team ${winTeam} wins — you collect $${individualReward} total per skin`
-                                : `Team ${winTeam} wins — you pay $${individualReward} total per skin`;
+                                ? `Team ${winTeam} wins — you collect ${currencySymbol}${individualReward} total per skin`
+                                : `Team ${winTeam} wins — you pay ${currencySymbol}${individualReward} total per skin`;
                             const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
-                            result.push({ label: rangeLabel, sublabel, amount: baseAmount + userBonusAmount });
+                            result.push({ label: rangeLabel, sublabel, amount: baseAmount + userBonusAmount, bloodCoinAmount: baseAmountBC + (userBonusAmount > 0 ? userBonusAmount / skinValue * skinValueBC : userBonusAmount < 0 ? userBonusAmount / skinValue * skinValueBC : 0) });
                             carry = 0;
                         } else {
                             const baseSublabel = 'Tied — skin carries';
@@ -341,6 +355,7 @@ export default function LedgerPage() {
                 // ── Path 4: Team Pot Skins ────────────────────────────────
                 if (isTeamSkins && isPotMode) {
                     const pot = skinValue * numPlayers;
+                    const potBC = skinValueBC * numPlayers;
                     const teamSkinCounts: Record<'A' | 'B', number> = { A: 0, B: 0 };
                     let carry = 0;
                     for (let h = 1; h <= 18; h++) {
@@ -366,15 +381,17 @@ export default function LedgerPage() {
                     const myTeamSize = players.filter(p => p.team === myTeam).length;
                     const winningTeamSize = myTeamWins ? myTeamSize : players.filter(p => p.team === winTeams[0]).length;
                     const potToWinners = isTie ? pot / winTeams.length : pot;
+                    const potToWinnersBC = isTie ? potBC / winTeams.length : potBC;
                     const netAmount = myTeamWins ? (potToWinners / (isTie ? 1 : winningTeamSize)) - skinValue : -skinValue;
+                    const netAmountBC = myTeamWins ? (potToWinnersBC / (isTie ? 1 : winningTeamSize)) - skinValueBC : -skinValueBC;
                     const userSkins = teamSkinCounts[myTeam];
                     const oppSkins = teamSkinCounts[oppTeam];
                     const sublabel = myTeamWins
                         ? isTie
-                            ? `Tied — Team A:${teamSkinCounts.A} Team B:${teamSkinCounts.B} — split $${pot} pot`
-                            : `Team ${myTeam} wins ${maxSkins} skins — $${pot} pot split among ${winningTeamSize} players`
+                            ? `Tied — Team A:${teamSkinCounts.A} Team B:${teamSkinCounts.B} — split ${currencySymbol}${pot} pot`
+                            : `Team ${myTeam} wins ${maxSkins} skins — ${currencySymbol}${pot} pot split among ${winningTeamSize} players`
                         : `Team ${winTeams[0]} wins ${maxSkins} skins — you: ${userSkins} vs opp: ${oppSkins}`;
-                    return [{ label: 'Team Pot Skins', sublabel, amount: netAmount }];
+                    return [{ label: 'Team Pot Skins', sublabel, amount: netAmount, bloodCoinAmount: netAmountBC }];
                 }
 
                 // ── Path 1: Individual Per-Skin (existing) ────────────────
@@ -405,6 +422,7 @@ export default function LedgerPage() {
 
                     const holesInPot = 1 + carry;
                     const potPerPlayer = holesInPot * skinValue;
+                    const potPerPlayerBC = holesInPot * skinValueBC;
                     const minNet = Math.min(...hScores.map(s => s.net));
                     const winners = hScores.filter(s => s.net === minNet);
 
@@ -415,6 +433,9 @@ export default function LedgerPage() {
                         const baseAmount = isUserWinner
                             ? potPerPlayer * (numPlayers - 1)
                             : -potPerPlayer;
+                        const baseAmountBC = isUserWinner
+                            ? potPerPlayerBC * (numPlayers - 1)
+                            : -potPerPlayerBC;
                         const rangeLabel = holesInPot > 1
                             ? `Holes ${h - holesInPot + 1}–${h}`
                             : `Hole ${h}`;
@@ -422,7 +443,7 @@ export default function LedgerPage() {
                             ? `You win — $${potPerPlayer} from each player`
                             : `${winnerName.split(' ')[0]} wins — you pay $${potPerPlayer}`;
                         const sublabel = bonusNotes.length > 0 ? `${baseSublabel} · ${bonusNotes.join(', ')}` : baseSublabel;
-                        result.push({ label: rangeLabel, sublabel, amount: baseAmount + userBonusAmount });
+                        result.push({ label: rangeLabel, sublabel, amount: baseAmount + userBonusAmount, bloodCoinAmount: baseAmountBC + (userBonusAmount > 0 ? userBonusAmount / (skinValue || 1) * skinValueBC : userBonusAmount < 0 ? userBonusAmount / (skinValue || 1) * skinValueBC : 0) });
                         carry = 0;
                     } else {
                         const baseSublabel = 'Tied — skin carries';
@@ -475,20 +496,20 @@ export default function LedgerPage() {
                 // Nassau
                 const front9Holes = holesPlayed.filter((h) => h <= 9);
                 const back9Holes = holesPlayed.filter((h) => h > 9);
-                const front9Amount = front9Holes.length > 0 ? nassauResult(front9Holes) : 0;
-                const back9Amount = back9Holes.length > 0 ? nassauResult(back9Holes) : 0;
-                const overallAmount = holesPlayed.length > 0 ? nassauResult(holesPlayed) : 0;
+                const front9 = front9Holes.length > 0 ? nassauResult(front9Holes) : { usd: 0, bc: 0 };
+                const back9 = back9Holes.length > 0 ? nassauResult(back9Holes) : { usd: 0, bc: 0 };
+                const overall = holesPlayed.length > 0 ? nassauResult(holesPlayed) : { usd: 0, bc: 0 };
 
                 items.push(
-                    { label: 'Front 9 (Base)', sublabel: front9Amount > 0 ? 'Won' : front9Amount < 0 ? 'Lost' : 'Pushed', amount: front9Amount },
-                    { label: 'Back 9 (Base)', sublabel: back9Amount > 0 ? 'Won' : back9Amount < 0 ? 'Lost' : 'Pushed', amount: back9Amount },
-                    { label: 'Overall (18 Holes)', sublabel: overallAmount > 0 ? 'Won' : overallAmount < 0 ? 'Lost' : 'Pushed', amount: overallAmount },
+                    { label: 'Front 9 (Base)', sublabel: front9.usd > 0 || front9.bc > 0 ? 'Won' : front9.usd < 0 || front9.bc < 0 ? 'Lost' : 'Pushed', amount: front9.usd, bloodCoinAmount: front9.bc },
+                    { label: 'Back 9 (Base)', sublabel: back9.usd > 0 || back9.bc > 0 ? 'Won' : back9.usd < 0 || back9.bc < 0 ? 'Lost' : 'Pushed', amount: back9.usd, bloodCoinAmount: back9.bc },
+                    { label: 'Overall (18 Holes)', sublabel: overall.usd > 0 || overall.bc > 0 ? 'Won' : overall.usd < 0 || overall.bc < 0 ? 'Lost' : 'Pushed', amount: overall.usd, bloodCoinAmount: overall.bc },
                 );
 
                 for (const press of presses) {
                     const pressHoles = holesPlayed.filter((h) => h >= press.startHole);
-                    const pressAmount = nassauResult(pressHoles);
-                    items.push({ label: 'Press', sublabel: `Hole ${press.startHole} • Team ${press.pressedByTeam}`, amount: pressAmount, isPress: true });
+                    const pressResult = nassauResult(pressHoles);
+                    items.push({ label: 'Press', sublabel: `Hole ${press.startHole} • Team ${press.pressedByTeam}`, amount: pressResult.usd, bloodCoinAmount: pressResult.bc, isPress: true });
                 }
 
                 // Trash / side bets
@@ -571,10 +592,12 @@ export default function LedgerPage() {
             if (match!.sideBets.par5Contest) { const item = calcMiniTourney(5, match!.sideBets.par5Pot ?? 5); if (item) items.push(item); }
 
             const total = items.reduce((sum, i) => sum + i.amount, 0);
+            const bloodCoinTotal = items.reduce((sum, i) => sum + (i.bloodCoinAmount || 0), 0);
             if (!cancelled) setSettlement({
                 opponentName: oppName,
                 opponentIds: oppTeamPlayers.map(p => p.userId).filter(Boolean) as string[],
                 total,
+                bloodCoinTotal,
                 items
             });
         }
@@ -650,7 +673,7 @@ export default function LedgerPage() {
                     return { my: 0, opp: 0 };
                 }
 
-                function nassauResult(holes: number[]): number {
+                function nassauResult(holes: number[]): { usd: number; bc: number } {
                     let myPts = 0, oppPts = 0;
                     for (const h of holes) {
                         const { my, opp } = holePoints(h);
@@ -658,27 +681,29 @@ export default function LedgerPage() {
                         oppPts += opp;
                     }
                     const oppTeamSize = oppTeamPlayers.length > 0 ? oppTeamPlayers.length : 1;
-                    if (myPts > oppPts) return entry.match.wagerAmount * (entry.match.format === '2v2' ? oppTeamSize : 1);
-                    if (oppPts > myPts) return -entry.match.wagerAmount * (entry.match.format === '2v2' ? oppTeamSize : 1);
-                    return 0;
+                    const multiplier = entry.match.format === '2v2' ? oppTeamSize : 1;
+                    let mult = 0;
+                    if (myPts > oppPts) mult = multiplier;
+                    else if (oppPts > myPts) mult = -multiplier;
+                    return { usd: mult * entry.match.wagerAmount, bc: mult * (entry.match.bloodCoinWager ?? 0) };
                 }
 
                 const front9Holes = holesPlayed.filter((h) => h <= 9);
                 const back9Holes = holesPlayed.filter((h) => h > 9);
-                const front9Amount = front9Holes.length > 0 ? nassauResult(front9Holes) : 0;
-                const back9Amount = back9Holes.length > 0 ? nassauResult(back9Holes) : 0;
-                const overallAmount = holesPlayed.length > 0 ? nassauResult(holesPlayed) : 0;
+                const front9 = front9Holes.length > 0 ? nassauResult(front9Holes) : { usd: 0, bc: 0 };
+                const back9 = back9Holes.length > 0 ? nassauResult(back9Holes) : { usd: 0, bc: 0 };
+                const overall = holesPlayed.length > 0 ? nassauResult(holesPlayed) : { usd: 0, bc: 0 };
 
                 const items: LineItem[] = [
-                    { label: 'Front 9', sublabel: front9Amount > 0 ? 'Won' : front9Amount < 0 ? 'Lost' : 'Pushed', amount: front9Amount },
-                    { label: 'Back 9', sublabel: back9Amount > 0 ? 'Won' : back9Amount < 0 ? 'Lost' : 'Pushed', amount: back9Amount },
-                    { label: 'Overall', sublabel: overallAmount > 0 ? 'Won' : overallAmount < 0 ? 'Lost' : 'Pushed', amount: overallAmount },
+                    { label: 'Front 9', sublabel: front9.usd > 0 || front9.bc > 0 ? 'Won' : front9.usd < 0 || front9.bc < 0 ? 'Lost' : 'Pushed', amount: front9.usd, bloodCoinAmount: front9.bc },
+                    { label: 'Back 9', sublabel: back9.usd > 0 || back9.bc > 0 ? 'Won' : back9.usd < 0 || back9.bc < 0 ? 'Lost' : 'Pushed', amount: back9.usd, bloodCoinAmount: back9.bc },
+                    { label: 'Overall', sublabel: overall.usd > 0 || overall.bc > 0 ? 'Won' : overall.usd < 0 || overall.bc < 0 ? 'Lost' : 'Pushed', amount: overall.usd, bloodCoinAmount: overall.bc },
                 ];
 
                 for (const press of entry.presses) {
                     const pressHoles = holesPlayed.filter((h) => h >= press.startHole);
-                    const pressAmount = nassauResult(pressHoles);
-                    items.push({ label: 'Press', sublabel: `Hole ${press.startHole}`, amount: pressAmount, isPress: true });
+                    const pressResult = nassauResult(pressHoles);
+                    items.push({ label: 'Press', sublabel: `Hole ${press.startHole}`, amount: pressResult.usd, bloodCoinAmount: pressResult.bc, isPress: true });
                 }
 
                 const trashVal = entry.match.sideBets.trashValue ?? 5;
@@ -710,7 +735,8 @@ export default function LedgerPage() {
                 if (entry.match.sideBets.snake) trashItem('snake', 'Snake');
 
                 const total = items.reduce((sum, i) => sum + i.amount, 0);
-                settlements.push({ opponentName: oppName, opponentIds: oppTeamPlayers.map(p => p.userId).filter(Boolean) as string[], total, items, userInMatch });
+                const bloodCoinTotal = items.reduce((sum, i) => sum + (i.bloodCoinAmount || 0), 0);
+                settlements.push({ opponentName: oppName, opponentIds: oppTeamPlayers.map(p => p.userId).filter(Boolean) as string[], total, bloodCoinTotal, items, userInMatch });
             }
 
             // Mini tourney (group mode) — compare ALL unique players across all sub-matches
@@ -786,7 +812,10 @@ export default function LedgerPage() {
     const total = isGroupMode
         ? groupSettlements.filter((s) => s.userInMatch !== false).reduce((sum, s) => sum + s.total, 0)
         : (settlement?.total ?? 0);
-    const isWinner = total > 0;
+    const bcTotal = isGroupMode
+        ? groupSettlements.filter((s) => s.userInMatch !== false).reduce((sum, s) => sum + (s.bloodCoinTotal || 0), 0)
+        : (settlement?.bloodCoinTotal ?? 0);
+    const isWinner = total > 0 || bcTotal > 0;
 
     useEffect(() => {
         if (isWinner) {
@@ -820,19 +849,42 @@ export default function LedgerPage() {
                 }
             };
             frame();
-        } else if (total < 0) {
+        } else if (total < 0 || bcTotal < 0) {
             // Sad haptic for loss
             if (navigator.vibrate) navigator.vibrate([50, 100, 50, 100]);
         }
-    }, [isWinner, total]);
+    }, [isWinner, total, bcTotal]);
 
     const settlementLabel = isGroupMode
-        ? (total > 0 ? 'Net Winnings' : total < 0 ? 'Net You Owe' : 'All Square')
-        : (total > 0
+        ? ((total > 0 || bcTotal > 0) ? 'Net Winnings' : (total < 0 || bcTotal < 0) ? 'Net You Owe' : 'All Square')
+        : ((total > 0 || bcTotal > 0)
             ? `Winnings: ${settlement?.opponentName}`
-            : total < 0
+            : (total < 0 || bcTotal < 0)
                 ? `Total Owed: ${settlement?.opponentName}`
                 : 'All Square');
+
+    const renderAmount = (val: number, size: 'default' | 'large' | 'xl' = 'default', forceCurrency?: 'USD' | 'BLOOD_COINS') => {
+        const isUSD = forceCurrency ? forceCurrency === 'USD' : (match?.wagerCurrency === 'USD' || !match?.wagerCurrency);
+        const absVal = Math.abs(val);
+        const colorClass = val > 0 ? 'text-neonGreen' : val < 0 ? 'text-bloodRed' : 'text-secondaryText';
+        const sign = val > 0 ? '+' : val < 0 ? '-' : '';
+
+        if (isUSD) {
+            return (
+                <span className={colorClass}>
+                    {sign}${absVal}
+                </span>
+            );
+        }
+
+        return (
+            <span className={`flex items-center gap-1 ${colorClass}`}>
+                {sign}
+                <BloodCoin size={size === 'xl' ? 'sm' : size === 'large' ? 'xs' : 'xs'} className="mb-0.5" />
+                {absVal}
+            </span>
+        );
+    };
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background overflow-hidden relative">
@@ -856,18 +908,32 @@ export default function LedgerPage() {
                 {/* Hero Outcome */}
                 <section className={`py-8 text-center flex flex-col items-center justify-center rounded-2xl relative overflow-hidden animate-in zoom-in-95 duration-500 ${isWinner ? 'bg-gradient-to-b from-neonGreen/10 to-transparent border border-neonGreen/20 shadow-[0_0_50px_rgba(0,255,102,0.1)]' : total < 0 ? 'bg-gradient-to-b from-bloodRed/10 to-transparent border border-bloodRed/10' : ''}`}>
                     <div className="w-16 h-16 rounded-full bg-surface border border-borderColor flex items-center justify-center mb-6 relative z-10">
-                        <Receipt className={`w-8 h-8 ${isWinner ? 'text-neonGreen drop-shadow-[0_0_8px_rgba(0,255,102,0.8)]' : total < 0 ? 'text-bloodRed' : 'text-secondaryText'}`} />
+                        <Receipt className={`w-8 h-8 ${isWinner ? 'text-neonGreen drop-shadow-[0_0_8px_rgba(0,255,102,0.8)]' : (total < 0 || bcTotal < 0) ? 'text-bloodRed' : 'text-secondaryText'}`} />
                     </div>
                     <h2 className="text-sm font-bold text-secondaryText tracking-widest uppercase mb-2 relative z-10">{settlementLabel}</h2>
-                    <div className={`text-7xl font-sans tracking-tighter font-black relative z-10 ${isWinner ? 'text-neonGreen drop-shadow-[0_0_20px_rgba(0,255,102,0.4)] scale-110 transition-transform duration-700' : total < 0 ? 'text-bloodRed drop-shadow-[0_0_20px_rgba(255,0,63,0.4)]' : 'text-secondaryText'}`}>
-                        {total > 0 ? '+' : ''}${Math.abs(total)}
+                    <div className="flex flex-col items-center justify-center gap-2 mb-2">
+                        {total !== 0 && (
+                            <div className="text-7xl font-sans tracking-tighter font-black relative z-10 scale-110 transition-transform duration-700">
+                                {renderAmount(total, 'xl', 'USD')}
+                            </div>
+                        )}
+                        {bcTotal !== 0 && (
+                            <div className={`text-${total !== 0 ? '5xl' : '7xl'} font-sans tracking-tighter font-black relative z-10 scale-110 transition-transform duration-700`}>
+                                {renderAmount(bcTotal, 'xl', 'BLOOD_COINS')}
+                            </div>
+                        )}
+                        {total === 0 && bcTotal === 0 && (
+                            <div className="text-7xl font-sans tracking-tighter font-black relative z-10 scale-110 transition-transform duration-700">
+                                {renderAmount(0, 'xl', 'USD')}
+                            </div>
+                        )}
                     </div>
                     <p className="mt-4 text-sm text-white font-bold opacity-80 relative z-10">
                         {isGroupMode
-                            ? `${activeMatchIds.length} Matches • ${match?.wagerType}`
+                            ? `${activeMatchIds.length} Matches • ${match?.wagerType === 'NASSAU' ? 'Match Play' : match?.wagerType}`
                             : match?.format === 'skins'
-                                ? `Skins Game • $${match.wagerAmount}/skin • ${players.length} players`
-                                : `${match?.format} • $${match?.wagerAmount} ${match?.wagerType}: ${settlement?.opponentName ?? '…'}`
+                                ? `Skins Game • $${match.wagerAmount}/skin${(match.bloodCoinWager ?? 0) > 0 ? ` + 🪙${match.bloodCoinWager}` : ''} • ${players.length} players`
+                                : `${match?.format} • $${match?.wagerAmount}${(match?.bloodCoinWager ?? 0) > 0 ? ` + 🪙${match?.bloodCoinWager}` : ''} ${match?.wagerType === 'NASSAU' ? 'Match Play' : match?.wagerType}: ${settlement?.opponentName ?? '…'}`
                         }
                     </p>
                 </section>
@@ -944,8 +1010,8 @@ export default function LedgerPage() {
                                     <span className="text-sm font-bold text-secondaryText uppercase tracking-wider">
                                         {s.opponentName}
                                     </span>
-                                    <span className={`text-sm font-black ${s.total > 0 ? 'text-neonGreen' : s.total < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                        {s.total > 0 ? '+' : ''}${s.total}
+                                    <span className="text-sm font-black">
+                                        {renderAmount(s.total)}
                                     </span>
                                 </div>
                                 <Card className="divide-y divide-borderColor/50 font-sans border-borderColor">
@@ -958,8 +1024,8 @@ export default function LedgerPage() {
                                                 <span className={`font-bold text-sm block ${item.isPress ? 'text-bloodRed' : 'text-white'}`}>{item.label}</span>
                                                 <span className="text-xs text-secondaryText">{item.sublabel}</span>
                                             </div>
-                                            <span className={`font-bold ${item.amount > 0 ? 'text-neonGreen' : item.amount < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                {item.amount > 0 ? '+' : ''}${item.amount}
+                                            <span className="font-bold">
+                                                {renderAmount(item.amount)}
                                             </span>
                                         </div>
                                     ))}
@@ -970,13 +1036,23 @@ export default function LedgerPage() {
                         {/* Net total across all matches */}
                         <Card className="p-5 flex items-center justify-between bg-surface border-borderColor">
                             <span className="font-bold tracking-wider uppercase text-white">Net Settlement</span>
-                            <span className={`font-black text-2xl ${isWinner ? 'text-neonGreen' : total < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                {total > 0 ? '+' : ''}${total}
-                            </span>
+                            <div className="flex flex-col items-end gap-1">
+                                <span className="font-black text-2xl leading-none">
+                                    {renderAmount(groupSettlements.reduce((sum, s) => sum + s.total, 0), 'large')}
+                                </span>
+                                {groupSettlements.reduce((sum, s) => sum + (s.bloodCoinTotal || 0), 0) !== 0 && (
+                                    <span className="font-black text-bloodRed flex items-center gap-1 drop-shadow-[0_0_12px_rgba(255,0,63,0.4)] mt-1">
+                                        <BloodCoin className="w-5 h-5" />
+                                        <span className="text-xl">
+                                            {groupSettlements.reduce((sum, s) => sum + (s.bloodCoinTotal || 0), 0) > 0 ? '+' : ''}{groupSettlements.reduce((sum, s) => sum + (s.bloodCoinTotal || 0), 0)}
+                                        </span>
+                                    </span>
+                                )}
+                            </div>
                         </Card>
 
                         {/* Send to Ledger / IOU Actions for Group */}
-                        {groupSettlements.some(s => s.total !== 0 && s.opponentIds && s.opponentIds.length > 0) && user?.id === match?.createdBy && (
+                        {groupSettlements.some(s => s.total !== 0 || (s.bloodCoinTotal || 0) !== 0) && groupSettlements.some(s => s.opponentIds && s.opponentIds.length > 0) && user?.id === match?.createdBy && (
                             <div className="mt-4 animate-in slide-in-from-bottom-2 fade-in duration-500 delay-300">
                                 {hasExistingDebt ? (
                                     <div className="w-full bg-surface border border-borderColor text-white p-3 rounded-xl flex items-center justify-center gap-2 opacity-50">
@@ -991,12 +1067,24 @@ export default function LedgerPage() {
                                                 setCreatingIOU(true);
                                                 try {
                                                     for (const s of groupSettlements) {
-                                                        if (s.total === 0 || !s.opponentIds || s.opponentIds.length === 0) continue;
-                                                        const amountPerOpponent = Math.abs(s.total) / s.opponentIds.length;
+                                                        const hasUsd = s.total !== 0;
+                                                        const hasBc = (s.bloodCoinTotal || 0) !== 0;
+                                                        if ((!hasUsd && !hasBc) || !s.opponentIds || s.opponentIds.length === 0) continue;
+
+                                                        const amountPerOpponentUSD = Math.abs(s.total) / s.opponentIds.length;
+                                                        const amountPerOpponentBC = Math.abs(s.bloodCoinTotal || 0) / s.opponentIds.length;
+
                                                         for (const oppId of s.opponentIds) {
-                                                            const debtorId = s.total < 0 ? user!.id : oppId;
-                                                            const creditorId = s.total > 0 ? user!.id : oppId;
-                                                            await createDebt(matchId!, debtorId, creditorId, amountPerOpponent);
+                                                            if (hasUsd) {
+                                                                const debtorId = s.total < 0 ? user!.id : oppId;
+                                                                const creditorId = s.total > 0 ? user!.id : oppId;
+                                                                await createDebt(matchId!, debtorId, creditorId, amountPerOpponentUSD, match?.wagerCurrency);
+                                                            }
+                                                            if (hasBc) {
+                                                                const debtorId = (s.bloodCoinTotal || 0) < 0 ? user!.id : oppId;
+                                                                const creditorId = (s.bloodCoinTotal || 0) > 0 ? user!.id : oppId;
+                                                                await createDebt(matchId!, debtorId, creditorId, amountPerOpponentBC, 'BLOOD_COINS');
+                                                            }
                                                         }
                                                     }
                                                     alert('Debts successfully recorded in your balances.');
@@ -1019,12 +1107,24 @@ export default function LedgerPage() {
                                                 setCreatingIOU(true);
                                                 try {
                                                     for (const s of groupSettlements) {
-                                                        if (s.total === 0 || !s.opponentIds || s.opponentIds.length === 0) continue;
-                                                        const amountPerOpponent = Math.abs(s.total) / s.opponentIds.length;
+                                                        const hasUsd = s.total !== 0;
+                                                        const hasBc = (s.bloodCoinTotal || 0) !== 0;
+                                                        if ((!hasUsd && !hasBc) || !s.opponentIds || s.opponentIds.length === 0) continue;
+
+                                                        const amountPerOpponentUSD = Math.abs(s.total) / s.opponentIds.length;
+                                                        const amountPerOpponentBC = Math.abs(s.bloodCoinTotal || 0) / s.opponentIds.length;
+
                                                         for (const oppId of s.opponentIds) {
-                                                            const debtorId = s.total < 0 ? user!.id : oppId;
-                                                            const creditorId = s.total > 0 ? user!.id : oppId;
-                                                            await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponent);
+                                                            if (hasUsd) {
+                                                                const debtorId = s.total < 0 ? user!.id : oppId;
+                                                                const creditorId = s.total > 0 ? user!.id : oppId;
+                                                                await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponentUSD, match?.wagerCurrency);
+                                                            }
+                                                            if (hasBc) {
+                                                                const debtorId = (s.bloodCoinTotal || 0) < 0 ? user!.id : oppId;
+                                                                const creditorId = (s.bloodCoinTotal || 0) > 0 ? user!.id : oppId;
+                                                                await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponentBC, 'BLOOD_COINS');
+                                                            }
                                                         }
                                                     }
                                                     alert('Settlement recorded. Payment history updated.');
@@ -1067,23 +1167,41 @@ export default function LedgerPage() {
                                         <span className={`font-bold block ${item.isPress ? 'text-bloodRed' : 'text-white'}`}>{item.label}</span>
                                         <span className="text-xs text-secondaryText">{item.sublabel}</span>
                                     </div>
-                                    <span className={`font-bold text-lg ${item.amount > 0 ? 'text-neonGreen' : item.amount < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                        {item.amount > 0 ? '+' : ''}${item.amount}
-                                    </span>
+                                    <div className="flex flex-col items-end gap-1 text-right">
+                                        <span className="font-bold text-lg leading-tight">
+                                            {renderAmount(item.amount)}
+                                        </span>
+                                        {(item.bloodCoinAmount ?? 0) !== 0 && (
+                                            <span className="text-xs font-black text-bloodRed flex items-center gap-1 leading-tight drop-shadow-[0_0_8px_rgba(255,0,63,0.3)]">
+                                                <BloodCoin className="w-3 h-3" />
+                                                {(item.bloodCoinAmount ?? 0) > 0 ? `+${item.bloodCoinAmount}` : item.bloodCoinAmount}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
 
                             {/* Total */}
                             <div className="p-5 flex items-center justify-between bg-surface border-t-2 border-t-borderColor">
                                 <span className="font-bold tracking-wider uppercase text-white">Total Settlement</span>
-                                <span className={`font-black text-2xl ${isWinner ? 'text-neonGreen' : total < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                    {total > 0 ? '+' : ''}${total}
-                                </span>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className="font-black text-2xl leading-none">
+                                        {renderAmount(total, 'large')}
+                                    </span>
+                                    {(settlement.bloodCoinTotal ?? 0) !== 0 && (
+                                        <span className="font-black text-bloodRed flex items-center gap-1 drop-shadow-[0_0_12px_rgba(255,0,63,0.4)] mt-1">
+                                            <BloodCoin className="w-5 h-5" />
+                                            <span className="text-xl">
+                                                {(settlement.bloodCoinTotal ?? 0) > 0 ? `+${settlement.bloodCoinTotal}` : settlement.bloodCoinTotal}
+                                            </span>
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </Card>
 
                         {/* Send to Ledger / IOU Actions */}
-                        {total !== 0 && settlement.opponentIds.length > 0 && user?.id === match?.createdBy && (
+                        {(total !== 0 || (settlement.bloodCoinTotal || 0) !== 0) && settlement.opponentIds.length > 0 && user?.id === match?.createdBy && (
                             <div className="mt-4 animate-in slide-in-from-bottom-2 fade-in duration-500 delay-300">
                                 {hasExistingDebt ? (
                                     <div className="w-full bg-surface border border-borderColor text-white p-3 rounded-xl flex items-center justify-center gap-2 opacity-50">
@@ -1097,11 +1215,23 @@ export default function LedgerPage() {
                                             onClick={async () => {
                                                 setCreatingIOU(true);
                                                 try {
-                                                    const amountPerOpponent = Math.abs(total) / settlement.opponentIds.length;
+                                                    const hasUsd = total !== 0;
+                                                    const hasBc = (settlement.bloodCoinTotal || 0) !== 0;
+
+                                                    const amountPerOpponentUSD = Math.abs(total) / settlement.opponentIds.length;
+                                                    const amountPerOpponentBC = Math.abs(settlement.bloodCoinTotal || 0) / settlement.opponentIds.length;
+
                                                     for (const oppId of settlement.opponentIds) {
-                                                        const debtorId = total < 0 ? user!.id : oppId;
-                                                        const creditorId = total > 0 ? user!.id : oppId;
-                                                        await createDebt(matchId!, debtorId, creditorId, amountPerOpponent);
+                                                        if (hasUsd) {
+                                                            const debtorId = total < 0 ? user!.id : oppId;
+                                                            const creditorId = total > 0 ? user!.id : oppId;
+                                                            await createDebt(matchId!, debtorId, creditorId, amountPerOpponentUSD, match?.wagerCurrency);
+                                                        }
+                                                        if (hasBc) {
+                                                            const debtorId = (settlement.bloodCoinTotal || 0) < 0 ? user!.id : oppId;
+                                                            const creditorId = (settlement.bloodCoinTotal || 0) > 0 ? user!.id : oppId;
+                                                            await createDebt(matchId!, debtorId, creditorId, amountPerOpponentBC, 'BLOOD_COINS');
+                                                        }
                                                     }
                                                     alert('Debts successfully recorded in your balances.');
                                                     if (user?.id) loadDebts(user.id);
@@ -1122,11 +1252,23 @@ export default function LedgerPage() {
                                             onClick={async () => {
                                                 setCreatingIOU(true);
                                                 try {
-                                                    const amountPerOpponent = Math.abs(total) / settlement.opponentIds.length;
+                                                    const hasUsd = total !== 0;
+                                                    const hasBc = (settlement.bloodCoinTotal || 0) !== 0;
+
+                                                    const amountPerOpponentUSD = Math.abs(total) / settlement.opponentIds.length;
+                                                    const amountPerOpponentBC = Math.abs(settlement.bloodCoinTotal || 0) / settlement.opponentIds.length;
+
                                                     for (const oppId of settlement.opponentIds) {
-                                                        const debtorId = total < 0 ? user!.id : oppId;
-                                                        const creditorId = total > 0 ? user!.id : oppId;
-                                                        await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponent);
+                                                        if (hasUsd) {
+                                                            const debtorId = total < 0 ? user!.id : oppId;
+                                                            const creditorId = total > 0 ? user!.id : oppId;
+                                                            await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponentUSD, match?.wagerCurrency);
+                                                        }
+                                                        if (hasBc) {
+                                                            const debtorId = (settlement.bloodCoinTotal || 0) < 0 ? user!.id : oppId;
+                                                            const creditorId = (settlement.bloodCoinTotal || 0) > 0 ? user!.id : oppId;
+                                                            await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponentBC, 'BLOOD_COINS');
+                                                        }
                                                     }
                                                     alert('Settlement recorded. Payment history updated.');
                                                     if (user?.id) loadDebts(user.id);

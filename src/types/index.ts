@@ -23,6 +23,8 @@ export interface MatchSlot {
   player1Id: string | null; // null = creator (current user)
   opponentId: string | null;
   wager: number;
+  bloodCoinWager?: number;
+  wagerCurrency?: 'USD' | 'BLOOD_COINS';
   strokeOverride?: number;  // net strokes from player1's POV; undefined = use calculated diff
 }
 
@@ -89,6 +91,8 @@ export interface Match {
   groupId?: string;
   format: MatchFormat;
   wagerAmount: number;
+  bloodCoinWager?: number;
+  wagerCurrency?: 'USD' | 'BLOOD_COINS';
   wagerType: WagerType;
   status: 'setup' | 'in_progress' | 'pending_attestation' | 'completed';
   sideBets: {
@@ -120,6 +124,7 @@ export interface Debt {
   originalAmount: number;
   remainingAmount: number;
   status: 'pending' | 'partial' | 'settled';
+  currency?: 'USD' | 'BLOOD_COINS';
   createdAt: string;
   updatedAt: string;
   // Joined relations
@@ -133,9 +138,10 @@ export interface Payment {
   payerId: string;
   receiverId: string;
   amount: number;
-  method: 'venmo' | 'cashapp' | 'etransfer' | 'cash' | 'other';
+  method: 'venmo' | 'cashapp' | 'etransfer' | 'cash' | 'blood_coin' | 'other';
   paymentAddress?: string;
   status: 'requested_info' | 'pending_confirmation' | 'confirmed' | 'rejected';
+  currency?: 'USD' | 'BLOOD_COINS';
   createdAt: string;
   updatedAt: string;
 

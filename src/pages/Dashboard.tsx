@@ -257,7 +257,7 @@ export default function DashboardPage() {
                         courseName: course?.name as string ?? 'Unknown Course',
                         playerLabel,
                         format: m.format as string,
-                        wagerType: (m.format as string)?.toLowerCase() === 'skins' ? ((m as any).side_bets?.teamSkins ? '2V2 SKINS' : 'SKINS') : m.wager_type as string,
+                        wagerType: (m.format as string)?.toLowerCase() === 'skins' ? ((m as any).side_bets?.teamSkins ? '2V2 SKINS' : 'SKINS') : (m.wager_type === 'NASSAU' ? 'MATCH PLAY' : m.wager_type as string),
                         createdAt: m.created_at as string,
                         payout: 0,
                         holesUp: 0,
@@ -723,7 +723,7 @@ export default function DashboardPage() {
                                     <span className="font-bold text-white block">{item.courseName} • {item.format}</span>
                                     <span className="text-xs text-secondaryText block mt-0.5">{item.playerLabel}</span>
                                     <span className="text-xs text-secondaryText uppercase tracking-wider">
-                                        {formatDate(item.createdAt)} • {item.wagerType}
+                                        {formatDate(item.createdAt)} • {item.wagerType === 'NASSAU' ? 'Match Play' : item.wagerType}
                                     </span>
                                 </div>
                                 <div className="text-right shrink-0 ml-3">

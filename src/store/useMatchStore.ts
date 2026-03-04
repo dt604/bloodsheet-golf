@@ -29,6 +29,8 @@ function dbToMatch(row: Record<string, unknown>): Match {
     groupId: (row.group_id as string | null) ?? undefined,
     format: row.format as Match['format'],
     wagerAmount: row.wager_amount as number,
+    bloodCoinWager: (row.blood_coin_wager as number | null) ?? 0,
+    wagerCurrency: row.wager_currency as Match['wagerCurrency'],
     wagerType: row.wager_type as Match['wagerType'],
     status: row.status as Match['status'],
     sideBets: row.side_bets as Match['sideBets'],
@@ -126,15 +128,17 @@ interface MatchStoreState {
   setSlotPlayer1: (slotId: string, player1Id: string | null) => void;
   setSlotOpponent: (slotId: string, opponentId: string | null) => void;
   setSlotWager: (slotId: string, wager: number) => void;
+  setSlotCurrency: (slotId: string, currency: 'USD' | 'BLOOD_COINS') => void;
+  setSlotBloodCoinWager: (slotId: string, wager: number) => void;
   setSlotStrokes: (slotId: string, strokes: number) => void;
   createMatchGroup: (
-    sharedData: { courseId: string; wagerType: 'NASSAU'; status: 'in_progress'; sideBets: Match['sideBets']; createdBy: string },
+    sharedData: { courseId: string; wagerType: 'NASSAU'; status: 'in_progress'; sideBets: Match['sideBets']; createdBy: string; wagerCurrency?: 'USD' | 'BLOOD_COINS'; bloodCoinWager?: number; wagerAmount?: number },
     course: Course,
     createdBy: string,
     creatorHcp: number
   ) => Promise<void>;
   createSkinsMatch: (
-    sharedData: { courseId: string; wagerAmount: number; status: 'in_progress'; sideBets: Match['sideBets']; createdBy: string },
+    sharedData: { courseId: string; wagerAmount: number; status: 'in_progress'; sideBets: Match['sideBets']; createdBy: string; wagerCurrency?: 'USD' | 'BLOOD_COINS'; bloodCoinWager?: number },
     course: Course,
     createdBy: string,
     creatorHcp: number
@@ -198,7 +202,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   lastScoreUpdate: null,
   stagedPlayers: [],
   poolPlayers: [],
-  matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }],
+  matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10, wagerCurrency: 'USD' }],
   groupState: null,
   activeMatchIds: [],
   currentStep: 1,
@@ -209,7 +213,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     pendingTeamSkins: false, // Reset team skins when switching formats
     // Clear opposing-mode staging when switching formats
     ...(fmt === '2v2'
-      ? { poolPlayers: [], matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }] }
+      ? { poolPlayers: [], matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10, wagerCurrency: 'USD' }] }
       : { stagedPlayers: [] }
     ),
   }),
@@ -222,7 +226,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     pendingTeamSkins: false,
     stagedPlayers: [],
     poolPlayers: [],
-    matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10 }],
+    matchSlots: [{ id: genId(), player1Id: null, opponentId: null, wager: 10, wagerCurrency: 'USD' }],
     groupState: null,
     activeMatchIds: [],
   }),
@@ -286,7 +290,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   addMatchSlot(defaultWager) {
     set((state) => {
       if (state.matchSlots.length >= 5) return state;
-      return { matchSlots: [...state.matchSlots, { id: genId(), player1Id: null, opponentId: null, wager: defaultWager }] };
+      return { matchSlots: [...state.matchSlots, { id: genId(), player1Id: null, opponentId: null, wager: defaultWager, wagerCurrency: 'USD' }] };
     });
   },
 
@@ -316,6 +320,22 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     set((state) => ({
       matchSlots: state.matchSlots.map((s) =>
         s.id === slotId ? { ...s, wager } : s
+      ),
+    }));
+  },
+
+  setSlotCurrency(slotId, wagerCurrency) {
+    set((state) => ({
+      matchSlots: state.matchSlots.map((s) =>
+        s.id === slotId ? { ...s, wagerCurrency } : s
+      ),
+    }));
+  },
+
+  setSlotBloodCoinWager(slotId, bloodCoinWager) {
+    set((state) => ({
+      matchSlots: state.matchSlots.map((s) =>
+        s.id === slotId ? { ...s, bloodCoinWager } : s
       ),
     }));
   },
@@ -366,7 +386,9 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
           join_code: genJoinCode(),
           course_id: course.id,
           format: '1v1',
-          wager_amount: slot.wager,
+          wager_amount: sharedData.wagerAmount ?? slot.wager,
+          blood_coin_wager: sharedData.bloodCoinWager ?? slot.bloodCoinWager ?? 0,
+          wager_currency: sharedData.wagerCurrency || slot.wagerCurrency || 'USD',
           wager_type: sharedData.wagerType,
           status: 'in_progress',
           side_bets: sharedData.sideBets,
@@ -503,6 +525,8 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         course_id: course.id,
         format: 'skins',
         wager_amount: sharedData.wagerAmount,
+        blood_coin_wager: sharedData.bloodCoinWager || 0,
+        wager_currency: sharedData.wagerCurrency || 'USD',
         wager_type: 'PER_HOLE', // skins matches are intrinsically per hole
         status: 'in_progress',
         side_bets: sharedData.sideBets,
@@ -661,6 +685,8 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         course_id: course.id,
         format: matchData.format,
         wager_amount: matchData.wagerAmount,
+        blood_coin_wager: matchData.bloodCoinWager || 0,
+        wager_currency: matchData.wagerCurrency || 'USD',
         wager_type: matchData.wagerType,
         status: 'in_progress',
         side_bets: matchData.sideBets,

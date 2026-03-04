@@ -11,14 +11,14 @@ interface LedgerState {
     error: string | null;
 
     loadDebts: (userId: string) => Promise<void>;
-    createDebt: (matchId: string, debtorId: string, creditorId: string, amount: number) => Promise<Debt | null>;
+    createDebt: (matchId: string, debtorId: string, creditorId: string, amount: number, currency?: 'USD' | 'BLOOD_COINS') => Promise<Debt | null>;
     requestPaymentInfo: (debtId: string) => Promise<void>;
     providePaymentInfo: (paymentId: string, method: Payment['method'], address: string) => Promise<void>;
     submitPayment: (paymentId: string, amount: number) => Promise<void>;
     confirmPayment: (paymentId: string) => Promise<void>;
     settleWithCash: (debtId: string, amount: number) => Promise<void>;
     deletePayments: (paymentIds: string[]) => Promise<void>;
-    settleImmediately: (matchId: string, debtorId: string, creditorId: string, amount: number) => Promise<void>;
+    settleImmediately: (matchId: string, debtorId: string, creditorId: string, amount: number, currency?: 'USD' | 'BLOOD_COINS') => Promise<void>;
 }
 
 export const useLedgerStore = create<LedgerState>((set, get) => ({
@@ -101,6 +101,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
                 originalAmount: Number(d.original_amount),
                 remainingAmount: Number(d.remaining_amount),
                 status: d.status,
+                currency: d.currency as 'USD' | 'BLOOD_COINS',
                 createdAt: d.created_at,
                 updatedAt: d.updated_at,
                 debtor: d.debtor ? {
@@ -124,6 +125,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
                 method: p.method,
                 paymentAddress: p.payment_address,
                 status: p.status,
+                currency: p.currency as 'USD' | 'BLOOD_COINS',
                 createdAt: p.created_at,
                 updatedAt: p.updated_at,
                 payer: p.payer ? {
@@ -152,7 +154,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
         }
     },
 
-    createDebt: async (matchId, debtorId, creditorId, amount) => {
+    createDebt: async (matchId, debtorId, creditorId, amount, currency = 'USD') => {
         set({ isLoading: true, error: null });
         try {
             const { error } = await supabase
@@ -163,7 +165,8 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
                     creditor_id: creditorId,
                     original_amount: amount,
                     remaining_amount: amount,
-                    status: 'pending'
+                    status: 'pending',
+                    currency: currency
                 }])
                 .select()
                 .single();
@@ -344,7 +347,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
         }
     },
 
-    settleImmediately: async (matchId, debtorId, creditorId, amount) => {
+    settleImmediately: async (matchId, debtorId, creditorId, amount, currency = 'USD') => {
         set({ isLoading: true, error: null });
         try {
             // 1. Create a settled debt
@@ -356,14 +359,16 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
                     creditor_id: creditorId,
                     original_amount: amount,
                     remaining_amount: 0,
-                    status: 'settled'
+                    status: 'settled',
+                    currency: currency
                 }])
                 .select()
                 .single();
 
             if (debtErr) throw debtErr;
 
-            // 2. Create a confirmed cash payment
+            // 2. Create a confirmed payment
+            const method = currency === 'BLOOD_COINS' ? 'blood_coin' : 'cash';
             const { error: payErr } = await supabase
                 .from('payments')
                 .insert([{
@@ -371,11 +376,25 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
                     payer_id: debtorId,
                     receiver_id: creditorId,
                     amount: amount,
-                    method: 'cash',
-                    status: 'confirmed'
+                    method: method,
+                    status: 'confirmed',
+                    currency: currency
                 }]);
 
             if (payErr) throw payErr;
+
+            // 3. If Blood Coins, execute the actual transfer in the wallet
+            if (currency === 'BLOOD_COINS') {
+                const { error: transferErr } = await supabase
+                    .rpc('transfer_blood_coins', {
+                        p_from_id: debtorId,
+                        p_to_id: creditorId,
+                        p_amount: amount,
+                        p_reference_id: debtData.id,
+                        p_metadata: { match_id: matchId, type: 'settlement' }
+                    });
+                if (transferErr) throw transferErr;
+            }
 
             // Reload state
             const myId = (await supabase.auth.getUser()).data.user?.id;
