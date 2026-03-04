@@ -169,6 +169,7 @@ export interface FeedItemSocialData {
   reactions: Partial<Record<ReactionType, number>>;
   userReaction: ReactionType | null;
   commentCount: number;
+  reactorNames: string[]; // first names of up to 2 reactors (for "Liked by X and Y")
 }
 
 export interface ScoreEditLog {

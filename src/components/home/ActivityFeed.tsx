@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useFriendsStore } from '../../store/useFriendsStore';
 import { useSocialStore } from '../../store/useSocialStore';
 import { Card } from '../ui/Card';
-import { Target, Zap, Droplets, Camera, Trophy, ChevronRight, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { Target, Zap, Droplets, Camera, Trophy, ChevronRight, Heart, MessageCircle, Share2, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '../ui/EmptyState';
 import { CommentsSheet } from '../social/CommentsSheet';
@@ -57,6 +57,12 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
     const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [profiles, setProfiles] = useState<Record<string, { fullName: string; avatarUrl?: string }>>({});
+    const [refreshing, setRefreshing] = useState(false);
+    const [pullDistance, setPullDistance] = useState(0);
+    const touchStartY = useRef(0);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    const fetchFeedRef = useRef<(() => Promise<void>) | null>(null);
 
     useEffect(() => {
         if (!user) return;
@@ -192,7 +198,7 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
 
                 // Batch-load social data (likes + comment counts)
                 const itemIds = items.map(i => i.id);
-                useSocialStore.getState().loadSocialData(itemIds, user.id);
+                if (user) useSocialStore.getState().loadSocialData(itemIds, user.id);
 
             } catch (err) {
                 console.error("Failed to fetch feed", err);
@@ -201,8 +207,32 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
             }
         }
 
+        fetchFeedRef.current = fetchFeed;
         fetchFeed();
     }, [user, friendships]);
+
+    // Pull-to-refresh handlers
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        touchStartY.current = e.touches[0].clientY;
+    }, []);
+
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (refreshing) return;
+        const scrollTop = scrollContainerRef.current?.scrollTop ?? 0;
+        if (scrollTop > 0) return; // only pull when scrolled to top
+        const dy = e.touches[0].clientY - touchStartY.current;
+        if (dy > 0) setPullDistance(Math.min(dy * 0.4, 80));
+    }, [refreshing]);
+
+    const handleTouchEnd = useCallback(async () => {
+        if (pullDistance > 50 && fetchFeedRef.current && !refreshing) {
+            setRefreshing(true);
+            setPullDistance(50);
+            await fetchFeedRef.current();
+            setRefreshing(false);
+        }
+        setPullDistance(0);
+    }, [pullDistance, refreshing]);
 
     if (loading) {
         return (
@@ -225,7 +255,19 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
     }
 
     return (
-        <div className="space-y-4 pb-4">
+        <div
+            ref={scrollContainerRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="space-y-4 pb-4"
+        >
+            {/* Pull-to-refresh indicator */}
+            {(pullDistance > 0 || refreshing) && (
+                <div className="flex items-center justify-center" style={{ height: refreshing ? 40 : pullDistance, transition: refreshing ? 'none' : 'height 0.1s' }}>
+                    <RefreshCw className={`w-5 h-5 text-secondaryText ${refreshing ? 'animate-spin' : ''}`} style={{ opacity: Math.min(pullDistance / 50, 1), transform: `rotate(${pullDistance * 3}deg)` }} />
+                </div>
+            )}
             {feedItems.map(item => {
                 const p = profiles[item.playerId] || { fullName: 'Someone' };
                 const pName = p.fullName.split(' ')[0];
@@ -346,14 +388,14 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
                                     <Camera className="w-3.5 h-3.5 text-white/70" />
                                 </div>
                             </div>
-                            <div className="relative w-full aspect-[4/3] bg-background">
+                            <DoubleTapMedia feedItemId={item.id} item={item}>
                                 {item.mediaType.includes('video') ? (
                                     <video src={item.mediaUrl} className="absolute inset-0 w-full h-full object-cover" muted loop playsInline autoPlay />
                                 ) : (
                                     <img src={item.mediaUrl} alt="Moment" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            </div>
+                            </DoubleTapMedia>
                             <div className="px-4 pb-3">
                                 <SocialBar feedItemId={item.id} item={item} />
                             </div>
@@ -367,12 +409,43 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
     );
 }
 
+function DoubleTapMedia({ feedItemId, children }: { feedItemId: string; item: FeedItem; children: React.ReactNode }) {
+    const { user } = useAuth();
+    const { toggleReaction } = useSocialStore();
+    const lastTap = useRef(0);
+    const [showHeart, setShowHeart] = useState(false);
+
+    const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const now = Date.now();
+        if (now - lastTap.current < 300 && user) {
+            toggleReaction(feedItemId, user.id, 'heart');
+            setShowHeart(true);
+            setTimeout(() => setShowHeart(false), 800);
+        }
+        lastTap.current = now;
+    };
+
+    return (
+        <div className="relative w-full aspect-[4/3] bg-background" onClick={handleClick}>
+            {children}
+            {showHeart && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                    <span className="text-6xl" style={{ animation: 'doubleTapHeart 0.8s ease-out forwards' }}>❤️</span>
+                    <style>{`@keyframes doubleTapHeart { 0% { opacity: 0; transform: scale(0); } 15% { opacity: 1; transform: scale(1.2); } 30% { transform: scale(0.95); } 45% { transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }`}</style>
+                </div>
+            )}
+        </div>
+    );
+}
+
 function SocialBar({ feedItemId, item }: { feedItemId: string; item: FeedItem }) {
     const { user } = useAuth();
     const { socialData, toggleReaction } = useSocialStore();
-    const data = socialData[feedItemId] ?? { reactions: {}, userReaction: null, commentCount: 0 };
+    const data = socialData[feedItemId] ?? { reactions: {}, userReaction: null, commentCount: 0, reactorNames: [] };
     const [commentsOpen, setCommentsOpen] = useState(false);
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [bouncing, setBouncing] = useState(false);
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const didLongPress = useRef(false);
@@ -416,6 +489,8 @@ function SocialBar({ feedItemId, item }: { feedItemId: string; item: FeedItem })
         // Short tap → toggle heart (works on both desktop and mobile)
         if (!didLongPress.current && user) {
             toggleReaction(feedItemId, user.id, 'heart');
+            setBouncing(true);
+            setTimeout(() => setBouncing(false), 400);
         }
     }, [feedItemId, user, toggleReaction]);
 
@@ -430,6 +505,8 @@ function SocialBar({ feedItemId, item }: { feedItemId: string; item: FeedItem })
         e.stopPropagation();
         if (user) toggleReaction(feedItemId, user.id, type);
         setPickerOpen(false);
+        setBouncing(true);
+        setTimeout(() => setBouncing(false), 400);
     };
 
     const handleComment = (e: React.MouseEvent) => {
@@ -447,8 +524,8 @@ function SocialBar({ feedItemId, item }: { feedItemId: string; item: FeedItem })
         const text = item.type === 'match'
             ? 'Check out this match on BloodSheet Golf'
             : item.type === 'trophy'
-            ? 'Check out this achievement on BloodSheet Golf'
-            : 'Check out this moment on BloodSheet Golf';
+                ? 'Check out this achievement on BloodSheet Golf'
+                : 'Check out this moment on BloodSheet Golf';
 
         if (navigator.share) {
             try {
@@ -461,17 +538,35 @@ function SocialBar({ feedItemId, item }: { feedItemId: string; item: FeedItem })
         }
     };
 
+    // Build "liked by" text
+    const likedByText = (() => {
+        if (totalReactions === 0) return null;
+        const names: string[] = [];
+        if (data.userReaction) names.push('You');
+        names.push(...(data.reactorNames ?? []));
+        const othersCount = totalReactions - names.length;
+        if (names.length === 0 && othersCount > 0) return `${othersCount} ${othersCount === 1 ? 'person' : 'people'}`;
+        if (othersCount > 0) return `${names.join(' and ')} and ${othersCount} ${othersCount === 1 ? 'other' : 'others'}`;
+        return names.join(' and ');
+    })();
+
     return (
         <>
-            {/* Reaction summary pills */}
+            <style>{`@keyframes reactionBounce { 0% { transform: scale(1); } 30% { transform: scale(1.35); } 60% { transform: scale(0.9); } 100% { transform: scale(1); } }`}</style>
+            {/* Reaction summary pills + liked-by text */}
             {activeEmojis.length > 0 && (
-                <div className="flex items-center gap-1.5 pt-1.5 mt-1.5">
-                    {activeEmojis.map(r => (
-                        <span key={r.type} className="inline-flex items-center gap-0.5 bg-white/5 rounded-full px-1.5 py-0.5 text-[11px]">
-                            <span>{r.emoji}</span>
-                            <span className="text-secondaryText font-bold">{data.reactions[r.type]}</span>
-                        </span>
-                    ))}
+                <div className="pt-1.5 mt-1.5">
+                    <div className="flex items-center gap-1.5">
+                        {activeEmojis.map(r => (
+                            <span key={r.type} className="inline-flex items-center gap-0.5 bg-white/5 rounded-full px-1.5 py-0.5 text-[11px]">
+                                <span>{r.emoji}</span>
+                                <span className="text-secondaryText font-bold">{data.reactions[r.type]}</span>
+                            </span>
+                        ))}
+                    </div>
+                    {likedByText && (
+                        <p className="text-[10px] text-secondaryText/70 font-bold mt-1">Liked by {likedByText}</p>
+                    )}
                 </div>
             )}
 
@@ -487,6 +582,7 @@ function SocialBar({ feedItemId, item }: { feedItemId: string; item: FeedItem })
                         onPointerUp={handlePointerUp}
                         onPointerLeave={handlePointerLeave}
                         className={`flex items-center gap-1.5 transition-colors select-none touch-none ${data.userReaction ? 'text-bloodRed' : 'text-secondaryText hover:text-bloodRed'}`}
+                        style={bouncing ? { animation: 'reactionBounce 0.4s ease-out' } : undefined}
                     >
                         {userEmoji ? (
                             <span className="text-base leading-none">{userEmoji}</span>

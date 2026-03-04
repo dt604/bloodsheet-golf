@@ -16,10 +16,19 @@
 - [x] **Handicap System Documentation**: Explained the "Red Dot" system (Relative to Lowest HCP).
 - [x] **Scorecard Component Audit**: Verified dot rendering logic in `LiveScorecard` and `PastMatchScorecard`.
 
+
 ### In Progress / Upcoming Polish
 - [ ] **Interactive Onboarding**: Ensure the "Join Match" flow feels seamless with haptic-style animations.
 - [ ] **Vibrant Results**: Add "Winner" confetti or premium transitions in the Final Ledger.
 - [ ] **Real-time Feedback**: Visual "pings" when another player updates their score.
+
+### 🪙 Active Feature Planning: Blood Coins (Virtual Currency)
+*Note: Paused on active UI development to avoid merge conflicts with Claude's social feature (Likes, Comments, Shares) work.*
+- [ ] **Naming Conventions**: Finalize name for "The Vault" since 'Vault' is already used (Ideas: *The Treasury, The Stash, Blood Bank, Coin Pouch*).
+- [ ] **Wallet Dashboard UI**: Design dark, premium dashboard with #FF003F glowing core elements to display balance and transactions.
+- [ ] **Coin Iconography**: Create 3D rendering or high-quality SVG of a gunmetal/blood-red coin for currency displays.
+- [ ] **Ledger Integration**: Update match settings and post-match scorecard ledger to accept/display Blood Coins instead of USD.
+- [ ] **Micro-animations**: Design the "payout" animation (framer-motion coin fountain) and heavy haptics for transitions.
 
 ## 🛠 Project Nuances
 - **The "Red Dot" Rule**: Dots are rendered on the `n` hardest holes where `n` is the handicap difference from the lowest player.
