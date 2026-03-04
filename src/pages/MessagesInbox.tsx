@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { MessageSquare, ChevronLeft, Search, Plus } from 'lucide-react';
+import { MessageSquare, ChevronLeft, Search, Plus, Trash2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
@@ -22,6 +22,10 @@ export default function MessagesInboxPage() {
     const [loading, setLoading] = useState(true);
     const [showNewChatModal, setShowNewChatModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Bulk selection state
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
 
     useEffect(() => {
         if (!user) return;
@@ -107,6 +111,41 @@ export default function MessagesInboxPage() {
         };
     }, [user]);
 
+    const handleBulkDelete = async () => {
+        if (!user || selectedChatIds.length === 0) return;
+
+        const confirmDelete = window.confirm(`Are you sure you want to remove ${selectedChatIds.length} conversation${selectedChatIds.length > 1 ? 's' : ''}? This will hide them from your Locker Room.`);
+        if (!confirmDelete) return;
+
+        setLoading(true);
+        try {
+            const { error } = await supabase
+                .from('chat_participants')
+                .delete()
+                .eq('user_id', user.id)
+                .in('chat_id', selectedChatIds);
+
+            if (error) throw error;
+
+            setChats(prev => prev.filter(chat => !selectedChatIds.includes(chat.id)));
+            setIsSelectionMode(false);
+            setSelectedChatIds([]);
+        } catch (error) {
+            console.error('Error deleting chats:', error);
+            alert('Failed to delete conversations.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleSelection = (chatId: string) => {
+        setSelectedChatIds(prev =>
+            prev.includes(chatId)
+                ? prev.filter(id => id !== chatId)
+                : [...prev, chatId]
+        );
+    };
+
     const handleCreateChat = async (friendId: string) => {
         if (!user) return;
 
@@ -157,26 +196,60 @@ export default function MessagesInboxPage() {
 
             <div className="shrink-0 p-4 border-b border-white/10 bg-surface/50 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="p-2 -ml-2 rounded-full text-secondaryText hover:text-white hover:bg-white/5 transition-all"
-                    >
-                        <ChevronLeft className="w-6 h-6" />
-                    </button>
-                    <div className="w-8 h-8 rounded-full bg-bloodRed/20 flex items-center justify-center border border-bloodRed/30 shadow-[0_0_15px_rgba(255,0,63,0.3)]">
-                        <MessageSquare className="w-4 h-4 text-bloodRed" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-black italic uppercase tracking-wider text-white leading-none">Locker Room</h1>
-                        <p className="text-[10px] text-neonGreen font-black uppercase tracking-widest mt-0.5">Direct Messages</p>
-                    </div>
+                    {!isSelectionMode ? (
+                        <>
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="p-2 -ml-2 rounded-full text-secondaryText hover:text-white hover:bg-white/5 transition-all"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <div className="w-8 h-8 rounded-full bg-bloodRed/20 flex items-center justify-center border border-bloodRed/30 shadow-[0_0_15px_rgba(255,0,63,0.3)]">
+                                <MessageSquare className="w-4 h-4 text-bloodRed" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-black italic uppercase tracking-wider text-white leading-none">Locker Room</h1>
+                                <p className="text-[10px] text-neonGreen font-black uppercase tracking-widest mt-0.5">Direct Messages</p>
+                            </div>
+                        </>
+                    ) : (
+                        <button
+                            onClick={() => { setIsSelectionMode(false); setSelectedChatIds([]); }}
+                            className="px-4 py-2 rounded-full border border-borderColor text-secondaryText hover:text-white hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-wider"
+                        >
+                            Cancel
+                        </button>
+                    )}
                 </div>
-                <button
-                    onClick={() => setShowNewChatModal(true)}
-                    className="p-2 rounded-full bg-surfaceHover border border-borderColor text-white hover:text-neonGreen transition-colors"
-                >
-                    <Plus className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                    {isSelectionMode ? (
+                        <button
+                            onClick={handleBulkDelete}
+                            disabled={selectedChatIds.length === 0 || loading}
+                            className="px-4 py-2 rounded-full bg-bloodRed text-white hover:bg-bloodRed/80 transition-colors text-xs font-bold uppercase tracking-wider disabled:opacity-50 flex items-center gap-1 shadow-[0_0_15px_rgba(255,0,63,0.3)]"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete ({selectedChatIds.length})
+                        </button>
+                    ) : (
+                        <>
+                            {chats.length > 0 && (
+                                <button
+                                    onClick={() => setIsSelectionMode(true)}
+                                    className="px-4 py-2 rounded-full bg-surfaceHover border border-borderColor text-white hover:text-neonGreen transition-colors text-xs font-bold uppercase tracking-wider"
+                                >
+                                    Select
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setShowNewChatModal(true)}
+                                className="p-2 rounded-full bg-surfaceHover border border-borderColor text-white hover:text-neonGreen transition-colors"
+                            >
+                                <Plus className="w-5 h-5" />
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
@@ -202,9 +275,27 @@ export default function MessagesInboxPage() {
                                 return (
                                     <button
                                         key={chat.id}
-                                        onClick={() => navigate(`/chat/${chat.id}`)}
-                                        className="w-full flex items-center gap-4 p-4 rounded-xl bg-surface border border-white/5 hover:border-white/10 transition-all active:scale-[0.98] text-left"
+                                        onClick={() => {
+                                            if (isSelectionMode) {
+                                                toggleSelection(chat.id);
+                                            } else {
+                                                navigate(`/chat/${chat.id}`);
+                                            }
+                                        }}
+                                        className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all active:scale-[0.98] text-left relative overflow-hidden ${isSelectionMode && selectedChatIds.includes(chat.id)
+                                            ? 'bg-bloodRed/10 border border-bloodRed/40 shadow-[0_0_20px_rgba(255,0,63,0.1)]'
+                                            : 'bg-surface border border-white/5 hover:border-white/10'
+                                            }`}
                                     >
+                                        {/* Selection indicator */}
+                                        {isSelectionMode && (
+                                            <div className="shrink-0">
+                                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedChatIds.includes(chat.id) ? 'bg-bloodRed border-bloodRed' : 'bg-black/20 border-white/30'}`}>
+                                                    {selectedChatIds.includes(chat.id) && <Check className="w-3.5 h-3.5 text-white" />}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="relative">
                                             <div className="w-12 h-12 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center font-black text-white shrink-0 overflow-hidden shadow-inner">
                                                 {p.avatarUrl ? (
