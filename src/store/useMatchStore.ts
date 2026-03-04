@@ -180,7 +180,7 @@ interface MatchStoreState {
   refreshScores: (matchId: string) => Promise<void>;
 
   subscribeToMatch: (matchId: string) => void;
-
+  triggerReward: (userId: string, matchId: string, holeNumber: number | null, rewardType: string, amount: number) => Promise<void>;
   unsubscribe: () => void;
 
   clearMatch: () => void;
@@ -955,6 +955,28 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       trash_dots: score.trashDots,
     });
     if (error) console.error('[saveScore] DB error:', error.message, score);
+
+    // ── Reward Logic ──────────────────────────────────────────
+    // Guests don't get rewards
+    const player = get().players.find(p => p.userId === score.playerId);
+    if (player?.guestName) return;
+
+    const course = get().course;
+    const hole = course?.holes.find(h => h.number === score.holeNumber);
+    if (hole) {
+      // 1. Birdie / Eagle Rewards
+      if (score.gross < hole.par) {
+        const isEagle = score.gross <= hole.par - 2;
+        const rewardType = isEagle ? 'eagle' : 'birdie';
+        const amount = isEagle ? 100 : 50;
+        await get().triggerReward(score.playerId, score.matchId, score.holeNumber, rewardType, amount);
+      }
+
+      // 2. Sandy Reward
+      if (score.trashDots.includes('sandie')) {
+        await get().triggerReward(score.playerId, score.matchId, score.holeNumber, 'sandie', 25);
+      }
+    }
   },
 
   // ── Initiate a press ────────────────────────────────────────
@@ -978,11 +1000,21 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   },
 
   // ── Mark match completed ────────────────────────────────────
-  async completeMatch(matchId) {
+  async completeMatch(matchId: string) {
     await supabase.from('matches').update({ status: 'completed' }).eq('id', matchId);
     set((state) => ({
       match: state.match ? { ...state.match, status: 'completed' } : null,
     }));
+
+    // ── Round Completion Reward ────────────────────────────────
+    const state = get();
+    const players = state.players;
+    for (const p of players) {
+      if (!p.guestName) {
+        await state.triggerReward(p.userId, matchId, null, 'round_completion', 200);
+      }
+    }
+
     localStorage.removeItem('activeMatchId');
   },
 
@@ -1075,6 +1107,28 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     set((state) => ({
       match: state.match ? { ...state.match, ...updates } : null,
     }));
+  },
+
+  async triggerReward(userId, matchId, holeNumber, rewardType, amount) {
+    const { data, error } = await supabase.rpc('process_blood_coin_reward', {
+      p_user_id: userId,
+      p_match_id: matchId,
+      p_hole_number: holeNumber,
+      p_reward_type: rewardType,
+      p_amount: amount
+    });
+
+    if (error) {
+      console.error('[reward] RPC Error:', error);
+      return;
+    }
+
+    if (data?.success) {
+      // Dispatch a custom event for the UI to show a toast/confetti
+      window.dispatchEvent(new CustomEvent('blood-coin-reward', {
+        detail: { userId, rewardType, amount, holeNumber }
+      }));
+    }
   },
 
   // ── Refresh scores + presses only (no subscription teardown) ─

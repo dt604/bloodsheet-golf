@@ -40,6 +40,7 @@ import MediaManagement from './pages/admin/MediaManagement';
 import BloodCoinManagement from './pages/admin/BloodCoinManagement';
 import { AdminRoute } from './components/admin/AdminRoute';
 import MainLayout from './components/layout/MainLayout';
+import { RewardToast } from './components/ui/RewardToast';
 
 // Full auth required — guests are redirected to welcome
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -143,6 +144,7 @@ function App() {
             <Analytics trackingId={import.meta.env.VITE_GA_TRACKING_ID} />
             <AuthProvider>
               <AppRoutes />
+              <RewardToast />
             </AuthProvider>
           </BrowserRouter>
         </div>

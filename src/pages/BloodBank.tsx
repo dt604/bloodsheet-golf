@@ -176,6 +176,16 @@ export default function BloodBankPage() {
                                     case 'redemption':
                                         txTitle = "Redeemed Coins";
                                         break;
+                                    case 'reward':
+                                        const rType = tx.metadata?.reward_type;
+                                        txTitle = rType === 'birdie' ? "Birdie Bonus" :
+                                            rType === 'eagle' ? "Eagle Bonus" :
+                                                rType === 'sandie' ? "Sandy Save" :
+                                                    rType === 'round_completion' ? "Loyalty Reward" : "Reward Earned";
+                                        break;
+                                    case 'admin_adjustment':
+                                        txTitle = "Admin Adjustment";
+                                        break;
                                 }
 
                                 return (
