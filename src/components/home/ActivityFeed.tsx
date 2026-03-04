@@ -49,7 +49,7 @@ export function ActivityFeed() {
     useEffect(() => {
         if (!user) return;
 
-        const activeFriends = friendships.filter(f => f.status === 'accepted');
+        const activeFriends = friendships.filter(f => f.status === 'accepted' && !f.isSystemFriend);
         const friendIds = activeFriends.map(f => f.requesterId === user.id ? f.addresseeId : f.requesterId);
         const targetUserIds = [user.id, ...friendIds];
 

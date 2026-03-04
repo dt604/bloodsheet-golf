@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => {
               try {
                 const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(cleanedQuery + ' golf course')}&key=${apiKey}`;
                 const searchRes = await fetch(searchUrl);
-                const searchData = await searchRes.json();
+                const searchData = await searchRes.json() as any;
 
                 if (searchData.results && searchData.results.length > 0) {
                   const place = searchData.results[0];

@@ -14,6 +14,7 @@ export interface Friendship {
     requesterId: string;
     addresseeId: string;
     status: 'pending' | 'accepted' | 'blocked';
+    isSystemFriend: boolean;
     createdAt: string;
     // Hydrated full profile of the *other* person in the relationship
     friendProfile?: FriendProfile;
@@ -54,6 +55,7 @@ async function fetchProfilesForFriendships(currentUserId: string, items: any[]):
             requesterId: f.requester_id,
             addresseeId: f.addressee_id,
             status: f.status,
+            isSystemFriend: !!f.is_system_friend,
             createdAt: f.created_at,
             friendProfile: dbProfile ? {
                 id: dbProfile.id,
