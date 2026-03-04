@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wallet, ArrowUpRight, ArrowDownLeft, Check, Copy, Loader, Share2, ChevronRight, Banknote, History as HistoryIcon } from 'lucide-react';
+import { ArrowLeft, Wallet, ArrowUpRight, ArrowDownLeft, Check, Copy, Loader, Share2, ChevronRight, Banknote, History as HistoryIcon, RefreshCw, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useLedgerStore } from '../store/useLedgerStore';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import SEO from '../components/SEO';
+import { supabase } from '../lib/supabase';
 import { Debt } from '../types';
 
 type Tab = 'owed_by_me' | 'owed_to_me' | 'history';
@@ -25,7 +26,8 @@ export default function BalancesPage() {
         providePaymentInfo,
         submitPayment,
         confirmPayment,
-        settleWithCash
+        settleWithCash,
+        deletePayments
     } = useLedgerStore();
 
     const [activeTab, setActiveTab] = useState<Tab>('owed_by_me');
@@ -38,12 +40,50 @@ export default function BalancesPage() {
     const [paymentMethod, setPaymentMethod] = useState<'venmo' | 'etransfer'>('etransfer');
     const [paymentAddress, setPaymentAddress] = useState('');
     const [amountSent, setAmountSent] = useState('');
+    const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
 
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Initial load
     useEffect(() => {
         if (user) {
             loadDebts(user.id);
         }
     }, [user, loadDebts]);
+
+    // Realtime listener
+    useEffect(() => {
+        if (!user) return;
+
+        const channel = supabase
+            .channel('balances-realtime')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'payments' },
+                () => {
+                    loadDebts(user.id);
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'debts' },
+                () => {
+                    loadDebts(user.id);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user, loadDebts]);
+
+    const handleRefresh = async () => {
+        if (!user) return;
+        setIsRefreshing(true);
+        await loadDebts(user.id);
+        setTimeout(() => setIsRefreshing(false), 500); // Give the spin time to show
+    };
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -123,6 +163,28 @@ export default function BalancesPage() {
     const handleConfirmReceipt = async (paymentId: string) => {
         if (window.confirm("Confirm you received this payment?")) {
             await confirmPayment(paymentId);
+        }
+    };
+
+    const handleToggleHistorySelect = (id: string) => {
+        setSelectedHistoryIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAllHistory = () => {
+        if (selectedHistoryIds.length === paymentHistory.length) {
+            setSelectedHistoryIds([]);
+        } else {
+            setSelectedHistoryIds(paymentHistory.map(p => p.id));
+        }
+    };
+
+    const handleDeleteSelectedHistory = async () => {
+        if (selectedHistoryIds.length === 0) return;
+        if (window.confirm(`Delete ${selectedHistoryIds.length} hidden history records? This will NOT affect your current balances.`)) {
+            await deletePayments(selectedHistoryIds);
+            setSelectedHistoryIds([]);
         }
     };
 
@@ -260,44 +322,88 @@ export default function BalancesPage() {
             );
         }
 
-        return paymentHistory.map(payment => {
-            const isPayer = payment.payerId === user?.id;
-            const otherPerson = isPayer ? payment.receiver : payment.payer;
-
-            return (
-                <Card key={payment.id} className="p-4 flex items-center justify-between mb-3 border border-borderColor/50 opacity-80">
-                    <div className="flex items-stretch justify-between w-full">
-                        <div className="flex items-center gap-3 flex-1 text-left pr-4">
-                            <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center overflow-hidden shrink-0">
-                                {otherPerson?.avatarUrl ? (
-                                    <img src={otherPerson.avatarUrl} alt="" className="w-full h-full object-cover grayscale" />
-                                ) : (
-                                    <span className="text-sm font-bold text-secondaryText uppercase">
-                                        {otherPerson?.fullName?.charAt(0) || '?'}
-                                    </span>
-                                )}
+        return (
+            <div className="space-y-3">
+                {/* Bulk Actions Bar */}
+                {paymentHistory.length > 0 && (
+                    <div className="flex items-center justify-between mb-4 bg-surface/50 p-3 rounded-2xl border border-white/5">
+                        <button
+                            onClick={handleSelectAllHistory}
+                            className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-secondaryText hover:text-white transition-colors"
+                        >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedHistoryIds.length === paymentHistory.length ? 'bg-white border-white' : 'border-white/20'}`}>
+                                {selectedHistoryIds.length === paymentHistory.length && <Check className="w-3 h-3 text-black" />}
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <div>
-                                    <h3 className="font-bold text-secondaryText truncate">{otherPerson?.fullName}</h3>
-                                    <p className="text-[10px] text-secondaryText/70 uppercase tracking-widest mt-0.5">
-                                        {isPayer ? 'You Paid' : 'Paid You'} • {new Date(payment.updatedAt).toLocaleDateString()}
-                                    </p>
+                            {selectedHistoryIds.length === paymentHistory.length ? 'Deselect All' : 'Select All'}
+                        </button>
+
+                        <AnimatePresence>
+                            {selectedHistoryIds.length > 0 && (
+                                <motion.button
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 20 }}
+                                    onClick={handleDeleteSelectedHistory}
+                                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-bloodRed bg-bloodRed/10 px-3 py-1.5 rounded-lg border border-bloodRed/20 hover:bg-bloodRed/20 transition-all shadow-[0_4px_12px_rgba(255,0,63,0.15)]"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Delete ({selectedHistoryIds.length})
+                                </motion.button>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                )}
+
+                {paymentHistory.map(payment => {
+                    const isPayer = payment.payerId === user?.id;
+                    const otherPerson = isPayer ? payment.receiver : payment.payer;
+                    const isSelected = selectedHistoryIds.includes(payment.id);
+
+                    return (
+                        <Card
+                            key={payment.id}
+                            onClick={() => handleToggleHistorySelect(payment.id)}
+                            className={`p-4 flex items-center justify-between border transition-all cursor-pointer ${isSelected ? 'border-bloodRed/50 bg-bloodRed/5 shadow-[0_0_15px_rgba(255,0,63,0.1)]' : 'border-borderColor/50 opacity-80 hover:opacity-100 hover:border-borderColor'}`}
+                        >
+                            <div className="flex items-stretch justify-between w-full">
+                                <div className="flex items-center gap-3 flex-1 text-left pr-4">
+                                    <div className="relative shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center overflow-hidden">
+                                            {otherPerson?.avatarUrl ? (
+                                                <img src={otherPerson.avatarUrl} alt="" className="w-full h-full object-cover grayscale" />
+                                            ) : (
+                                                <span className="text-sm font-bold text-secondaryText uppercase">
+                                                    {otherPerson?.fullName?.charAt(0) || '?'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className={`absolute -top-1 -left-1 w-4 h-4 rounded-full border-2 border-background flex items-center justify-center transition-all ${isSelected ? 'bg-bloodRed border-bloodRed scale-110' : 'bg-surface border-borderColor'}`}>
+                                            {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div>
+                                            <h3 className={`font-bold transition-colors truncate ${isSelected ? 'text-white' : 'text-secondaryText'}`}>{otherPerson?.fullName}</h3>
+                                            <p className="text-[10px] text-secondaryText/70 uppercase tracking-widest mt-0.5">
+                                                {isPayer ? 'You Paid' : 'Paid You'} • {new Date(payment.updatedAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="text-right flex flex-col items-end justify-center gap-2 shrink-0">
+                                    <span className={`font-black text-xl leading-none transition-colors ${isSelected ? 'text-white' : 'text-secondaryText'}`}>
+                                        ${payment.amount.toFixed(2)}
+                                    </span>
+                                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-secondaryText uppercase font-bold tracking-widest">
+                                        Settled
+                                    </span>
                                 </div>
                             </div>
-                        </div>
-                        <div className="text-right flex flex-col items-end justify-center gap-2 shrink-0">
-                            <span className={`font-black text-xl leading-none ${isPayer ? 'text-secondaryText' : 'text-secondaryText'}`}>
-                                ${payment.amount.toFixed(2)}
-                            </span>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-secondaryText uppercase font-bold tracking-widest">
-                                Settled
-                            </span>
-                        </div>
-                    </div>
-                </Card>
-            );
-        });
+                        </Card>
+                    );
+                })}
+            </div>
+        );
     };
 
     return (
@@ -308,9 +414,18 @@ export default function BalancesPage() {
                     <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <div className="flex-1 ml-2 flex items-center gap-2">
-                        <Wallet className="w-5 h-5 text-bloodRed" />
-                        <h2 className="text-xl font-black text-white tracking-tighter uppercase italic">Balances</h2>
+                    <div className="flex-1 ml-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Wallet className="w-5 h-5 text-bloodRed" />
+                            <h2 className="text-xl font-black text-white tracking-tighter uppercase italic">Balances</h2>
+                        </div>
+                        <button
+                            onClick={handleRefresh}
+                            className="p-2 text-secondaryText hover:text-white transition-colors focus:outline-none"
+                            aria-label="Refresh Balances"
+                        >
+                            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-bloodRed' : ''}`} />
+                        </button>
                     </div>
                 </div>
 

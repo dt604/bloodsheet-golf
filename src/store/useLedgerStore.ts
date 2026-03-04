@@ -17,6 +17,7 @@ interface LedgerState {
     submitPayment: (paymentId: string, amount: number) => Promise<void>;
     confirmPayment: (paymentId: string) => Promise<void>;
     settleWithCash: (debtId: string, amount: number) => Promise<void>;
+    deletePayments: (paymentIds: string[]) => Promise<void>;
 }
 
 export const useLedgerStore = create<LedgerState>((set, get) => ({
@@ -316,6 +317,26 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
             if (error) throw error;
 
             await get().loadDebts(debt.debtorId);
+            set({ isLoading: false });
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false });
+        }
+    },
+
+    deletePayments: async (paymentIds) => {
+        set({ isLoading: true, error: null });
+        try {
+            const { error } = await supabase
+                .from('payments')
+                .delete()
+                .in('id', paymentIds);
+
+            if (error) throw error;
+
+            const myId = supabase.auth.getUser().then(res => res.data.user?.id);
+            const resolvedId = await myId;
+            if (resolvedId) await get().loadDebts(resolvedId);
+
             set({ isLoading: false });
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
