@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Flag, Receipt, Trash2, Edit2, Activity, Target, Zap, Droplets, Camera, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Flag, Receipt, Trash2, Edit2, Activity, Target, Zap, Droplets, Camera, CheckCircle2, AlertTriangle, ArrowRight, Banknote } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatchStore } from '../store/useMatchStore';
@@ -70,7 +70,7 @@ export default function PastMatchScorecardPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { deleteMatch } = useMatchStore();
-    const { createDebt, debtsOwedByMe, debtsOwedToMe, loadDebts } = useLedgerStore();
+    const { createDebt, settleImmediately, debtsOwedByMe, debtsOwedToMe, loadDebts } = useLedgerStore();
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [data, setData] = useState<MatchScorecardData | null>(null);
@@ -1288,39 +1288,72 @@ export default function PastMatchScorecardPage() {
                                 {hasExistingDebt ? (
                                     <div className="w-full bg-surface border border-borderColor text-white p-3 rounded-xl flex items-center justify-center gap-2 opacity-50">
                                         <CheckCircle2 className="w-5 h-5 text-neonGreen" />
-                                        <span>Debts recorded in balances</span>
+                                        <span>Results recorded as historical payments</span>
                                     </div>
                                 ) : (
-                                    <Button
-                                        className="w-full bg-surface border border-borderColor text-white hover:bg-surfaceHover shadow-xl flex items-center justify-center gap-2"
-                                        onClick={async () => {
-                                            if (!matchId || !myTeam) return;
-                                            setCreatingIOU(true);
-                                            try {
-                                                const oppTeam: 'A' | 'B' = myTeam === 'A' ? 'B' : 'A';
-                                                const oppTeamPlayers = players.filter(p => p.team === oppTeam);
-                                                const opponentIds = oppTeamPlayers.map(p => p.id).filter(Boolean);
-                                                if (opponentIds.length === 0) return;
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Button
+                                            className="bg-surface border border-borderColor text-white hover:bg-surfaceHover shadow-xl flex items-center justify-center gap-2 text-xs py-5 px-1"
+                                            onClick={async () => {
+                                                if (!matchId || !myTeam) return;
+                                                setCreatingIOU(true);
+                                                try {
+                                                    const oppTeam: 'A' | 'B' = myTeam === 'A' ? 'B' : 'A';
+                                                    const oppTeamPlayers = players.filter(p => p.team === oppTeam);
+                                                    const opponentIds = oppTeamPlayers.map(p => p.id).filter(Boolean);
+                                                    if (opponentIds.length === 0) return;
 
-                                                const amountPerOpponent = Math.abs(settlementTotal) / opponentIds.length;
-                                                for (const oppId of opponentIds) {
-                                                    const debtorId = settlementTotal < 0 ? user!.id : oppId;
-                                                    const creditorId = settlementTotal > 0 ? user!.id : oppId;
-                                                    await createDebt(matchId, debtorId, creditorId, amountPerOpponent);
+                                                    const amountPerOpponent = Math.abs(settlementTotal) / opponentIds.length;
+                                                    for (const oppId of opponentIds) {
+                                                        const debtorId = settlementTotal < 0 ? user!.id : oppId;
+                                                        const creditorId = settlementTotal > 0 ? user!.id : oppId;
+                                                        await createDebt(matchId, debtorId, creditorId, amountPerOpponent);
+                                                    }
+                                                    alert('Debts successfully recorded in your balances.');
+                                                    if (user?.id) loadDebts(user.id);
+                                                } catch (e: any) {
+                                                    alert(e.message || 'Failed to create IOU');
+                                                } finally {
+                                                    setCreatingIOU(false);
                                                 }
-                                                alert('Debts successfully recorded in your balances.');
-                                                if (user?.id) loadDebts(user.id);
-                                            } catch (e: any) {
-                                                alert(e.message || 'Failed to create IOU');
-                                            } finally {
-                                                setCreatingIOU(false);
-                                            }
-                                        }}
-                                        disabled={creatingIOU}
-                                    >
-                                        <Receipt className="w-5 h-5 text-secondaryText" />
-                                        {creatingIOU ? 'Adding to Balances...' : 'Mark as Unpaid (IOU)'}
-                                    </Button>
+                                            }}
+                                            disabled={creatingIOU}
+                                        >
+                                            <Receipt className="w-4 h-4 text-secondaryText" />
+                                            {creatingIOU ? 'Adding...' : 'Unpaid (IOU)'}
+                                        </Button>
+
+                                        <Button
+                                            className="bg-neonGreen/10 border border-neonGreen/30 text-neonGreen hover:bg-neonGreen/20 shadow-xl flex items-center justify-center gap-2 text-xs py-5 px-1 transition-all group"
+                                            onClick={async () => {
+                                                if (!matchId || !myTeam) return;
+                                                setCreatingIOU(true);
+                                                try {
+                                                    const oppTeam: 'A' | 'B' = myTeam === 'A' ? 'B' : 'A';
+                                                    const oppTeamPlayers = players.filter(p => p.team === oppTeam);
+                                                    const opponentIds = oppTeamPlayers.map(p => p.id).filter(Boolean);
+                                                    if (opponentIds.length === 0) return;
+
+                                                    const amountPerOpponent = Math.abs(settlementTotal) / opponentIds.length;
+                                                    for (const oppId of opponentIds) {
+                                                        const debtorId = settlementTotal < 0 ? user!.id : oppId;
+                                                        const creditorId = settlementTotal > 0 ? user!.id : oppId;
+                                                        await settleImmediately(matchId, debtorId, creditorId, amountPerOpponent);
+                                                    }
+                                                    alert('Settlement recorded. Payment history updated.');
+                                                    if (user?.id) loadDebts(user.id);
+                                                } catch (e: any) {
+                                                    alert(e.message || 'Failed to settle');
+                                                } finally {
+                                                    setCreatingIOU(false);
+                                                }
+                                            }}
+                                            disabled={creatingIOU}
+                                        >
+                                            <Banknote className="w-4 h-4 text-neonGreen group-hover:scale-110 transition-transform" />
+                                            {creatingIOU ? 'Saving...' : 'Settle Now (Cash)'}
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                         )}

@@ -18,6 +18,7 @@ interface LedgerState {
     confirmPayment: (paymentId: string) => Promise<void>;
     settleWithCash: (debtId: string, amount: number) => Promise<void>;
     deletePayments: (paymentIds: string[]) => Promise<void>;
+    settleImmediately: (matchId: string, debtorId: string, creditorId: string, amount: number) => Promise<void>;
 }
 
 export const useLedgerStore = create<LedgerState>((set, get) => ({
@@ -339,6 +340,50 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
 
             set({ isLoading: false });
         } catch (error: any) {
+            set({ error: error.message, isLoading: false });
+        }
+    },
+
+    settleImmediately: async (matchId, debtorId, creditorId, amount) => {
+        set({ isLoading: true, error: null });
+        try {
+            // 1. Create a settled debt
+            const { data: debtData, error: debtErr } = await supabase
+                .from('debts')
+                .insert([{
+                    match_id: matchId,
+                    debtor_id: debtorId,
+                    creditor_id: creditorId,
+                    original_amount: amount,
+                    remaining_amount: 0,
+                    status: 'settled'
+                }])
+                .select()
+                .single();
+
+            if (debtErr) throw debtErr;
+
+            // 2. Create a confirmed cash payment
+            const { error: payErr } = await supabase
+                .from('payments')
+                .insert([{
+                    debt_id: debtData.id,
+                    payer_id: debtorId,
+                    receiver_id: creditorId,
+                    amount: amount,
+                    method: 'cash',
+                    status: 'confirmed'
+                }]);
+
+            if (payErr) throw payErr;
+
+            // Reload state
+            const myId = (await supabase.auth.getUser()).data.user?.id;
+            if (myId) await get().loadDebts(myId);
+
+            set({ isLoading: false });
+        } catch (error: any) {
+            console.error("Error in settleImmediately:", error);
             set({ error: error.message, isLoading: false });
         }
     }
