@@ -8,6 +8,7 @@ interface TrashTalkDrawerProps {
     matchId: string;
     isOpen: boolean;
     onClose: () => void;
+    onNewMessage?: (msg: any) => void;
 }
 
 interface Message {
@@ -21,7 +22,7 @@ interface Message {
     };
 }
 
-export function TrashTalkDrawer({ matchId, isOpen, onClose }: TrashTalkDrawerProps) {
+export function TrashTalkDrawer({ matchId, isOpen, onClose, onNewMessage }: TrashTalkDrawerProps) {
     const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
@@ -33,42 +34,58 @@ export function TrashTalkDrawer({ matchId, isOpen, onClose }: TrashTalkDrawerPro
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    const isOpenRef = useRef(isOpen);
+    const onNewMessageRef = useRef(onNewMessage);
+
     useEffect(() => {
-        if (!isOpen || !user || !matchId) return;
+        isOpenRef.current = isOpen;
+    }, [isOpen]);
+
+    useEffect(() => {
+        onNewMessageRef.current = onNewMessage;
+    }, [onNewMessage]);
+
+    useEffect(() => {
+        if (!user || !matchId) return;
 
         const initializeChat = async () => {
             setLoading(true);
             try {
-                // Find or create the match chat
+                // Find or create the match chat universally 
                 const { data: existingChat } = await supabase
                     .from('chats')
                     .select('id')
                     .eq('match_id', matchId)
                     .eq('type', 'match')
+                    .order('created_at', { ascending: true })
+                    .limit(1)
                     .maybeSingle();
 
                 let currentChatId = existingChat?.id;
 
                 if (!currentChatId) {
-                    // Create it if the first person opens it
-                    const { data: newChat, error } = await supabase
+                    await supabase.from('chats').insert({ type: 'match', match_id: matchId });
+
+                    const { data: definitiveChats } = await supabase
                         .from('chats')
-                        .insert({ type: 'match', match_id: matchId })
                         .select('id')
-                        .single();
+                        .eq('match_id', matchId)
+                        .eq('type', 'match')
+                        .order('created_at', { ascending: true })
+                        .limit(1);
 
-                    if (error) throw error;
-                    currentChatId = newChat.id;
+                    currentChatId = definitiveChats?.[0]?.id;
 
-                    // Add all match players as participants
-                    const { data: matchPlayers } = await supabase.from('match_players').select('user_id').eq('match_id', matchId);
-                    if (matchPlayers) {
-                        const participants = matchPlayers.map(mp => ({ chat_id: currentChatId, user_id: mp.user_id }));
-                        const { error: partError } = await supabase.from('chat_participants').insert(participants);
-                        if (partError) console.error("Error inserting participants:", partError);
+                    if (currentChatId) {
+                        const { data: matchPlayers } = await supabase.from('match_players').select('user_id').eq('match_id', matchId);
+                        if (matchPlayers) {
+                            const participants = matchPlayers.map(mp => ({ chat_id: currentChatId, user_id: mp.user_id }));
+                            await supabase.from('chat_participants').upsert(participants, { onConflict: 'chat_id, user_id' });
+                        }
                     }
                 }
 
+                if (!currentChatId) return;
                 setChatId(currentChatId);
 
                 // Ensure current user is a participant if somehow missing
@@ -91,18 +108,19 @@ export function TrashTalkDrawer({ matchId, isOpen, onClose }: TrashTalkDrawerPro
 
             } catch (error) {
                 console.error("Failed to initialize match chat", error);
-                alert("Failed to init chat: " + (error as any).message);
             } finally {
                 setLoading(false);
             }
         };
 
-        initializeChat();
-    }, [isOpen, matchId, user]);
+        if (!chatId) {
+            initializeChat();
+        }
+    }, [matchId, user?.id, chatId]);
 
     // Independent useEffect for subscriptions so we don't resubscribe on every re-render
     useEffect(() => {
-        if (!chatId || !isOpen || !user) return;
+        if (!chatId || !user) return;
 
         const channel = supabase
             .channel(`match_chat_${chatId}`)
@@ -122,11 +140,14 @@ export function TrashTalkDrawer({ matchId, isOpen, onClose }: TrashTalkDrawerPro
                 };
 
                 setMessages(prev => [...prev, completeMsg]);
-                setTimeout(scrollToBottom, 50);
 
-                // Update last read
-                if (newMsg.user_id !== user.id) {
-                    supabase.from('chat_participants').update({ last_read_at: new Date().toISOString() }).eq('chat_id', chatId).eq('user_id', user.id);
+                if (isOpenRef.current) {
+                    setTimeout(scrollToBottom, 50);
+                    if (newMsg.user_id !== user.id) {
+                        supabase.from('chat_participants').update({ last_read_at: new Date().toISOString() }).eq('chat_id', chatId).eq('user_id', user.id);
+                    }
+                } else if (newMsg.user_id !== user.id) {
+                    onNewMessageRef.current?.(completeMsg);
                 }
             })
             .subscribe();
@@ -134,7 +155,7 @@ export function TrashTalkDrawer({ matchId, isOpen, onClose }: TrashTalkDrawerPro
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [chatId, isOpen, user]);
+    }, [chatId, user?.id]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();

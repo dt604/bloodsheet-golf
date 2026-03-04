@@ -109,3 +109,48 @@ export interface Match {
   };
   createdBy: string;
 }
+
+// ── Debt Ledger Types ─────────────────────────────────────────────
+
+export interface Debt {
+  id: string;
+  matchId: string;
+  debtorId: string;
+  creditorId: string;
+  originalAmount: number;
+  remainingAmount: number;
+  status: 'pending' | 'partial' | 'settled';
+  createdAt: string;
+  updatedAt: string;
+  // Joined relations
+  debtor?: { id: string; fullName: string; avatarUrl?: string };
+  creditor?: { id: string; fullName: string; avatarUrl?: string };
+}
+
+export interface Payment {
+  id: string;
+  debtId: string;
+  payerId: string;
+  receiverId: string;
+  amount: number;
+  method: 'venmo' | 'cashapp' | 'etransfer' | 'cash' | 'other';
+  paymentAddress?: string;
+  status: 'requested_info' | 'pending_confirmation' | 'confirmed' | 'rejected';
+  updatedAt: string;
+}
+
+export interface ScoreEditLog {
+  id: string;
+  matchId: string;
+  holeNumber: number;
+  playerId: string;
+  oldGross: number;
+  newGross: number;
+  oldNet: number;
+  newNet: number;
+  editedBy: string;
+  editedAt: string;
+  // Joined relation Data
+  player?: { id: string; fullName: string; avatarUrl?: string };
+  editor?: { id: string; fullName: string; avatarUrl?: string };
+}

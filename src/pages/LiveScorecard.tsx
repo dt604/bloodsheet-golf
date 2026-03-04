@@ -131,6 +131,21 @@ export default function LiveScorecardPage() {
 
     // Trash Talk State
     const [isTrashTalkOpen, setIsTrashTalkOpen] = useState(false);
+    const [unreadChatCount, setUnreadChatCount] = useState(0);
+    const [chatBubble, setChatBubble] = useState<{ sender: string; msg: string; id: number } | null>(null);
+
+    const handleNewChatMessage = (msg: any) => {
+        const senderName = msg.profiles?.full_name?.split(' ')[0] || 'Player';
+        const id = Date.now();
+        setUnreadChatCount(c => c + 1);
+        setChatBubble({ sender: senderName, msg: msg.content, id });
+
+        if (navigator.vibrate) navigator.vibrate([20, 50, 20]);
+
+        setTimeout(() => {
+            setChatBubble(current => current?.id === id ? null : current);
+        }, 5000);
+    };
 
     // Initialise edit states from match
     useEffect(() => {
@@ -699,6 +714,31 @@ export default function LiveScorecardPage() {
                     </div>
                 </div>
             )}
+
+            {/* Trash Talk Chat Bubble Notification */}
+            <AnimatePresence>
+                {chatBubble && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="absolute top-[88px] left-1/2 -translate-x-1/2 z-[60] pointer-events-auto"
+                    >
+                        <button
+                            onClick={() => { setIsTrashTalkOpen(true); setChatBubble(null); setUnreadChatCount(0); }}
+                            className="bg-surface/90 backdrop-blur-md border border-bloodRed/50 rounded-2xl px-4 py-3 flex items-start gap-3 shadow-[0_5px_20px_rgba(255,0,63,0.3)] w-[90vw] max-w-[340px]"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-bloodRed flex items-center justify-center shrink-0 mt-0.5">
+                                <MessageSquare className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex flex-col text-left overflow-hidden">
+                                <span className="text-[10px] font-black tracking-widest uppercase text-bloodRed mb-0.5 truncate">{chatBubble.sender} says:</span>
+                                <span className="text-sm font-medium text-white line-clamp-2 leading-snug">{chatBubble.msg}</span>
+                            </div>
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
 
             {/* Header - Stationary */}
@@ -1345,10 +1385,17 @@ export default function LiveScorecardPage() {
 
             {/* Trash Talk FAB */}
             <button
-                onClick={() => setIsTrashTalkOpen(true)}
+                onClick={() => { setIsTrashTalkOpen(true); setChatBubble(null); setUnreadChatCount(0); }}
                 className="fixed bottom-24 right-4 sm:right-6 lg:right-auto lg:translate-x-[180px] w-14 h-14 rounded-full bg-bloodRed text-white flex items-center justify-center shadow-[0_0_20px_rgba(255,0,63,0.5)] hover:scale-105 active:scale-95 transition-all z-40"
             >
-                <MessageSquare className="w-6 h-6" />
+                <div className="relative flex items-center justify-center">
+                    <MessageSquare className="w-6 h-6 text-white" />
+                    {unreadChatCount > 0 && (
+                        <span className="absolute -top-3 -right-3 min-w-[20px] h-5 px-1 bg-neonGreen text-black text-[10px] font-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(0,255,102,0.5)] animate-pulse">
+                            {unreadChatCount}
+                        </span>
+                    )}
+                </div>
             </button>
 
             {/* Trash Talk Drawer */}
@@ -1357,6 +1404,7 @@ export default function LiveScorecardPage() {
                     matchId={matchId}
                     isOpen={isTrashTalkOpen}
                     onClose={() => setIsTrashTalkOpen(false)}
+                    onNewMessage={handleNewChatMessage}
                 />
             )}
         </div >

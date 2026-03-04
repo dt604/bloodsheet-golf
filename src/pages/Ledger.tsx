@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
+import { useLedgerStore } from '../store/useLedgerStore';
 import { supabase } from '../lib/supabase';
 import confetti from 'canvas-confetti';
 import SEO from '../components/SEO';
@@ -18,6 +19,7 @@ interface LineItem {
 
 interface Settlement {
     opponentName: string;
+    opponentIds: string[];
     total: number;
     items: LineItem[];
     userInMatch?: boolean;
@@ -27,21 +29,26 @@ export default function LedgerPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { matchId, match, players, scores, presses, course, loadMatch, refreshScores, groupState, activeMatchIds, attestations, loadAttestations, attestMatch, sendReminder } = useMatchStore();
+    const { createDebt, debtsOwedByMe, debtsOwedToMe, loadDebts } = useLedgerStore();
 
     const [settlement, setSettlement] = useState<Settlement | null>(null);
     const [groupSettlements, setGroupSettlements] = useState<Settlement[]>([]);
     const [attestPlayerNames, setAttestPlayerNames] = useState<Record<string, string>>({});
     const [attesting, setAttesting] = useState(false);
+    const [creatingIOU, setCreatingIOU] = useState(false);
     const [reminderSent, setReminderSent] = useState<Set<string>>(new Set());
     const isGroupMode = activeMatchIds.length > 1;
     const isPendingAttestation = match?.status === 'pending_attestation';
+    const allDebts = [...debtsOwedByMe, ...debtsOwedToMe];
+    const hasExistingDebt = allDebts.some(d => d.matchId === matchId);
 
     // On mount: full load if store is empty, otherwise refresh scores only
     useEffect(() => {
         if (!matchId) return;
         if (!match) loadMatch(matchId);
         else refreshScores(matchId);
-    }, [matchId]);
+        if (user) loadDebts(user.id);
+    }, [matchId, user?.id]);
 
     // Load attestations and player names when match is pending attestation
     useEffect(() => {
@@ -564,7 +571,12 @@ export default function LedgerPage() {
             if (match!.sideBets.par5Contest) { const item = calcMiniTourney(5, match!.sideBets.par5Pot ?? 5); if (item) items.push(item); }
 
             const total = items.reduce((sum, i) => sum + i.amount, 0);
-            if (!cancelled) setSettlement({ opponentName: oppName, total, items });
+            if (!cancelled) setSettlement({
+                opponentName: oppName,
+                opponentIds: oppTeamPlayers.map(p => p.userId).filter(Boolean) as string[],
+                total,
+                items
+            });
         }
 
         calculate();
@@ -698,7 +710,7 @@ export default function LedgerPage() {
                 if (entry.match.sideBets.snake) trashItem('snake', 'Snake');
 
                 const total = items.reduce((sum, i) => sum + i.amount, 0);
-                settlements.push({ opponentName: oppName, total, items, userInMatch });
+                settlements.push({ opponentName: oppName, opponentIds: oppTeamPlayers.map(p => p.userId).filter(Boolean) as string[], total, items, userInMatch });
             }
 
             // Mini tourney (group mode) — compare ALL unique players across all sub-matches
@@ -760,7 +772,7 @@ export default function LedgerPage() {
 
                 if (miniItems.length > 0) {
                     const miniTotal = miniItems.reduce((sum, i) => sum + i.amount, 0);
-                    settlements.push({ opponentName: 'Mini Tourney', total: miniTotal, items: miniItems, userInMatch: true });
+                    settlements.push({ opponentName: 'Mini Tourney', opponentIds: [], total: miniTotal, items: miniItems, userInMatch: true });
                 }
             }
 
@@ -962,6 +974,46 @@ export default function LedgerPage() {
                                 {total > 0 ? '+' : ''}${total}
                             </span>
                         </Card>
+
+                        {/* Send to Ledger / IOU Actions for Group */}
+                        {groupSettlements.some(s => s.total !== 0 && s.opponentIds && s.opponentIds.length > 0) && user?.id === match?.createdBy && (
+                            <div className="mt-4 animate-in slide-in-from-bottom-2 fade-in duration-500 delay-300">
+                                {hasExistingDebt ? (
+                                    <div className="w-full bg-surface border border-borderColor text-white p-3 rounded-xl flex items-center justify-center gap-2 opacity-50">
+                                        <CheckCircle2 className="w-5 h-5 text-neonGreen" />
+                                        <span>Debts recorded in balances</span>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        className="w-full bg-surface border border-borderColor text-white hover:bg-surfaceHover shadow-xl flex items-center justify-center gap-2"
+                                        onClick={async () => {
+                                            setCreatingIOU(true);
+                                            try {
+                                                for (const s of groupSettlements) {
+                                                    if (s.total === 0 || !s.opponentIds || s.opponentIds.length === 0) continue;
+                                                    const amountPerOpponent = Math.abs(s.total) / s.opponentIds.length;
+                                                    for (const oppId of s.opponentIds) {
+                                                        const debtorId = s.total < 0 ? user!.id : oppId;
+                                                        const creditorId = s.total > 0 ? user!.id : oppId;
+                                                        await createDebt(matchId!, debtorId, creditorId, amountPerOpponent);
+                                                    }
+                                                }
+                                                alert('Debts successfully recorded in your balances.');
+                                                if (user?.id) loadDebts(user.id);
+                                            } catch (e: any) {
+                                                alert(e.message || 'Failed to create IOU');
+                                            } finally {
+                                                setCreatingIOU(false);
+                                            }
+                                        }}
+                                        disabled={creatingIOU}
+                                    >
+                                        <Receipt className="w-5 h-5 text-secondaryText" />
+                                        {creatingIOU ? 'Adding to Balances...' : 'Mark as Unpaid (IOU)'}
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </section>
                 )}
 
@@ -999,6 +1051,43 @@ export default function LedgerPage() {
                                 </span>
                             </div>
                         </Card>
+
+                        {/* Send to Ledger / IOU Actions */}
+                        {total !== 0 && settlement.opponentIds.length > 0 && user?.id === match?.createdBy && (
+                            <div className="mt-4 animate-in slide-in-from-bottom-2 fade-in duration-500 delay-300">
+                                {hasExistingDebt ? (
+                                    <div className="w-full bg-surface border border-borderColor text-white p-3 rounded-xl flex items-center justify-center gap-2 opacity-50">
+                                        <CheckCircle2 className="w-5 h-5 text-neonGreen" />
+                                        <span>Debts recorded in balances</span>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        className="w-full bg-surface border border-borderColor text-white hover:bg-surfaceHover shadow-xl flex items-center justify-center gap-2"
+                                        onClick={async () => {
+                                            setCreatingIOU(true);
+                                            try {
+                                                const amountPerOpponent = Math.abs(total) / settlement.opponentIds.length;
+                                                for (const oppId of settlement.opponentIds) {
+                                                    const debtorId = total < 0 ? user!.id : oppId;
+                                                    const creditorId = total > 0 ? user!.id : oppId;
+                                                    await createDebt(matchId!, debtorId, creditorId, amountPerOpponent);
+                                                }
+                                                alert('Debts successfully recorded in your balances.');
+                                                if (user?.id) loadDebts(user.id);
+                                            } catch (e: any) {
+                                                alert(e.message || 'Failed to create IOU');
+                                            } finally {
+                                                setCreatingIOU(false);
+                                            }
+                                        }}
+                                        disabled={creatingIOU}
+                                    >
+                                        <Receipt className="w-5 h-5 text-secondaryText" />
+                                        {creatingIOU ? 'Adding to Balances...' : 'Mark as Unpaid (IOU)'}
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </section>
                 )}
             </main>

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, History as HistoryIcon, MessageSquare, Play, Users } from 'lucide-react';
+import { Home, Wallet, MessageSquare, Play, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMatchStore } from '../../store/useMatchStore';
 
@@ -13,7 +13,7 @@ export default function BottomNavigation() {
 
     const navItems = [
         { icon: Home, label: 'Home', path: '/home' },
-        { icon: HistoryIcon, label: 'Ledger', path: '/history' },
+        { icon: Wallet, label: 'Wallet', path: '/balances' },
         { icon: MessageSquare, label: 'Chat', path: '/messages' },
         { icon: Users, label: 'Friends', path: '/friends' }
     ];

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, History, PenLine, Clock, Camera, Loader, Check, X } from 'lucide-react';
+import { Crown, History, PenLine, Clock, Camera, Loader, Check, X, Wallet } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -651,6 +651,8 @@ export default function DashboardPage() {
                 <StatBox label="Total Matches" value={String(stats.totalMatches)} className="px-1" />
                 <StatBox label="Win Rate" value={winRate} className="px-1" />
             </section>
+
+
 
             {/* Action Required — matches needing the current user's attestation */}
             {needsAttestation.length > 0 && (

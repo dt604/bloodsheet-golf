@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Flag, Receipt, Trash2, Edit2, Activity, Target, Zap, Droplets, Camera } from 'lucide-react';
+import { ArrowLeft, Flag, Receipt, Trash2, Edit2, Activity, Target, Zap, Droplets, Camera, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMatchStore } from '../store/useMatchStore';
+import { useLedgerStore } from '../store/useLedgerStore';
 import { Button } from '../components/ui/Button';
 import { MediaLightbox } from '../components/ui/MediaLightbox';
+import AuditTrailDrawer from '../components/ui/AuditTrailDrawer';
 import { motion } from 'framer-motion';
+import { ScoreEditLog } from '../types';
 import SEO from '../components/SEO';
 
 interface CourseHole {
@@ -59,6 +62,7 @@ interface MatchScorecardData {
     players: MatchPlayer[];
     presses: PressData[];
     myTeam: 'A' | 'B' | null;
+    createdBy: string;
 }
 
 export default function PastMatchScorecardPage() {
@@ -66,16 +70,25 @@ export default function PastMatchScorecardPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { deleteMatch } = useMatchStore();
+    const { createDebt, debtsOwedByMe, debtsOwedToMe, loadDebts } = useLedgerStore();
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [data, setData] = useState<MatchScorecardData | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [creatingIOU, setCreatingIOU] = useState(false);
+
+    const allDebts = [...debtsOwedByMe, ...debtsOwedToMe];
+    const hasExistingDebt = allDebts.some(d => d.matchId === matchId);
 
     // Match Media State
     const [matchMedia, setMatchMedia] = useState<any[]>([]);
     const [lightboxMedia, setLightboxMedia] = useState<any[]>([]);
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+    // Audit Trail State
+    const [editLogs, setEditLogs] = useState<ScoreEditLog[]>([]);
+    const [isAuditDrawerOpen, setIsAuditDrawerOpen] = useState(false);
 
     async function handleMediaDelete(mediaId: string) {
         const media = matchMedia.find(m => m.id === mediaId);
@@ -124,6 +137,10 @@ export default function PastMatchScorecardPage() {
     }
 
     useEffect(() => {
+        if (user) loadDebts(user.id);
+    }, [user?.id]);
+
+    useEffect(() => {
         async function fetchScorecard() {
             if (!matchId) return;
             setLoading(true);
@@ -131,7 +148,7 @@ export default function PastMatchScorecardPage() {
                 // Fetch match and course details
                 const { data: matchData, error: matchErr } = await supabase
                     .from('matches')
-                    .select('created_at, format, wager_amount, wager_type, side_bets, courses!inner(name, holes)')
+                    .select('created_at, created_by, format, wager_amount, wager_type, side_bets, courses!inner(name, holes)')
                     .eq('id', matchId)
                     .single();
 
@@ -194,6 +211,53 @@ export default function PastMatchScorecardPage() {
                     setMatchMedia(mediaData);
                 }
 
+                // Fetch edit logs
+                const { data: rawEditLogs } = await supabase
+                    .from('score_edit_logs')
+                    .select('*')
+                    .eq('match_id', matchId);
+
+                // Collect any new user IDs from edit logs that we didn't fetch yet
+                const logUserIds = new Set<string>();
+                if (rawEditLogs) {
+                    rawEditLogs.forEach((log: Record<string, unknown>) => {
+                        if (log.edited_by) logUserIds.add(String(log.edited_by).toLowerCase());
+                        if (log.player_id) logUserIds.add(String(log.player_id).toLowerCase());
+                    });
+                }
+                const newIdsToFetch = Array.from(logUserIds).filter(id => !fetchedProfiles.some(p => String(p.id).toLowerCase() === id));
+                if (newIdsToFetch.length > 0) {
+                    const { data: moreProfs } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', newIdsToFetch);
+                    if (moreProfs) fetchedProfiles = [...fetchedProfiles, ...moreProfs];
+                }
+
+                if (rawEditLogs) {
+                    const logs: ScoreEditLog[] = rawEditLogs.map((r: Record<string, unknown>) => {
+                        const editorId = String(r.edited_by || '').toLowerCase();
+                        const playerId = String(r.player_id || '').toLowerCase();
+                        const eProf = fetchedProfiles.find(p => String(p.id).toLowerCase() === editorId);
+                        const pProf = fetchedProfiles.find(p => String(p.id).toLowerCase() === playerId);
+                        const eGuest = (mps || []).find((m: any) => String(m.user_id).toLowerCase() === editorId)?.guest_name;
+                        const pGuest = (mps || []).find((m: any) => String(m.user_id).toLowerCase() === playerId)?.guest_name;
+
+                        return {
+                            id: r.id as string,
+                            matchId: r.match_id as string,
+                            holeNumber: r.hole_number as number,
+                            playerId: r.player_id as string,
+                            oldGross: r.old_gross as number,
+                            newGross: r.new_gross as number,
+                            oldNet: r.old_net as number,
+                            newNet: r.new_net as number,
+                            editedBy: r.edited_by as string,
+                            editedAt: r.edited_at as string,
+                            editor: { id: editorId, fullName: (eProf?.full_name as string) || eGuest || 'Unknown Editor', avatarUrl: eProf?.avatar_url as string },
+                            player: { id: playerId, fullName: (pProf?.full_name as string) || pGuest || 'Unknown Player', avatarUrl: pProf?.avatar_url as string }
+                        };
+                    });
+                    setEditLogs(logs);
+                }
+
                 const playersMap = new Map<string, MatchPlayer>();
                 if (mps) {
                     mps.forEach((mp: Record<string, unknown>) => {
@@ -251,6 +315,7 @@ export default function PastMatchScorecardPage() {
                     players: Array.from(playersMap.values()),
                     presses,
                     myTeam,
+                    createdBy: m.created_by as string,
                 });
             } catch (err: unknown) {
                 const e = err as Error;
@@ -766,6 +831,32 @@ export default function PastMatchScorecardPage() {
             </header>
 
             <div className="flex-1 w-full flex flex-col pt-4">
+                {/* Audit Trail Badge */}
+                {editLogs.length > 0 && (
+                    <div className="px-4 mb-4">
+                        <button
+                            onClick={() => setIsAuditDrawerOpen(true)}
+                            className="w-full flex items-center justify-between bg-bloodRed/10 border border-bloodRed/30 rounded-xl p-3 shadow-[0_0_15px_rgba(255,0,63,0.15)] group hover:bg-bloodRed/20 transition-all cursor-pointer"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-bloodRed/20 flex items-center justify-center shrink-0">
+                                    <AlertTriangle className="w-4 h-4 text-bloodRed" />
+                                </div>
+                                <div className="text-left font-sans">
+                                    <span className="block text-white font-black uppercase italic text-sm tracking-tight drop-shadow-[0_0_8px_rgba(255,0,63,0.5)]">
+                                        Post-Round Edits
+                                    </span>
+                                    <span className="block text-bloodRed text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                                        {editLogs.length} change{editLogs.length !== 1 ? 's' : ''} detected
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="text-bloodRed/50 group-hover:text-bloodRed transition-colors">
+                                <ArrowRight className="w-5 h-5" />
+                            </div>
+                        </button>
+                    </div>
+                )}
                 {/* Skins Standings Hero */}
                 {isSkins && skinsPlayerSummary && (
                     <div className="px-4 mb-4">
@@ -1190,6 +1281,49 @@ export default function PastMatchScorecardPage() {
                                 </span>
                             </div>
                         </div>
+
+                        {/* Send to Ledger / IOU Actions */}
+                        {settlementTotal !== 0 && user?.id === data.createdBy && (
+                            <div className="mt-4 animate-in slide-in-from-bottom-2 fade-in duration-500 delay-300">
+                                {hasExistingDebt ? (
+                                    <div className="w-full bg-surface border border-borderColor text-white p-3 rounded-xl flex items-center justify-center gap-2 opacity-50">
+                                        <CheckCircle2 className="w-5 h-5 text-neonGreen" />
+                                        <span>Debts recorded in balances</span>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        className="w-full bg-surface border border-borderColor text-white hover:bg-surfaceHover shadow-xl flex items-center justify-center gap-2"
+                                        onClick={async () => {
+                                            if (!matchId || !myTeam) return;
+                                            setCreatingIOU(true);
+                                            try {
+                                                const oppTeam: 'A' | 'B' = myTeam === 'A' ? 'B' : 'A';
+                                                const oppTeamPlayers = players.filter(p => p.team === oppTeam);
+                                                const opponentIds = oppTeamPlayers.map(p => p.id).filter(Boolean);
+                                                if (opponentIds.length === 0) return;
+
+                                                const amountPerOpponent = Math.abs(settlementTotal) / opponentIds.length;
+                                                for (const oppId of opponentIds) {
+                                                    const debtorId = settlementTotal < 0 ? user!.id : oppId;
+                                                    const creditorId = settlementTotal > 0 ? user!.id : oppId;
+                                                    await createDebt(matchId, debtorId, creditorId, amountPerOpponent);
+                                                }
+                                                alert('Debts successfully recorded in your balances.');
+                                                if (user?.id) loadDebts(user.id);
+                                            } catch (e: any) {
+                                                alert(e.message || 'Failed to create IOU');
+                                            } finally {
+                                                setCreatingIOU(false);
+                                            }
+                                        }}
+                                        disabled={creatingIOU}
+                                    >
+                                        <Receipt className="w-5 h-5 text-secondaryText" />
+                                        {creatingIOU ? 'Adding to Balances...' : 'Mark as Unpaid (IOU)'}
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1259,6 +1393,12 @@ export default function PastMatchScorecardPage() {
                     onDelete={handleMediaDelete}
                 />
             )}
-        </div >
+
+            <AuditTrailDrawer
+                isOpen={isAuditDrawerOpen}
+                onClose={() => setIsAuditDrawerOpen(false)}
+                logs={editLogs}
+            />
+        </div>
     );
 }
