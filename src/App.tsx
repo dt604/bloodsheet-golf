@@ -18,6 +18,7 @@ import PastMatchScorecardPage from './pages/PastMatchScorecard';
 import MatchHistoryPage from './pages/MatchHistory';
 import FriendsPage from './pages/Friends';
 import MomentsPage from './pages/Moments';
+import DiscoverPage from './pages/Discover';
 import MessagesInboxPage from './pages/MessagesInbox';
 import ChatRoomPage from './pages/ChatRoom';
 import PlayerProfilePage from './pages/PlayerProfile';
@@ -106,6 +107,7 @@ function AppRoutes() {
         <Route path="/messages" element={<ProtectedRoute><PageWrapper><MainLayout><MessagesInboxPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/chat/:chatId" element={<ProtectedRoute><PageWrapper><ChatRoomPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/moments" element={<ProtectedRoute><PageWrapper><MainLayout><MomentsPage /></MainLayout></PageWrapper></ProtectedRoute>} />
+        <Route path="/discover" element={<ProtectedRoute><PageWrapper><MainLayout><DiscoverPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/history" element={<ProtectedRoute><PageWrapper><MainLayout><MatchHistoryPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/history/:matchId" element={<ProtectedRoute><PageWrapper><PastMatchScorecardPage /></PageWrapper></ProtectedRoute>} />
         <Route path="/player/:userId" element={<ProtectedRoute><PageWrapper><MainLayout><PlayerProfilePage /></MainLayout></PageWrapper></ProtectedRoute>} />

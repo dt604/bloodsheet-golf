@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/Button';
-import { Flag, ChevronRight, Zap } from 'lucide-react';
+import { Flag, ChevronRight, Zap, Compass } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -194,8 +194,9 @@ export default function Home() {
             <section className="px-4">
                 <div className="flex items-center justify-between mb-4 ml-1">
                     <h3 className="text-[10px] text-secondaryText font-black uppercase tracking-widest">Activity Feed</h3>
-                    <Link to="/moments" className="text-[10px] text-bloodRed font-black uppercase tracking-widest hover:underline flex items-center gap-1">
-                        The Vault
+                    <Link to="/discover" className="text-[10px] text-neonGreen font-black uppercase tracking-widest hover:underline flex items-center gap-1 drop-shadow-[0_0_5px_rgba(0,255,102,0.3)]">
+                        <Compass className="w-3.5 h-3.5" />
+                        Discover
                     </Link>
                 </div>
                 <ActivityFeed />

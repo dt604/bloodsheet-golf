@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { History, UserPlus, Check, Loader, Crown } from 'lucide-react';
+import { History, UserPlus, Check, Loader, Crown, Camera } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
@@ -365,9 +365,17 @@ export default function PlayerProfilePage() {
 
                     {/* Recent history */}
                     <section>
-                        <div className="flex items-center gap-2 mb-3 px-2 mt-4">
-                            <History className="w-5 h-5 text-secondaryText" />
-                            <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText">Recent History</h3>
+                        <div className="flex items-center justify-between mb-3 px-2 mt-4">
+                            <div className="flex items-center gap-2">
+                                <History className="w-5 h-5 text-secondaryText" />
+                                <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText">Recent History</h3>
+                            </div>
+                            {isOwnProfile && (
+                                <Button variant="ghost" size="sm" onClick={() => navigate('/moments')} className="text-[10px] text-bloodRed font-black uppercase tracking-widest flex items-center gap-1 h-auto py-1 px-2 hover:bg-bloodRed/10 border border-bloodRed/20">
+                                    <Camera className="w-3 h-3" />
+                                    The Vault
+                                </Button>
+                            )}
                         </div>
                         {history.length === 0 ? (
                             <p className="text-secondaryText text-sm px-2">No completed matches yet.</p>
