@@ -1,13 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Shield, History, Wallet as WalletIcon, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Shield, History, Wallet as WalletIcon, ChevronRight, Zap, Trophy, Star, Target, Coins } from 'lucide-react';
 import { BloodCoin } from '../components/ui/BloodCoin';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import SEO from '../components/SEO';
 import { useAuth } from '../contexts/AuthContext';
 import { getBloodCoinBalance, fetchRecentTransactions, WalletTransaction } from '../lib/walletApi';
+
+// A simple utility for animating numbers
+function AnimatedNumber({ value }: { value: number }) {
+    const [displayValue, setDisplayValue] = useState(0);
+    const prevValue = useRef(value);
+
+    useEffect(() => {
+        let start = displayValue;
+        const end = value;
+        const duration = 1000;
+        const startTime = performance.now();
+
+        function animate(now: number) {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeOutExpo = 1 - Math.pow(2, -10 * progress);
+
+            const current = Math.floor(start + (end - start) * easeOutExpo);
+            setDisplayValue(current);
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        }
+
+        requestAnimationFrame(animate);
+        prevValue.current = value;
+    }, [value]);
+
+    return <>{displayValue.toLocaleString()}</>;
+}
 
 export default function BloodBankPage() {
     const navigate = useNavigate();
@@ -36,6 +67,21 @@ export default function BloodBankPage() {
 
         loadWallet();
     }, [user?.id]);
+
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { y: 20, opacity: 0 },
+        visible: { y: 0, opacity: 1 }
+    };
 
     return (
         <div className="flex flex-col h-[100dvh] bg-background font-sans overflow-x-hidden safe-bottom relative">
@@ -74,7 +120,25 @@ export default function BloodBankPage() {
 
                         {/* THE CENTERPIECE */}
                         <div className="relative mb-8">
-                            <BloodCoin size="giant" className="drop-shadow-[0_0_60px_rgba(255,0,63,0.4)]" />
+                            <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                className="absolute inset-[-40px] border border-white/5 rounded-full"
+                            />
+                            <motion.div
+                                animate={{ rotate: -360 }}
+                                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                                className="absolute inset-[-20px] border border-bloodRed/10 rounded-full"
+                            />
+                            <BloodCoin size="giant" className="drop-shadow-[0_0_60px_rgba(255,0,63,0.4)] relative z-10" />
+
+                            {/* Scanning beam effect */}
+                            <motion.div
+                                animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
+                                transition={{ duration: 4, repeat: Infinity }}
+                                className="absolute inset-0 bg-bloodRed/20 rounded-full blur-2xl -z-10"
+                            />
+
                             {/* Reflection on floor */}
                             <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-48 h-8 bg-bloodRed/20 blur-3xl rounded-[100%] scale-x-150" />
                         </div>
@@ -82,7 +146,7 @@ export default function BloodBankPage() {
                         <div className="flex flex-col items-center text-center mt-4 w-full px-6">
                             <h3 className="text-secondaryText font-black uppercase tracking-[0.4em] text-[10px] mb-3 opacity-40 italic">Total Available Credit</h3>
                             <h1 className="text-5xl sm:text-7xl md:text-8xl font-black text-white italic tracking-tight drop-shadow-[0_0_35px_rgba(255,0,63,0.3)] leading-none mb-6 break-words pr-2">
-                                {isLoading ? '...' : balance.toLocaleString()}
+                                {isLoading ? '...' : <AnimatedNumber value={balance} />}
                             </h1>
 
                             <motion.div
@@ -151,7 +215,12 @@ export default function BloodBankPage() {
                             <p className="text-xs text-secondaryText">Connecting to the Vault...</p>
                         </Card>
                     ) : transactions.length > 0 ? (
-                        <div className="space-y-3">
+                        <motion.div
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="visible"
+                            className="space-y-3"
+                        >
                             {transactions.map(tx => {
                                 const isPositive = tx.amount > 0;
                                 let txIcon = <BloodCoin className="w-5 h-5" />;
@@ -160,21 +229,15 @@ export default function BloodBankPage() {
                                 switch (tx.type) {
                                     case 'grant':
                                         txTitle = "Initial Grant";
+                                        txIcon = <Shield className="w-5 h-5 text-neonGreen" />;
                                         break;
                                     case 'wager_win':
                                         txTitle = "Match Win";
+                                        txIcon = <Trophy className="w-5 h-5 text-neonGreen" />;
                                         break;
                                     case 'wager_deduction':
                                         txTitle = "Match Deduction";
-                                        break;
-                                    case 'transfer_received':
-                                        txTitle = "Received Transfer";
-                                        break;
-                                    case 'transfer_sent':
-                                        txTitle = "Sent Transfer";
-                                        break;
-                                    case 'redemption':
-                                        txTitle = "Redeemed Coins";
+                                        txIcon = <Target className="w-5 h-5 text-bloodRed" />;
                                         break;
                                     case 'reward':
                                         const rType = tx.metadata?.reward_type;
@@ -182,16 +245,26 @@ export default function BloodBankPage() {
                                             rType === 'eagle' ? "Eagle Bonus" :
                                                 rType === 'sandie' ? "Sandy Save" :
                                                     rType === 'round_completion' ? "Loyalty Reward" : "Reward Earned";
+
+                                        // Specialized icons for rewards
+                                        if (rType === 'birdie' || rType === 'eagle') txIcon = <Zap className={`w-5 h-5 ${rType === 'eagle' ? 'text-yellow-400' : 'text-neonGreen'}`} />;
+                                        else if (rType === 'sandie') txIcon = <Star className="w-5 h-5 text-neonGreen" />;
+                                        else if (rType === 'round_completion') txIcon = <Coins className="w-5 h-5 text-bloodRed" />;
                                         break;
                                     case 'admin_adjustment':
                                         txTitle = "Admin Adjustment";
+                                        txIcon = <Shield className="w-5 h-5 text-bloodRed" />;
                                         break;
                                 }
 
                                 return (
-                                    <div key={tx.id} className={`flex items-center justify-between p-4 rounded-xl border ${isPositive ? 'bg-surface/60 border-neonGreen/10' : 'bg-surface/60 border-bloodRed/10'} backdrop-blur-sm group`}>
+                                    <motion.div
+                                        key={tx.id}
+                                        variants={itemVariants}
+                                        className={`flex items-center justify-between p-4 rounded-xl border ${isPositive ? 'bg-surface/60 border-neonGreen/10 hover:border-neonGreen/30' : 'bg-surface/60 border-bloodRed/10 hover:border-bloodRed/30'} backdrop-blur-sm group transition-all`}
+                                    >
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPositive ? 'bg-neonGreen/10 shadow-[0_0_10px_rgba(0,255,102,0.2)]' : 'bg-bloodRed/10 shadow-[0_0_10px_rgba(255,0,63,0.2)]'}`}>
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${isPositive ? 'bg-neonGreen/10 shadow-[0_0_10px_rgba(0,255,102,0.2)]' : 'bg-bloodRed/10 shadow-[0_0_10px_rgba(255,0,63,0.2)]'}`}>
                                                 {txIcon}
                                             </div>
                                             <div className="flex flex-col">
@@ -205,10 +278,10 @@ export default function BloodBankPage() {
                                             </span>
                                             <span className="text-[10px] text-secondaryText uppercase tracking-widest">{tx.type.split('_').join(' ')}</span>
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 );
                             })}
-                        </div>
+                        </motion.div>
                     ) : (
                         <Card className="border border-white/5 bg-surface/50 backdrop-blur-xl p-6 flex flex-col items-center justify-center text-center overflow-hidden relative min-h-[200px]">
                             <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent z-10 pointer-events-none" />

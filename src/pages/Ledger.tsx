@@ -839,19 +839,19 @@ export default function LedgerPage() {
 
             const frame = () => {
                 confetti({
-                    particleCount: 8,
+                    particleCount: 12,
                     angle: 60,
-                    spread: 55,
+                    spread: 60,
                     origin: { x: 0 },
-                    colors: ['#00FF66', '#FFFFFF', '#1C1C1E'],
+                    colors: ['#00FF66', '#FF003F', '#FFFFFF', '#1C1C1E'],
                     zIndex: 100,
                 });
                 confetti({
-                    particleCount: 8,
+                    particleCount: 12,
                     angle: 120,
-                    spread: 55,
+                    spread: 60,
                     origin: { x: 1 },
-                    colors: ['#00FF66', '#FFFFFF', '#1C1C1E'],
+                    colors: ['#00FF66', '#FF003F', '#FFFFFF', '#1C1C1E'],
                     zIndex: 100,
                 });
 
