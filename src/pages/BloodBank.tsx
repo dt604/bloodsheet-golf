@@ -57,7 +57,7 @@ export default function BloodBankPage() {
                 </div>
             </div>
 
-            <main className="flex-1 overflow-y-auto px-4 pb-24 relative z-10 pt-[12vh]">
+            <main className="flex-1 overflow-y-auto px-4 pb-24 relative z-10 pt-[6vh]">
                 {/* Integrated Centerpiece */}
                 <div className="flex flex-col items-center justify-center mb-12 relative">
                     <motion.div
