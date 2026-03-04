@@ -39,7 +39,7 @@ export default function AdminDashboard() {
     }, []);
 
     return (
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6">
             <section>
                 <h3 className="text-sm font-bold tracking-widest uppercase text-secondaryText mb-4 px-2">System Overview</h3>
                 <div className="grid grid-cols-2 gap-3">

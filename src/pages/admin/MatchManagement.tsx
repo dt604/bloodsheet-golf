@@ -98,102 +98,104 @@ export default function MatchManagement() {
     }
 
     return (
-        <div className="space-y-6 pb-20">
-            <header className="px-2 flex items-end justify-between">
-                <div>
-                    <h2 className="text-2xl font-black text-white tracking-tight">Match Oversight</h2>
-                    <p className="text-xs text-secondaryText font-bold uppercase tracking-wider">Monitor and manage all active rounds</p>
-                </div>
-                {matches.length > 0 && (
-                    <button
-                        onClick={toggleSelectAll}
-                        className="text-[10px] font-black uppercase tracking-widest text-bloodRed hover:text-white transition-colors px-2 py-1"
-                    >
-                        {selectedIds.size === matches.length ? 'Deselect All' : 'Select All'}
-                    </button>
-                )}
-            </header>
-
-            <section className="space-y-3">
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-secondaryText">
-                        <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                        <span className="text-xs font-bold uppercase tracking-widest">Loading Matches...</span>
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+            <div className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6">
+                <header className="px-2 flex items-end justify-between">
+                    <div>
+                        <h2 className="text-2xl font-black text-white tracking-tight">Match Oversight</h2>
+                        <p className="text-xs text-secondaryText font-bold uppercase tracking-wider">Monitor and manage all active rounds</p>
                     </div>
-                ) : matches.length > 0 ? (
-                    matches.map((match: AdminMatch) => (
-                        <Card key={match.id} className={`p-4 group transition-all ${selectedIds.has(match.id) ? 'border-bloodRed bg-bloodRed/5' : 'hover:border-bloodRed/50'}`}>
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => toggleSelect(match.id)}
-                                        className={`transition-colors ${selectedIds.has(match.id) ? 'text-bloodRed' : 'text-secondaryText hover:text-white'}`}
-                                    >
-                                        {selectedIds.has(match.id) ? <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(255,0,63,0.3)]" /> : <Circle className="w-5 h-5 opacity-20" />}
-                                    </button>
-                                    <div className="flex items-center gap-2">
-                                        <Trophy className={`w-4 h-4 ${match.status === 'in_progress' ? 'text-neonGreen' : 'text-secondaryText'}`} />
-                                        <span className="text-sm font-black text-white">{match.courses?.name ?? 'Unknown Course'}</span>
-                                    </div>
-                                </div>
-                                <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${match.status === 'in_progress'
-                                    ? 'bg-neonGreen/10 text-neonGreen border-neonGreen/20'
-                                    : match.status === 'completed'
-                                        ? 'bg-white/10 text-white border-white/20'
-                                        : 'bg-surfaceHover text-secondaryText border-borderColor'
-                                    }`}>
-                                    {match.status}
-                                </span>
-                            </div>
+                    {matches.length > 0 && (
+                        <button
+                            onClick={toggleSelectAll}
+                            className="text-[10px] font-black uppercase tracking-widest text-bloodRed hover:text-white transition-colors px-2 py-1"
+                        >
+                            {selectedIds.size === matches.length ? 'Deselect All' : 'Select All'}
+                        </button>
+                    )}
+                </header>
 
-                            <div className="flex items-center gap-2 text-[10px] text-secondaryText font-bold uppercase tracking-wider mb-4">
-                                <Users className="w-3 h-3" />
-                                Created by {match.profiles?.full_name ?? 'Unknown'} • {new Date(match.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                            </div>
-
-                            <div className="flex items-center justify-between pt-3 border-t border-borderColor/30">
-                                <div className="flex gap-4">
-                                    <div className="text-left">
-                                        <span className="block text-[8px] text-secondaryText font-black uppercase tracking-widest">Join Code</span>
-                                        <span className="text-xs font-bold text-bloodRed">{match.join_code}</span>
+                <section className="space-y-3">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-secondaryText">
+                            <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                            <span className="text-xs font-bold uppercase tracking-widest">Loading Matches...</span>
+                        </div>
+                    ) : matches.length > 0 ? (
+                        matches.map((match: AdminMatch) => (
+                            <Card key={match.id} className={`p-4 group transition-all ${selectedIds.has(match.id) ? 'border-bloodRed bg-bloodRed/5' : 'hover:border-bloodRed/50'}`}>
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => toggleSelect(match.id)}
+                                            className={`transition-colors ${selectedIds.has(match.id) ? 'text-bloodRed' : 'text-secondaryText hover:text-white'}`}
+                                        >
+                                            {selectedIds.has(match.id) ? <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(255,0,63,0.3)]" /> : <Circle className="w-5 h-5 opacity-20" />}
+                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <Trophy className={`w-4 h-4 ${match.status === 'in_progress' ? 'text-neonGreen' : 'text-secondaryText'}`} />
+                                            <span className="text-sm font-black text-white">{match.courses?.name ?? 'Unknown Course'}</span>
+                                        </div>
                                     </div>
-                                    <div className="text-left">
-                                        <span className="block text-[8px] text-secondaryText font-black uppercase tracking-widest">Wager</span>
-                                        <span className="text-xs font-bold text-white">${match.wager_amount}</span>
-                                    </div>
-                                    <div className="text-left">
-                                        <span className="block text-[8px] text-secondaryText font-black uppercase tracking-widest">Format</span>
-                                        <span className="text-xs font-bold text-white">{match.format.toUpperCase()}</span>
-                                    </div>
+                                    <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${match.status === 'in_progress'
+                                        ? 'bg-neonGreen/10 text-neonGreen border-neonGreen/20'
+                                        : match.status === 'completed'
+                                            ? 'bg-white/10 text-white border-white/20'
+                                            : 'bg-surfaceHover text-secondaryText border-borderColor'
+                                        }`}>
+                                        {match.status}
+                                    </span>
                                 </div>
 
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => window.open(`/history/${match.id}`, '_blank')}
-                                        className="p-2 text-secondaryText hover:text-white transition-colors"
-                                    >
-                                        <ExternalLink className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => deleteMatch(match.id)}
-                                        className="p-2 text-secondaryText hover:text-bloodRed transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                <div className="flex items-center gap-2 text-[10px] text-secondaryText font-bold uppercase tracking-wider mb-4">
+                                    <Users className="w-3 h-3" />
+                                    Created by {match.profiles?.full_name ?? 'Unknown'} • {new Date(match.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                                 </div>
-                            </div>
-                        </Card>
-                    ))
-                ) : (
-                    <div className="text-center py-12 bg-surface rounded-2xl border border-borderColor border-dashed">
-                        <p className="text-sm text-secondaryText font-bold">No matches found in the system</p>
-                    </div>
-                )}
-            </section>
 
-            {/* Bulk Action Bar - Fixed to Bottom of App Shell */}
+                                <div className="flex items-center justify-between pt-3 border-t border-borderColor/30">
+                                    <div className="flex gap-4">
+                                        <div className="text-left">
+                                            <span className="block text-[8px] text-secondaryText font-black uppercase tracking-widest">Join Code</span>
+                                            <span className="text-xs font-bold text-bloodRed">{match.join_code}</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <span className="block text-[8px] text-secondaryText font-black uppercase tracking-widest">Wager</span>
+                                            <span className="text-xs font-bold text-white">${match.wager_amount}</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <span className="block text-[8px] text-secondaryText font-black uppercase tracking-widest">Format</span>
+                                            <span className="text-xs font-bold text-white">{match.format.toUpperCase()}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => window.open(`/history/${match.id}`, '_blank')}
+                                            className="p-2 text-secondaryText hover:text-white transition-colors"
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => deleteMatch(match.id)}
+                                            className="p-2 text-secondaryText hover:text-bloodRed transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </Card>
+                        ))
+                    ) : (
+                        <div className="text-center py-12 bg-surface rounded-2xl border border-borderColor border-dashed">
+                            <p className="text-sm text-secondaryText font-bold">No matches found in the system</p>
+                        </div>
+                    )}
+                </section>
+            </div>
+
+            {/* Bulk Action Bar - Pinned to Bottom of Page */}
             {selectedIds.size > 0 && (
-                <div className="absolute bottom-0 left-0 right-0 w-full bg-surface border-t border-bloodRed shadow-[0_-8px_32px_rgba(0,0,0,0.5)] p-4 pb-safe z-50 animate-in slide-in-from-bottom-full duration-300 flex items-center justify-between backdrop-blur-md bg-opacity-95">
+                <div className="absolute bottom-0 left-0 right-0 w-full bg-surface border-t border-bloodRed shadow-[0_-12px_40px_rgba(0,0,0,0.6)] p-4 pb-safe z-50 animate-in slide-in-from-bottom-full duration-300 flex items-center justify-between backdrop-blur-md bg-opacity-95">
                     <div className="flex flex-col">
                         <span className="text-neonGreen font-black text-sm uppercase tracking-tight">{selectedIds.size} Matches Selected</span>
                         <span className="text-[10px] text-secondaryText uppercase font-bold tracking-widest">Bulk Management</span>
@@ -218,6 +220,7 @@ export default function MatchManagement() {
                 </div>
             )}
         </div>
+
 
     );
 }

@@ -65,7 +65,7 @@ export default function AdminLayout() {
             </nav>
 
             {/* Admin Content View */}
-            <main className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6">
+            <main className="flex-1 relative overflow-hidden flex flex-col">
                 <Outlet />
             </main>
 
