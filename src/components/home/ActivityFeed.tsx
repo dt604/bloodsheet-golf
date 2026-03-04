@@ -1,11 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFriendsStore } from '../../store/useFriendsStore';
+import { useSocialStore } from '../../store/useSocialStore';
 import { Card } from '../ui/Card';
-import { Target, Zap, Droplets, Camera, Trophy, ChevronRight } from 'lucide-react';
+import { Target, Zap, Droplets, Camera, Trophy, ChevronRight, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '../ui/EmptyState';
+import { CommentsSheet } from '../social/CommentsSheet';
+import type { ReactionType } from '../../types';
+
+const REACTIONS: { type: ReactionType; emoji: string }[] = [
+    { type: 'heart', emoji: '❤️' },
+    { type: 'fire', emoji: '🔥' },
+    { type: 'clap', emoji: '👏' },
+    { type: 'flag', emoji: '⛳' },
+    { type: 'skull', emoji: '💀' },
+    { type: 'laugh', emoji: '😂' },
+];
 
 interface BaseFeedItem {
     id: string;
@@ -178,6 +190,10 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
                 items.sort((a, b) => b.timestamp - a.timestamp);
                 setFeedItems(items);
 
+                // Batch-load social data (likes + comment counts)
+                const itemIds = items.map(i => i.id);
+                useSocialStore.getState().loadSocialData(itemIds, user.id);
+
             } catch (err) {
                 console.error("Failed to fetch feed", err);
             } finally {
@@ -251,6 +267,7 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-secondaryText group-hover:text-bloodRed group-hover:translate-x-1 transition-all" />
                             </div>
+                            <SocialBar feedItemId={item.id} item={item} />
                         </Card>
                     );
                 }
@@ -277,27 +294,30 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
                     return (
                         <Card
                             key={item.id}
-                            className="p-4 bg-surface/50 border-white/5 flex items-center justify-between group hover:bg-surface transition-all cursor-pointer shadow-sm"
+                            className="p-4 bg-surface/50 border-white/5 flex flex-col group hover:bg-surface transition-all cursor-pointer shadow-sm"
                             onClick={() => navigate(`/history/${item.matchId}`)}
                         >
-                            <div className="flex items-center gap-3">
-                                <Avatar />
-                                <div>
-                                    <h4 className="text-sm font-bold text-white">
-                                        <span className="text-bloodRed">{pName}</span> earned a <span className={`${color} capitalize font-black`}>{item.trash}</span>
-                                    </h4>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
-                                            {item.courseName} • Hole {item.holeNumber}
-                                        </span>
-                                        <span className="text-white/20 text-[10px]">•</span>
-                                        <span className="text-[10px] text-secondaryText/60 font-bold"><TimeAgo timestamp={item.timestamp} /></span>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Avatar />
+                                    <div>
+                                        <h4 className="text-sm font-bold text-white">
+                                            <span className="text-bloodRed">{pName}</span> earned a <span className={`${color} capitalize font-black`}>{item.trash}</span>
+                                        </h4>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
+                                                {item.courseName} • Hole {item.holeNumber}
+                                            </span>
+                                            <span className="text-white/20 text-[10px]">•</span>
+                                            <span className="text-[10px] text-secondaryText/60 font-bold"><TimeAgo timestamp={item.timestamp} /></span>
+                                        </div>
                                     </div>
                                 </div>
+                                <div className={`w-8 h-8 rounded-full bg-background border border-white/5 flex items-center justify-center shrink-0 ${glow}`}>
+                                    <Icon className={`w-4 h-4 ${color}`} />
+                                </div>
                             </div>
-                            <div className={`w-8 h-8 rounded-full bg-background border border-white/5 flex items-center justify-center shrink-0 ${glow}`}>
-                                <Icon className={`w-4 h-4 ${color}`} />
-                            </div>
+                            <SocialBar feedItemId={item.id} item={item} />
                         </Card>
                     );
                 }
@@ -334,6 +354,9 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                             </div>
+                            <div className="px-4 pb-3">
+                                <SocialBar feedItemId={item.id} item={item} />
+                            </div>
                         </Card>
                     );
                 }
@@ -341,6 +364,176 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
                 return null;
             })}
         </div>
+    );
+}
+
+function SocialBar({ feedItemId, item }: { feedItemId: string; item: FeedItem }) {
+    const { user } = useAuth();
+    const { socialData, toggleReaction } = useSocialStore();
+    const data = socialData[feedItemId] ?? { reactions: {}, userReaction: null, commentCount: 0 };
+    const [commentsOpen, setCommentsOpen] = useState(false);
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const didLongPress = useRef(false);
+    const hasHover = useRef(typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches);
+
+    const totalReactions = Object.values(data.reactions).reduce((sum, n) => sum + (n ?? 0), 0);
+    const activeEmojis = REACTIONS.filter(r => (data.reactions[r.type] ?? 0) > 0);
+    const userEmoji = data.userReaction ? REACTIONS.find(r => r.type === data.userReaction)?.emoji : null;
+
+    // Desktop: open picker on hover after short delay
+    const handleMouseEnter = useCallback(() => {
+        if (!hasHover.current) return;
+        hoverTimer.current = setTimeout(() => setPickerOpen(true), 300);
+    }, []);
+
+    const handleMouseLeave = useCallback(() => {
+        if (hoverTimer.current) {
+            clearTimeout(hoverTimer.current);
+            hoverTimer.current = null;
+        }
+        setPickerOpen(false);
+    }, []);
+
+    // Mobile: long-press to open picker
+    const handlePointerDown = useCallback((e: React.PointerEvent) => {
+        e.stopPropagation();
+        if (hasHover.current) return; // desktop uses hover instead
+        didLongPress.current = false;
+        longPressTimer.current = setTimeout(() => {
+            didLongPress.current = true;
+            setPickerOpen(true);
+        }, 500);
+    }, []);
+
+    const handlePointerUp = useCallback((e: React.PointerEvent) => {
+        e.stopPropagation();
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+        // Short tap → toggle heart (works on both desktop and mobile)
+        if (!didLongPress.current && user) {
+            toggleReaction(feedItemId, user.id, 'heart');
+        }
+    }, [feedItemId, user, toggleReaction]);
+
+    const handlePointerLeave = useCallback(() => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    }, []);
+
+    const pickReaction = (type: ReactionType, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (user) toggleReaction(feedItemId, user.id, type);
+        setPickerOpen(false);
+    };
+
+    const handleComment = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCommentsOpen(true);
+    };
+
+    const handleShare = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        let url = window.location.origin;
+        if (item.type === 'match' || item.type === 'trophy') {
+            url += `/history/${item.matchId}`;
+        }
+
+        const text = item.type === 'match'
+            ? 'Check out this match on BloodSheet Golf'
+            : item.type === 'trophy'
+            ? 'Check out this achievement on BloodSheet Golf'
+            : 'Check out this moment on BloodSheet Golf';
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: 'BloodSheet Golf', text, url });
+            } catch {
+                // User cancelled
+            }
+        } else {
+            await navigator.clipboard.writeText(url);
+        }
+    };
+
+    return (
+        <>
+            {/* Reaction summary pills */}
+            {activeEmojis.length > 0 && (
+                <div className="flex items-center gap-1.5 pt-1.5 mt-1.5">
+                    {activeEmojis.map(r => (
+                        <span key={r.type} className="inline-flex items-center gap-0.5 bg-white/5 rounded-full px-1.5 py-0.5 text-[11px]">
+                            <span>{r.emoji}</span>
+                            <span className="text-secondaryText font-bold">{data.reactions[r.type]}</span>
+                        </span>
+                    ))}
+                </div>
+            )}
+
+            <div className="flex items-center gap-4 pt-2 mt-1 border-t border-white/5">
+                {/* Reaction button — tap for heart, hover (desktop) or long-press (mobile) for picker */}
+                <div
+                    className="relative"
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                >
+                    <button
+                        onPointerDown={handlePointerDown}
+                        onPointerUp={handlePointerUp}
+                        onPointerLeave={handlePointerLeave}
+                        className={`flex items-center gap-1.5 transition-colors select-none touch-none ${data.userReaction ? 'text-bloodRed' : 'text-secondaryText hover:text-bloodRed'}`}
+                    >
+                        {userEmoji ? (
+                            <span className="text-base leading-none">{userEmoji}</span>
+                        ) : (
+                            <Heart className="w-4 h-4" />
+                        )}
+                        {totalReactions > 0 && <span className="text-[11px] font-bold">{totalReactions}</span>}
+                    </button>
+
+                    {/* Reaction picker — positioned with a bridge zone so hover doesn't break when moving from button to picker */}
+                    {pickerOpen && (
+                        <>
+                            {/* Backdrop only on touch devices (desktop closes via mouseLeave) */}
+                            {!hasHover.current && (
+                                <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setPickerOpen(false); }} />
+                            )}
+                            <div className="absolute bottom-full left-0 z-50 pb-2">
+                                <div
+                                    className="flex items-center gap-1 bg-[#2C2C2E] border border-white/10 rounded-full px-2 py-1.5 shadow-xl"
+                                    style={{ animation: 'pickerIn 0.2s ease-out' }}
+                                >
+                                    <style>{`@keyframes pickerIn { from { opacity: 0; transform: scale(0.8) translateY(4px); } to { opacity: 1; transform: scale(1) translateY(0); } }`}</style>
+                                    {REACTIONS.map(r => (
+                                        <button
+                                            key={r.type}
+                                            onClick={(e) => pickReaction(r.type, e)}
+                                            className={`text-xl p-1 rounded-full transition-transform hover:scale-125 ${data.userReaction === r.type ? 'bg-white/10 scale-110' : ''}`}
+                                        >
+                                            {r.emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <button onClick={handleComment} className="flex items-center gap-1.5 text-secondaryText hover:text-white transition-colors">
+                    <MessageCircle className="w-4 h-4" />
+                    {data.commentCount > 0 && <span className="text-[11px] font-bold">{data.commentCount}</span>}
+                </button>
+                <button onClick={handleShare} className="flex items-center gap-1.5 text-secondaryText hover:text-white transition-colors ml-auto">
+                    <Share2 className="w-4 h-4" />
+                </button>
+            </div>
+            <CommentsSheet feedItemId={feedItemId} open={commentsOpen} onClose={() => setCommentsOpen(false)} />
+        </>
     );
 }
 

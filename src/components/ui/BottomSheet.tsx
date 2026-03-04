@@ -43,8 +43,11 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
                 }
             `}</style>
 
-            {/* Full-screen overlay — portaled to body */}
-            <div style={{
+            {/* Full-screen overlay — portaled to body; stopPropagation prevents React synthetic events from bubbling through the portal back to parent components */}
+            <div
+                onClick={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
+                style={{
                 position: 'fixed',
                 top: 0,
                 left: 0,

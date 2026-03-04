@@ -144,6 +144,33 @@ export interface Payment {
   receiver?: { id: string; fullName: string; avatarUrl?: string };
 }
 
+// ── Social Feature Types ─────────────────────────────────────────
+
+export type ReactionType = 'heart' | 'fire' | 'clap' | 'flag' | 'skull' | 'laugh';
+
+export interface FeedLike {
+  id: string;
+  feedItemId: string;
+  userId: string;
+  reactionType: ReactionType;
+  createdAt: string;
+}
+
+export interface FeedComment {
+  id: string;
+  feedItemId: string;
+  userId: string;
+  body: string;
+  createdAt: string;
+  author?: { id: string; fullName: string; avatarUrl?: string };
+}
+
+export interface FeedItemSocialData {
+  reactions: Partial<Record<ReactionType, number>>;
+  userReaction: ReactionType | null;
+  commentCount: number;
+}
+
 export interface ScoreEditLog {
   id: string;
   matchId: string;
