@@ -59,23 +59,29 @@ export default function BloodBankPage() {
 
             <main className="flex-1 overflow-y-auto px-4 pb-24 relative z-10">
                 {/* Balance Display */}
-                <div className="flex flex-col items-center justify-center mt-6 mb-10 relative">
+                <div className="flex flex-col items-center justify-center mt-2 mb-10 relative">
                     <motion.div
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ type: "spring", bounce: 0.5, duration: 0.8 }}
                         className="relative z-10 flex flex-col items-center"
                     >
-                        <div className="flex items-center gap-3 mb-2">
-                            <BloodCoin className="w-8 h-8 md:w-10 md:h-10 animate-pulse-slow" />
-                            <h3 className="text-secondaryText font-bold uppercase tracking-widest text-xs">Available Balance</h3>
+                        {/* THE CENTERPIECE */}
+                        <div className="relative mb-6">
+                            <BloodCoin size="giant" className="opacity-100" />
+                            {/* Reflection on floor */}
+                            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-32 h-4 bg-bloodRed/20 blur-xl rounded-[100%] scale-x-150" />
                         </div>
-                        <h1 className="text-6xl md:text-7xl font-black text-white italic tracking-tighter drop-shadow-[0_0_25px_rgba(255,0,63,0.4)]">
-                            {isLoading ? '...' : balance.toLocaleString()}
-                        </h1>
-                        <div className="mt-3 px-3 py-1 bg-white/5 border border-white/10 rounded-full flex items-center gap-2 backdrop-blur-md">
-                            <Shield className="w-3 h-3 text-neonGreen" />
-                            <span className="text-[9px] text-white/70 uppercase font-black tracking-widest">Secured by Supabase Layer 2</span>
+
+                        <div className="flex flex-col items-center">
+                            <h3 className="text-secondaryText font-black uppercase tracking-[0.3em] text-[10px] mb-2 opacity-50">Available Balance</h3>
+                            <h1 className="text-6xl md:text-7xl font-black text-white italic tracking-tighter drop-shadow-[0_0_35px_rgba(255,0,63,0.3)]">
+                                {isLoading ? '...' : balance.toLocaleString()}
+                            </h1>
+                            <div className="mt-4 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full flex items-center gap-2 backdrop-blur-md">
+                                <Shield className="w-3 h-3 text-neonGreen" />
+                                <span className="text-[9px] text-white/70 uppercase font-black tracking-widest">Secured by Vault-Level Encryption</span>
+                            </div>
                         </div>
                     </motion.div>
                 </div>
