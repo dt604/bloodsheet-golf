@@ -92,92 +92,101 @@ function CoinFace() {
             viewBox="0 0 100 100"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className="w-full h-full drop-shadow-[0_0_12px_rgba(255,0,63,0.4)]"
+            className="w-full h-full drop-shadow-[0_0_15px_rgba(255,0,63,0.5)]"
         >
-            {/* Outer Deep Metal Rim */}
-            <circle cx="50" cy="50" r="48" fill="url(#coin-metal-outer)" stroke="#000" strokeWidth="1" />
-
-            {/* Inner Ridges (Coin texture) */}
-            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" strokeDasharray="1 2" />
-
-            {/* Main Metal Face */}
-            <circle cx="50" cy="50" r="42" fill="url(#coin-metal-inner)" stroke="#1a1a1c" strokeWidth="2" />
-
-            {/* Beveled Edge highlight */}
-            <circle cx="50" cy="50" r="41.5" fill="none" stroke="url(#rim-light)" strokeWidth="1" />
-
-            {/* Glowing Blood Core Foundation */}
-            <circle cx="50" cy="50" r="32" fill="#050505" />
-            <circle cx="50" cy="50" r="30" fill="url(#blood-liquid-core)" filter="url(#fluid-glow)" />
-
-            {/* The "B" BloodSheet Icon (High Polish Chrome) */}
-            <g filter="url(#logo-shadow)">
-                <path
-                    d="M40 30 L55 30 C63 30 65 35 65 42.5 C65 48 60 50 55 50 L40 50 Z"
-                    fill="url(#logo-chrome)"
-                />
-                <path
-                    d="M40 50 L58 50 C66 50 68 55 68 62.5 C68 69 64 72 55 72 L40 72 Z"
-                    fill="url(#logo-chrome)"
-                />
-                {/* Slashes */}
-                <rect x="38" y="25" width="4" height="50" rx="2" fill="url(#logo-chrome)" />
-                <rect x="46" y="25" width="4" height="50" rx="2" fill="url(#logo-chrome)" />
-            </g>
-
-            {/* Surface Glass Reflection */}
-            <path
-                d="M 25 35 Q 50 20 75 35"
-                fill="none"
-                stroke="white"
-                strokeOpacity="0.15"
-                strokeWidth="2"
-                strokeLinecap="round"
-            />
-
             <defs>
-                <linearGradient id="coin-metal-outer" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#3a3a3e" />
-                    <stop offset="50%" stopColor="#1a1a1c" />
-                    <stop offset="100%" stopColor="#0a0a0b" />
+                {/* Golf Ball Dimple Pattern */}
+                <pattern id="dimples" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <circle cx="5" cy="5" r="3.5" fill="#1c1c1e" />
+                    <circle cx="5.2" cy="5.2" r="3.5" fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth="0.5" />
+                    <circle cx="4.8" cy="4.8" r="3.5" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />
+                </pattern>
+
+                {/* Carbon Fiber Rim Texture */}
+                <pattern id="carbon" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+                    <rect width="2" height="2" fill="#111" />
+                    <rect x="2" y="2" width="2" height="2" fill="#111" />
+                    <rect x="2" width="2" height="2" fill="#1a1a1c" />
+                    <rect y="2" width="2" height="2" fill="#1a1a1c" />
+                </pattern>
+
+                <linearGradient id="rim-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#333" />
+                    <stop offset="50%" stopColor="#111" />
+                    <stop offset="100%" stopColor="#222" />
                 </linearGradient>
 
-                <linearGradient id="coin-metal-inner" x1="100%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#2c2c31" />
-                    <stop offset="50%" stopColor="#1a1a1c" />
-                    <stop offset="100%" stopColor="#121214" />
-                </linearGradient>
-
-                <linearGradient id="rim-light" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.2" />
-                    <stop offset="45%" stopColor="#ffffff" stopOpacity="0" />
-                    <stop offset="55%" stopColor="#ffffff" stopOpacity="0" />
-                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0.2" />
-                </linearGradient>
-
-                <radialGradient id="blood-liquid-core" cx="50%" cy="50%" r="50%" fx="35%" fy="35%">
-                    <stop offset="0%" stopColor="#FF003F" />
-                    <stop offset="60%" stopColor="#8B0000" />
-                    <stop offset="100%" stopColor="#300000" />
+                <radialGradient id="blood-glow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#FF003F" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#FF003F" stopOpacity="0" />
                 </radialGradient>
 
-                <linearGradient id="logo-chrome" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#ffffff" />
-                    <stop offset="20%" stopColor="#9a9a9a" />
-                    <stop offset="50%" stopColor="#ffffff" />
-                    <stop offset="80%" stopColor="#7a7a7a" />
-                    <stop offset="100%" stopColor="#ffffff" />
+                <linearGradient id="logo-liquid" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#FF003F" />
+                    <stop offset="50%" stopColor="#B2002C" />
+                    <stop offset="100%" stopColor="#660014" />
                 </linearGradient>
 
-                <filter id="fluid-glow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="2.5" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-
-                <filter id="logo-shadow">
-                    <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.5" />
+                <filter id="inner-shadow">
+                    <feOffset dx="0" dy="2" />
+                    <feGaussianBlur stdDeviation="1.5" result="offset-blur" />
+                    <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
+                    <feFlood floodColor="black" floodOpacity="0.8" result="color" />
+                    <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+                    <feComposite operator="over" in="shadow" in2="SourceGraphic" />
                 </filter>
             </defs>
+
+            {/* Outer Rim (Carbon Fiber / Metal) */}
+            <circle cx="50" cy="50" r="48" fill="url(#rim-gradient)" stroke="#000" strokeWidth="1" />
+            <circle cx="50" cy="50" r="48" fill="url(#carbon)" opacity="0.4" />
+
+            {/* Inner Face with Golf Ball Texture */}
+            <circle cx="50" cy="50" r="40" fill="#1c1c1e" stroke="#2a2a2e" strokeWidth="1" />
+            <circle cx="50" cy="50" r="39" fill="url(#dimples)" />
+
+            {/* Ambient Red Glow in Center */}
+            <circle cx="50" cy="50" r="25" fill="url(#blood-glow)" />
+
+            {/* Refined "B" Logo - Combining a Drop and a Golf Flag/Path */}
+            <g filter="url(#inner-shadow)">
+                <path
+                    d="M38 28 
+                       C 38 28, 38 72, 38 72
+                       L 55 72 
+                       C 68 72, 72 65, 72 58
+                       C 72 52, 68 50, 58 50
+                       C 65 50, 68 45, 68 40
+                       C 68 32, 62 28, 52 28
+                       Z
+                       M 44 35
+                       L 52 35
+                       C 58 35, 62 38, 62 42
+                       C 62 48, 58 49, 52 49
+                       L 44 49
+                       Z
+                       M 44 55
+                       L 55 55
+                       C 62 55, 66 58, 66 64
+                       C 66 70, 62 70, 55 70
+                       L 44 70
+                       Z"
+                    fill="url(#logo-liquid)"
+                    stroke="#FF003F"
+                    strokeWidth="0.5"
+                    style={{ filter: 'drop-shadow(0 0 5px rgba(255,0,63,0.8))' }}
+                />
+            </g>
+
+            {/* High Shine Polish */}
+            <path
+                d="M 30 30 Q 50 15 70 30"
+                stroke="white"
+                strokeWidth="1.5"
+                strokeOpacity="0.2"
+                strokeLinecap="round"
+                fill="none"
+            />
         </svg>
     );
 }
