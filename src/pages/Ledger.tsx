@@ -813,7 +813,7 @@ export default function LedgerPage() {
 
     useEffect(() => {
         if (!match || match.status !== 'completed') return;
-        if (!user || user.id !== match.createdBy) return; // Only scorekeeper acts as the single source of truth for settlement
+        if (!user) return;
         // Small delay to ensure state and DB are current before calculating payouts
         const timer = setTimeout(() => {
             autoSettleBloodCoins(match, players, scores, groupSettlements, groupState);
