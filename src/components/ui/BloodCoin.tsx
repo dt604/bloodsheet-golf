@@ -13,7 +13,7 @@ const sizeMap = {
     md: 44,
     lg: 80,
     xl: 120,
-    giant: 240
+    giant: 200
 };
 
 export function BloodCoin({ size = "md", className = "", animated = true }: BloodCoinProps) {

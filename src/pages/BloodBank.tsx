@@ -73,7 +73,7 @@ export default function BloodBankPage() {
                         </div>
 
                         {/* THE CENTERPIECE */}
-                        <div className="relative mb-8 scale-110">
+                        <div className="relative mb-8">
                             <BloodCoin size="giant" className="drop-shadow-[0_0_60px_rgba(255,0,63,0.4)]" />
                             {/* Reflection on floor */}
                             <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-48 h-8 bg-bloodRed/20 blur-3xl rounded-[100%] scale-x-150" />
