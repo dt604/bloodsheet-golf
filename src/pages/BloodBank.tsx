@@ -79,9 +79,9 @@ export default function BloodBankPage() {
                             <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-48 h-8 bg-bloodRed/20 blur-3xl rounded-[100%] scale-x-150" />
                         </div>
 
-                        <div className="flex flex-col items-center text-center mt-4 w-full max-w-[90vw] px-4">
+                        <div className="flex flex-col items-center text-center mt-4 w-full px-6">
                             <h3 className="text-secondaryText font-black uppercase tracking-[0.4em] text-[10px] mb-3 opacity-40 italic">Total Available Credit</h3>
-                            <h1 className="text-6xl sm:text-7xl md:text-8xl font-black text-white italic tracking-tighter drop-shadow-[0_0_35px_rgba(255,0,63,0.3)] leading-none mb-6 break-all">
+                            <h1 className="text-5xl sm:text-7xl md:text-8xl font-black text-white italic tracking-tight drop-shadow-[0_0_35px_rgba(255,0,63,0.3)] leading-none mb-6 break-words pr-2">
                                 {isLoading ? '...' : balance.toLocaleString()}
                             </h1>
 
