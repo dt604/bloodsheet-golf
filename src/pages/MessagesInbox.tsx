@@ -36,7 +36,7 @@ export default function MessagesInboxPage() {
                 // Fetch chats the user is participating in
                 const { data: participations } = await supabase
                     .from('chat_participants')
-                    .select('chat_id, chats!inner(type, match_id, created_at, messages(content, created_at, user_id))')
+                    .select('chat_id, hidden_at, chats!inner(type, match_id, created_at, messages(content, created_at, user_id))')
                     .eq('user_id', user.id)
                     .eq('chats.type', 'direct')
                     .order('chats(created_at)', { ascending: false });
@@ -46,7 +46,27 @@ export default function MessagesInboxPage() {
                     return;
                 }
 
-                const chatIds = participations.map(p => p.chat_id);
+                // Filter out hidden chats unless they have a message newer than hidden_at
+                const visibleParticipations = participations.filter(p => {
+                    if (!p.hidden_at) return true;
+
+                    const chat = p.chats as any;
+                    const messages = chat.messages || [];
+                    if (messages.length === 0) return false;
+
+                    const latestMsg = [...messages].sort((a: any, b: any) =>
+                        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                    )[0];
+
+                    return new Date(latestMsg.created_at).getTime() > new Date(p.hidden_at).getTime();
+                });
+
+                if (visibleParticipations.length === 0) {
+                    setChats([]);
+                    return;
+                }
+
+                const chatIds = visibleParticipations.map(p => p.chat_id);
 
                 // Fetch other participants for these chats to get names/avatars
                 const { data: otherParticipants } = await supabase
@@ -55,7 +75,7 @@ export default function MessagesInboxPage() {
                     .in('chat_id', chatIds)
                     .neq('user_id', user.id);
 
-                const finalChats = participations.map(p => {
+                const finalChats = visibleParticipations.map(p => {
                     const chat = p.chats as any;
                     // Supabase nested queries might return arrays for messages if not limited, but let's grab the latest via a subquery or JS sort
                     // Since it's unstructured, we sort in JS for now (limit is better done in a view or rpc, but this works for small scale)
@@ -121,7 +141,7 @@ export default function MessagesInboxPage() {
         try {
             const { error } = await supabase
                 .from('chat_participants')
-                .delete()
+                .update({ hidden_at: new Date().toISOString() })
                 .eq('user_id', user.id)
                 .in('chat_id', selectedChatIds);
 
