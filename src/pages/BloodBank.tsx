@@ -46,20 +46,20 @@ export default function BloodBankPage() {
             <div className="absolute -top-32 -right-32 w-[300px] h-[300px] bg-[#00FF66]/5 rounded-full blur-[100px] pointer-events-none" />
 
             {/* Header */}
-            <header className="flex flex-col sticky top-0 z-30 pt-safe bg-transparent">
+            <header className="flex flex-col sticky top-0 z-30 pt-safe bg-[#0B0B0C]/80 backdrop-blur-xl border-b border-white/[0.05]">
                 <div className="flex items-center p-4">
-                    <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors relative z-10 w-10 h-10 flex items-center justify-center">
+                    <button onClick={() => navigate('/home')} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors relative z-10 w-10 h-10 flex items-center justify-center">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
                     <div className="absolute inset-x-0 flex justify-center pointer-events-none">
-                        <h2 className="text-sm font-black text-secondaryText tracking-[0.2em] uppercase">The Blood Bank</h2>
+                        <h2 className="text-[10px] font-black text-white/50 tracking-[0.3em] uppercase mt-1">Player Wallet</h2>
                     </div>
                 </div>
             </header>
 
-            <main className="flex-1 overflow-y-auto px-4 pb-24 relative z-10">
+            <main className="flex-1 overflow-y-auto px-4 pb-24 relative z-10 pt-8">
                 {/* Balance Display */}
-                <div className="flex flex-col items-center justify-center mt-2 mb-10 relative">
+                <div className="flex flex-col items-center justify-center mb-12 relative">
                     <motion.div
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
@@ -67,20 +67,20 @@ export default function BloodBankPage() {
                         className="relative z-10 flex flex-col items-center"
                     >
                         {/* THE CENTERPIECE */}
-                        <div className="relative mb-6">
-                            <BloodCoin size="giant" className="opacity-100" />
+                        <div className="relative mb-8">
+                            <BloodCoin size="giant" className="drop-shadow-[0_0_50px_rgba(255,0,63,0.3)]" />
                             {/* Reflection on floor */}
-                            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-32 h-4 bg-bloodRed/20 blur-xl rounded-[100%] scale-x-150" />
+                            <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-48 h-6 bg-bloodRed/20 blur-2xl rounded-[100%] scale-x-150" />
                         </div>
 
-                        <div className="flex flex-col items-center">
-                            <h3 className="text-secondaryText font-black uppercase tracking-[0.3em] text-[10px] mb-2 opacity-50">Available Balance</h3>
-                            <h1 className="text-6xl md:text-7xl font-black text-white italic tracking-tighter drop-shadow-[0_0_35px_rgba(255,0,63,0.3)]">
+                        <div className="flex flex-col items-center text-center">
+                            <h3 className="text-secondaryText font-black uppercase tracking-[0.4em] text-[9px] mb-2 opacity-40">Personal Credit Balance</h3>
+                            <h1 className="text-7xl md:text-8xl font-black text-white italic tracking-tighter drop-shadow-[0_0_35px_rgba(255,0,63,0.3)] leading-none">
                                 {isLoading ? '...' : balance.toLocaleString()}
                             </h1>
-                            <div className="mt-4 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full flex items-center gap-2 backdrop-blur-md">
-                                <Shield className="w-3 h-3 text-neonGreen" />
-                                <span className="text-[9px] text-white/70 uppercase font-black tracking-widest">Secured by Vault-Level Encryption</span>
+                            <div className="mt-6 px-4 py-2 bg-white/[0.03] border border-white/[0.08] rounded-full flex items-center gap-2 backdrop-blur-md shadow-2xl">
+                                <Shield className="w-3 h-3 text-neonGreen shadow-[0_0_10px_rgba(0,255,102,0.5)]" />
+                                <span className="text-[8px] text-white/60 uppercase font-black tracking-[0.2em]">End-to-End Encrypted Vault</span>
                             </div>
                         </div>
                     </motion.div>

@@ -30,7 +30,7 @@ export default function BottomNavigation() {
 
     const navItems = [
         { icon: Home, label: 'Home', path: '/home', showDot: hasUnseenActivity },
-        { icon: Wallet, label: 'Bank', path: '/blood-bank' },
+        { icon: Wallet, label: 'Wallet', path: '/blood-bank' },
         { icon: MessageSquare, label: 'Chat', path: '/messages' },
         { icon: Users, label: 'Friends', path: '/friends' }
     ];

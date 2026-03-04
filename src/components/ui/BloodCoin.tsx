@@ -59,16 +59,16 @@ export function BloodCoin({ size = "md", className = "", animated = true }: Bloo
 
                 {/* Front Face */}
                 <div
-                    className="absolute inset-0 rounded-full backface-hidden"
-                    style={{ transform: 'translateZ(3px)' }}
+                    className="absolute inset-0 rounded-full overflow-hidden backface-hidden"
+                    style={{ transform: 'translateZ(3px)', clipPath: 'circle(50% at 50% 50%)' }}
                 >
                     <CoinFace />
                 </div>
 
                 {/* Back Face (Mirrored) */}
                 <div
-                    className="absolute inset-0 rounded-full backface-hidden"
-                    style={{ transform: 'translateZ(-3px) rotateY(180deg)' }}
+                    className="absolute inset-0 rounded-full overflow-hidden backface-hidden"
+                    style={{ transform: 'translateZ(-3px) rotateY(180deg)', clipPath: 'circle(50% at 50% 50%)' }}
                 >
                     <CoinFace />
                 </div>
