@@ -10,7 +10,6 @@ import { supabase } from '../lib/supabase';
 import confetti from 'canvas-confetti';
 import SEO from '../components/SEO';
 import { BloodCoin } from '../components/ui/BloodCoin';
-import { PresenceIndicator } from '../components/ui/PresenceIndicator';
 import { autoSettleBloodCoins } from '../lib/settlement';
 
 interface LineItem {
@@ -816,7 +815,7 @@ export default function LedgerPage() {
         if (!user) return;
         // Small delay to ensure state and DB are current before calculating payouts
         const timer = setTimeout(() => {
-            autoSettleBloodCoins(match, players, scores, groupSettlements, groupState);
+            autoSettleBloodCoins(match, players, scores, groupState);
         }, 500);
         return () => clearTimeout(timer);
     }, [match?.status, match?.id, user?.id]);

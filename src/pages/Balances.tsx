@@ -8,7 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import SEO from '../components/SEO';
 import { supabase } from '../lib/supabase';
-import { Debt, Payment } from '../types';
+import { Debt } from '../types';
 import { BloodCoin } from '../components/ui/BloodCoin';
 
 type Tab = 'owed_by_me' | 'owed_to_me' | 'history';

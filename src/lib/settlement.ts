@@ -5,7 +5,6 @@ export async function autoSettleBloodCoins(
     match: Match,
     players: MatchPlayer[],
     scores: HoleScore[],
-    groupSettlements?: any[],
     groupState?: any
 ) {
     if (match.bloodCoinsSettled) return;
