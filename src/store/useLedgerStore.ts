@@ -6,6 +6,7 @@ interface LedgerState {
     debtsOwedByMe: Debt[];
     debtsOwedToMe: Debt[];
     payments: Payment[];
+    paymentHistory: Payment[];
     isLoading: boolean;
     error: string | null;
 
@@ -15,12 +16,14 @@ interface LedgerState {
     providePaymentInfo: (paymentId: string, method: Payment['method'], address: string) => Promise<void>;
     submitPayment: (paymentId: string, amount: number) => Promise<void>;
     confirmPayment: (paymentId: string) => Promise<void>;
+    settleWithCash: (debtId: string, amount: number) => Promise<void>;
 }
 
 export const useLedgerStore = create<LedgerState>((set, get) => ({
     debtsOwedByMe: [],
     debtsOwedToMe: [],
     payments: [],
+    paymentHistory: [],
     isLoading: false,
     error: null,
 
@@ -72,6 +75,21 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
                 if (pData) paymentsData = pData;
             }
 
+            // Fetch payment history (confirmed payments involving user)
+            const { data: historyData, error: err4 } = await supabase
+                .from('payments')
+                .select(`
+                    *,
+                    payer:profiles!payments_payer_id_fkey(id, full_name, avatar_url),
+                    receiver:profiles!payments_receiver_id_fkey(id, full_name, avatar_url)
+                `)
+                .or(`payer_id.eq.${userId},receiver_id.eq.${userId}`)
+                .eq('status', 'confirmed')
+                .order('updated_at', { ascending: false })
+                .limit(50);
+
+            if (err4) throw err4;
+
             // Map keys
             const mapDebt = (d: any): Debt => ({
                 id: d.id,
@@ -105,13 +123,24 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
                 paymentAddress: p.payment_address,
                 status: p.status,
                 createdAt: p.created_at,
-                updatedAt: p.updated_at
+                updatedAt: p.updated_at,
+                payer: p.payer ? {
+                    id: p.payer.id,
+                    fullName: p.payer.full_name,
+                    avatarUrl: p.payer.avatar_url
+                } : undefined,
+                receiver: p.receiver ? {
+                    id: p.receiver.id,
+                    fullName: p.receiver.full_name,
+                    avatarUrl: p.receiver.avatar_url
+                } : undefined
             });
 
             set({
                 debtsOwedByMe: (owedByMeData || []).map(mapDebt),
                 debtsOwedToMe: (owedToMeData || []).map(mapDebt),
                 payments: paymentsData.map(mapPayment),
+                paymentHistory: (historyData || []).map(mapPayment),
                 isLoading: false
             });
 
@@ -124,7 +153,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     createDebt: async (matchId, debtorId, creditorId, amount) => {
         set({ isLoading: true, error: null });
         try {
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('debts')
                 .insert([{
                     match_id: matchId,
@@ -260,6 +289,33 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
             const myId = get().debtsOwedToMe[0]?.creditorId || get().debtsOwedByMe[0]?.debtorId;
             if (myId) await get().loadDebts(myId);
 
+            set({ isLoading: false });
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false });
+        }
+    },
+
+    // Debtor bypassed transfer flow and handed over cash
+    settleWithCash: async (debtId, amount) => {
+        set({ isLoading: true, error: null });
+        try {
+            const debt = get().debtsOwedByMe.find(d => d.id === debtId);
+            if (!debt) throw new Error("Debt not found");
+
+            const { error } = await supabase
+                .from('payments')
+                .insert([{
+                    debt_id: debtId,
+                    payer_id: debt.debtorId,
+                    receiver_id: debt.creditorId,
+                    amount: amount,
+                    method: 'cash',
+                    status: 'pending_confirmation'
+                }]);
+
+            if (error) throw error;
+
+            await get().loadDebts(debt.debtorId);
             set({ isLoading: false });
         } catch (error: any) {
             set({ error: error.message, isLoading: false });

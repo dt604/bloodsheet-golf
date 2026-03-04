@@ -136,7 +136,12 @@ export interface Payment {
   method: 'venmo' | 'cashapp' | 'etransfer' | 'cash' | 'other';
   paymentAddress?: string;
   status: 'requested_info' | 'pending_confirmation' | 'confirmed' | 'rejected';
+  createdAt: string;
   updatedAt: string;
+
+  // Joined relations
+  payer?: { id: string; fullName: string; avatarUrl?: string };
+  receiver?: { id: string; fullName: string; avatarUrl?: string };
 }
 
 export interface ScoreEditLog {
