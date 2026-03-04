@@ -1,12 +1,25 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import TopHeader from './TopHeader';
 import BottomNavigation from './BottomNavigation';
+import { useAuth } from '../../contexts/AuthContext';
+import { usePresenceStore } from '../../store/usePresenceStore';
 
 interface MainLayoutProps {
     children: ReactNode;
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
+    const { user } = useAuth();
+    const initializePresence = usePresenceStore(state => state.initialize);
+    const cleanupPresence = usePresenceStore(state => state.cleanup);
+
+    useEffect(() => {
+        if (user) {
+            initializePresence(user.id);
+        }
+        return () => cleanupPresence();
+    }, [user, initializePresence, cleanupPresence]);
+
     return (
         <div className="flex flex-col h-full w-full bg-background relative overflow-hidden text-primaryText font-sans">
             <TopHeader />

@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useFriendsStore } from '../store/useFriendsStore';
 import { supabase } from '../lib/supabase';
 import SEO from '../components/SEO';
+import { PresenceIndicator } from '../components/ui/PresenceIndicator';
 
 
 interface ProfileData {
@@ -339,9 +340,19 @@ export default function PlayerProfilePage() {
                                 <span className="text-[11px] font-black uppercase tracking-widest text-bloodRed">BloodSheet Legend</span>
                             </div>
                         )}
-                        <span className="text-xs font-semibold uppercase tracking-wider text-secondaryText mb-8 mt-1 block">
-                            Member since {memberYear}
-                        </span>
+                        <div className="flex flex-col items-center gap-2 mb-8 mt-1">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-secondaryText block">
+                                Member since {memberYear}
+                            </span>
+                            {userId && (
+                                <PresenceIndicator
+                                    userId={userId}
+                                    showLabel
+                                    size="md"
+                                    className="bg-white/5 px-2.5 py-1 rounded-full border border-white/10"
+                                />
+                            )}
+                        </div>
 
                         <div className="w-full flex">
                             <div className="flex-1 border-r border-borderColor flex flex-col items-center justify-center py-2 px-1">

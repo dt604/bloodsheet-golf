@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useFriendsStore } from '../store/useFriendsStore';
 import { supabase } from '../lib/supabase';
 import SEO from '../components/SEO';
+import { PresenceIndicator } from '../components/ui/PresenceIndicator';
 
 export default function FriendsPage() {
     const navigate = useNavigate();
@@ -117,7 +118,14 @@ export default function FriendsPage() {
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => { if (f.friendProfile?.id) navigate(`/player/${f.friendProfile.id}`); }}
                                     >
-                                        {renderProfileAvatar(f.friendProfile?.avatarUrl, f.friendProfile?.fullName)}
+                                        <div className="relative">
+                                            {renderProfileAvatar(f.friendProfile?.avatarUrl, f.friendProfile?.fullName)}
+                                            <PresenceIndicator
+                                                userId={f.friendProfile?.id || ''}
+                                                size="sm"
+                                                className="absolute -bottom-0.5 -right-0.5 border-2 border-background rounded-full"
+                                            />
+                                        </div>
                                         <div>
                                             <div className="font-bold text-white text-sm sm:text-base">{f.friendProfile?.fullName}</div>
                                             <div className="text-xs text-neonGreen font-black tracking-widest uppercase">IDX: {f.friendProfile?.handicap}</div>

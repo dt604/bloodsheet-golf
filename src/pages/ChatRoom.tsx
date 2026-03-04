@@ -5,6 +5,7 @@ import { ChevronLeft, Send, Trash2, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { motion } from 'framer-motion';
+import { PresenceIndicator } from '../components/ui/PresenceIndicator';
 
 interface Message {
     id: string;
@@ -48,13 +49,14 @@ export default function ChatRoomPage() {
                     .eq('chat_id', chatId);
 
                 if (participants) {
-                    const otherPerson = participants.find(p => p.user_id !== user.id);
+                    const otherPerson = participants.find(p => p.user_id !== user?.id);
                     if (otherPerson) {
                         const profiles = otherPerson.profiles as any;
                         setChatDetails({
+                            id: otherPerson.user_id,
                             name: profiles?.full_name || 'Chat',
                             avatar: profiles?.avatar_url,
-                            type: 'direct' // Assuming a chat room routed by chatId is direct if loaded via MessagesInbox
+                            type: 'direct'
                         });
                     }
                 }
@@ -173,12 +175,22 @@ export default function ChatRoomPage() {
                                 {chatDetails.avatar ? (
                                     <img src={chatDetails.avatar} alt={chatDetails.name} className="w-full h-full object-cover" />
                                 ) : (
-                                    chatDetails.name.slice(0, 2).toUpperCase()
+                                    chatDetails.name?.slice(0, 2).toUpperCase()
                                 )}
                             </div>
-                            <h1 className="text-lg font-black uppercase italic tracking-wider text-white">
-                                {chatDetails.name}
-                            </h1>
+                            <div>
+                                <h1 className="text-lg font-black uppercase italic tracking-wider text-white leading-none">
+                                    {chatDetails.name}
+                                </h1>
+                                {chatDetails?.id && (
+                                    <PresenceIndicator
+                                        userId={chatDetails.id}
+                                        showLabel
+                                        size="sm"
+                                        className="mt-0.5"
+                                    />
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useFriendsStore } from '../store/useFriendsStore';
+import { PresenceIndicator } from '../components/ui/PresenceIndicator';
 
 export default function MessagesInboxPage() {
     const { user } = useAuth();
@@ -324,6 +325,12 @@ export default function MessagesInboxPage() {
                                                     initials
                                                 )}
                                             </div>
+                                            {/* Presence Indicator */}
+                                            <PresenceIndicator
+                                                userId={p.id}
+                                                size="sm"
+                                                className="absolute -bottom-0.5 -right-0.5 border-2 border-background rounded-full"
+                                            />
                                         </div>
 
                                         <div className="flex-1 min-w-0">
