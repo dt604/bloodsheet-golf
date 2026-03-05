@@ -429,7 +429,7 @@ export default function BalancesPage() {
             <SEO title="Balances | Ledger" />
             <header className="flex flex-col border-b border-white/5 bg-surface/90 backdrop-blur-3xl sticky top-0 z-30">
                 <div className="flex items-center p-4">
-                    <button onClick={() => navigate('/wallet')} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
+                    <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-secondaryText hover:text-white transition-colors">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div className="flex-1 ml-2 flex items-center justify-between">
