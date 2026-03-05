@@ -168,9 +168,9 @@ export default function BloodBankPage() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/pro-shop')}
-                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-bloodRed/20 hover:border-bloodRed/50 transition-all duration-500 transform-gpu"
+                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-bloodRed/20 hover:border-bloodRed/50 transition-all duration-500"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 via-background to-bloodRed/5 backdrop-blur-2xl transform-gpu" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 via-background to-bloodRed/5 backdrop-blur-2xl" />
                         <div className="absolute -right-10 -top-10 w-32 h-32 bg-bloodRed/10 rounded-full blur-3xl pointer-events-none group-hover:bg-bloodRed/20 transition-colors" />
 
                         <div className="relative z-10 p-4 sm:p-5 flex items-center justify-between">
@@ -182,11 +182,11 @@ export default function BloodBankPage() {
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-start flex-1 min-w-0">
-                                    <span className="text-white font-black text-lg sm:text-xl leading-none uppercase italic tracking-tight mb-1 sm:mb-1.5 flex items-center gap-2 truncate w-full">
+                                    <span className="text-white font-black text-lg sm:text-xl leading-none uppercase italic tracking-tight mb-1 sm:mb-1.5 flex items-center gap-2">
                                         The Pro Shop
                                         <div className="h-1.5 w-1.5 rounded-full bg-bloodRed/50 group-hover:bg-bloodRed shadow-[0_0_8px_rgba(255,0,63,0.8)] animate-pulse shrink-0" />
                                     </span>
-                                    <span className="text-[9px] sm:text-[10px] text-bloodRed uppercase tracking-[0.2em] font-black italic truncate w-full">Spend Blood Coins</span>
+                                    <span className="text-[9px] sm:text-[10px] text-bloodRed uppercase tracking-[0.2em] font-black italic">Spend Blood Coins</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -203,10 +203,10 @@ export default function BloodBankPage() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/balances')}
-                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-neonGreen/20 hover:border-neonGreen/50 transition-all duration-500 transform-gpu"
+                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-neonGreen/20 hover:border-neonGreen/50 transition-all duration-500"
                     >
                         {/* Background Layer with Glassmorphism and subtle green tint */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-neonGreen/10 via-background to-neonGreen/5 backdrop-blur-2xl transform-gpu" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-neonGreen/10 via-background to-neonGreen/5 backdrop-blur-2xl" />
 
                         {/* Subtle internal glow */}
                         <div className="absolute -left-10 -top-10 w-32 h-32 bg-neonGreen/10 rounded-full blur-3xl pointer-events-none group-hover:bg-neonGreen/20 transition-colors" />
@@ -222,11 +222,11 @@ export default function BloodBankPage() {
                                 </div>
 
                                 <div className="flex flex-col items-start flex-1 min-w-0">
-                                    <span className="text-white font-black text-lg sm:text-xl leading-none uppercase italic tracking-tight mb-1 sm:mb-1.5 flex items-center gap-2 truncate w-full">
+                                    <span className="text-white font-black text-lg sm:text-xl leading-none uppercase italic tracking-tight mb-1 sm:mb-1.5 flex items-center gap-2">
                                         Cash Ledger
                                         <div className="h-1.5 w-1.5 rounded-full bg-neonGreen/50 group-hover:bg-neonGreen shadow-[0_0_8px_rgba(0,255,102,0.8)] animate-pulse shrink-0" />
                                     </span>
-                                    <span className="text-[9px] sm:text-[10px] text-neonGreen uppercase tracking-[0.2em] font-black italic truncate w-full">Settle Your Debts</span>
+                                    <span className="text-[9px] sm:text-[10px] text-neonGreen uppercase tracking-[0.2em] font-black italic">Settle Your Debts</span>
                                 </div>
                             </div>
 
