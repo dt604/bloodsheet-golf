@@ -173,7 +173,7 @@ export default function BloodBankPage() {
                         <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 via-background to-bloodRed/5 backdrop-blur-2xl" />
                         <div className="absolute -right-10 -top-10 w-32 h-32 bg-bloodRed/10 rounded-full blur-3xl pointer-events-none group-hover:bg-bloodRed/20 transition-colors" />
 
-                        <div className="relative p-4 sm:p-5 flex items-center justify-between">
+                        <div className="relative z-10 p-4 sm:p-5 flex items-center justify-between">
                             <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
                                 <div className="relative shrink-0">
                                     <div className="absolute inset-0 bg-bloodRed/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -211,7 +211,7 @@ export default function BloodBankPage() {
                         {/* Subtle internal glow */}
                         <div className="absolute -left-10 -top-10 w-32 h-32 bg-neonGreen/10 rounded-full blur-3xl pointer-events-none group-hover:bg-neonGreen/20 transition-colors" />
 
-                        <div className="relative p-4 sm:p-5 flex items-center justify-between">
+                        <div className="relative z-10 p-4 sm:p-5 flex items-center justify-between">
                             <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
                                 {/* Icon with nested glow */}
                                 <div className="relative shrink-0">
