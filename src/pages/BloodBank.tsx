@@ -182,8 +182,6 @@ export default function BloodBankPage() {
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] text-secondaryText uppercase tracking-[0.2em] font-black italic">Settle Your Debts</span>
-                                    <div className="h-[1px] w-4 bg-white/10" />
-                                    <span className="text-[9px] text-white/20 uppercase tracking-widest font-bold">USD Settlements</span>
                                 </div>
                             </div>
                         </div>
