@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader, Search, Camera, Check, User } from 'lucide-react';
+import { Loader, Camera, Check, User, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Button } from '../components/ui/Button';
+import { useUIStore } from '../store/useUIStore';
+import { startOnboardingTour, killTour } from '../lib/tour';
+import { COUNTRIES } from '../constants/countries';
+import { Globe, ChevronRight } from 'lucide-react';
+import { BottomSheet } from '../components/ui/BottomSheet';
 
 // Import avatars
 import juniorAvatar from '../assets/avatars/junior.png';
@@ -26,74 +31,123 @@ const AVATARS = [
 
 export default function OnboardingPage() {
     const navigate = useNavigate();
-    const { user, updateProfile } = useAuth();
+    const { user, profile, updateProfile } = useAuth();
+    const { hasSeenOnboardingTour, setSeenOnboardingTour } = useUIStore();
 
-    const [step, setStep] = useState<'search' | 'manual'>('manual');
-    const [search, setSearch] = useState('');
-    const [searching, setSearching] = useState(false);
-    const [results, setResults] = useState<any[]>([]);
+
+
+    // Pre-populate from profile (e.g. Grint data saved during signup)
+    const [handicapInit, setHandicapInit] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [nickname, setNickname] = useState(profile?.nickname || '');
 
     // Manual Setup State
-    const [handicap, setHandicap] = useState<string>('');
-    const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
-    const [customAvatar, setCustomAvatar] = useState<string | null>(null);
+    const [handicap, setHandicap] = useState<string>(
+        (profile?.handicap && profile.handicap > 0) ? profile.handicap.toString() : ''
+    );
+    const [selectedAvatar, setSelectedAvatar] = useState<string | null>(
+        profile?.avatarUrl && !profile.avatarUrl.includes('logo-final') && !profile.avatarUrl.includes('profile_default') && !profile.avatarUrl.includes('thumb_undefined')
+            ? 'custom' : null
+    );
+    const [customAvatar, setCustomAvatar] = useState<string | null>(
+        profile?.avatarUrl && !profile.avatarUrl.includes('logo-final') && !profile.avatarUrl.includes('profile_default') && !profile.avatarUrl.includes('thumb_undefined')
+            ? profile.avatarUrl : null
+    );
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(profile?.countryCode || null);
+    const [countrySearch, setCountrySearch] = useState('');
+    const [showCountryPicker, setShowCountryPicker] = useState(false);
+
+    const filteredCountries = COUNTRIES.filter(c =>
+        c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+        c.code.toLowerCase().includes(countrySearch.toLowerCase())
+    );
+
+    const selectedCountry = COUNTRIES.find(c => c.code === selectedCountryCode);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const inputClass =
-        'block w-full px-4 py-3 border border-borderColor rounded-xl bg-surface text-white placeholder-secondaryText focus:outline-none focus:ring-1 focus:ring-bloodRed focus:border-bloodRed text-sm transition-all';
 
-    // Auto-search by Google email on mount
+
+    const resumeTour = (stepIdx: number) => {
+        if (!hasSeenOnboardingTour) {
+            startOnboardingTour(() => setSeenOnboardingTour(true), stepIdx);
+        }
+    };
+
+    // If profile loads after initial render with Grint data, update local state
     useEffect(() => {
-        if (user?.email) {
-            setSearch(user.email);
-            runSearch(user.email);
-        }
-    }, [user?.email]);
-
-    async function runSearch(term: string) {
-        if (!term) return;
-        setSearching(true);
-        setResults([]);
-        try {
-            const { data } = await supabase.functions.invoke('grint-search', {
-                body: { search: term }
-            });
-            if (data?.data) {
-                setResults(data.data.map((u: any) => ({
-                    grintId: `grint-${u.id}`,
-                    fullName: u.name,
-                    handicap: parseFloat(u.handicap) || 0,
-                    avatarUrl: `https://profile.static.thegrint.com/thumb_${u.image}`,
-                    username: u.username,
-                })));
+        if (profile && !handicapInit) {
+            if (profile.handicap && profile.handicap > 0 && handicap === '') {
+                setHandicap(profile.handicap.toString());
             }
-        } catch (e) {
-            console.error(e);
+            const av = profile.avatarUrl;
+            if (av && !av.includes('logo-final') && !av.includes('profile_default') && !av.includes('thumb_undefined') && !customAvatar) {
+                setCustomAvatar(av);
+                setSelectedAvatar('custom');
+            }
+            setHandicapInit(true);
         }
-        setSearching(false);
-    }
+    }, [profile]);
 
-    async function handleSelect(res: any) {
-        setSaving(true);
-        await updateProfile({
-            handicap: res.handicap,
-            avatarUrl: res.avatarUrl,
-        });
-        triggerCelebration();
-        setSaving(false);
-        navigate('/dashboard', { replace: true });
-    }
+    // Use refs so evalTourStep always reads the latest values
+    const nicknameRef = useRef(nickname);
+    nicknameRef.current = nickname;
+    const countryRef = useRef(selectedCountryCode);
+    countryRef.current = selectedCountryCode;
+    const handicapRef = useRef(handicap);
+    handicapRef.current = handicap;
+    const avatarRef = useRef(selectedAvatar);
+    avatarRef.current = selectedAvatar;
+    const customAvatarRef = useRef(customAvatar);
+    customAvatarRef.current = customAvatar;
+
+    const evalTourStep = () => {
+        if (hasSeenOnboardingTour) return;
+
+        if (nicknameRef.current.length < 3) {
+            resumeTour(0);
+        } else if (!countryRef.current) {
+            resumeTour(1);
+        } else if (handicapRef.current === '' || handicapRef.current === '0' || handicapRef.current === '0.0') {
+            resumeTour(2);
+        } else if (!avatarRef.current && !customAvatarRef.current) {
+            resumeTour(3);
+        } else {
+            resumeTour(4);
+        }
+    };
+
+    // Initial Tour Trigger
+    useEffect(() => {
+        if (!hasSeenOnboardingTour) {
+            const timer = setTimeout(() => {
+                evalTourStep();
+            }, 800);
+            return () => clearTimeout(timer);
+        }
+    }, [hasSeenOnboardingTour]);
+
+    // Grint search is handled on the Welcome page before navigating here.
+    // The profile already has handicap + avatar data from signUp().
+
+
 
     async function handleManualSubmit() {
         setSaving(true);
-        const finalAvatar = customAvatar || (selectedAvatar ? AVATARS.find(a => a.id === selectedAvatar)?.url : DEFAULT_AVATAR);
+        let finalAvatar = DEFAULT_AVATAR;
+
+        if (selectedAvatar === 'custom' && customAvatar) {
+            finalAvatar = customAvatar;
+        } else if (selectedAvatar) {
+            finalAvatar = AVATARS.find(a => a.id === selectedAvatar)?.url || DEFAULT_AVATAR;
+        }
 
         await updateProfile({
+            nickname: nickname || undefined,
             handicap: parseFloat(handicap) || 0,
             avatarUrl: finalAvatar || undefined,
+            countryCode: selectedCountryCode || undefined,
         });
 
         triggerCelebration();
@@ -136,92 +190,7 @@ export default function OnboardingPage() {
     return (
         <div className="flex-1 flex flex-col bg-background p-6 overflow-y-auto min-h-screen">
             <AnimatePresence mode="wait">
-                {step === 'search' ? (
-                    <motion.div
-                        key="search-step"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        className="space-y-6 mt-8"
-                    >
-                        <div className="space-y-4 bg-surface/90 backdrop-blur-xl p-6 rounded-2xl border border-borderColor shadow-2xl text-left">
-                            <div className="flex flex-col mb-2">
-                                <span className="text-[10px] text-bloodRed font-bold tracking-[0.2em] mb-1">STEP 1</span>
-                                <h3 className="text-white font-black tracking-tight text-2xl mb-1 uppercase italic">Find Your Handicap</h3>
-                                <p className="text-secondaryText text-sm font-medium">Search The Grint to instantly link your verified index and profile picture.</p>
-                            </div>
-
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    className={`${inputClass} pl-11 shadow-inner placeholder:text-secondaryText/50`}
-                                    placeholder="Name, Email, or Username"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && runSearch(search)}
-                                />
-                                <Search className="w-5 h-5 text-secondaryText absolute left-4 top-3.5" />
-                            </div>
-
-                            <div className="max-h-64 overflow-y-auto space-y-2 mt-4 custom-scrollbar pr-1">
-                                {searching && (
-                                    <div className="flex justify-center py-6">
-                                        <Loader className="w-8 h-8 animate-spin text-bloodRed" />
-                                    </div>
-                                )}
-                                {!searching && results.length === 0 && search && (
-                                    <p className="text-secondaryText text-center py-4 font-semibold text-sm">No results found.</p>
-                                )}
-                                {!searching && results.map((res) => (
-                                    <button
-                                        key={res.grintId}
-                                        onClick={() => handleSelect(res)}
-                                        disabled={saving}
-                                        className="w-full text-left flex items-center justify-between p-3 rounded-lg bg-background hover:bg-surfaceHover border border-borderColor transition-all group"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {res.avatarUrl && !res.avatarUrl.includes('profile_default') ? (
-                                                <img src={res.avatarUrl} alt={res.fullName} className="w-10 h-10 rounded-full object-cover border border-borderColor shadow-lg" />
-                                            ) : (
-                                                <div className="w-10 h-10 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center text-white font-bold">
-                                                    {res.fullName.charAt(0)}
-                                                </div>
-                                            )}
-                                            <div>
-                                                <div className="text-white font-bold text-sm tracking-wide group-hover:text-bloodRed transition-colors">
-                                                    {res.fullName}
-                                                </div>
-                                                <div className="text-[10px] text-secondaryText font-mono uppercase tracking-widest mt-0.5">
-                                                    {res.username}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-[10px] text-secondaryText uppercase tracking-widest font-bold mb-0.5">Index</div>
-                                            <div className="text-base font-black text-neonGreen leading-none">{res.handicap}</div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="pt-4 border-t border-borderColor mt-4 flex items-center justify-between">
-                                <button
-                                    className="text-secondaryText text-xs font-bold hover:text-white transition-colors uppercase tracking-widest"
-                                    onClick={() => setStep('manual')}
-                                >
-                                    Set up manually
-                                </button>
-                                <button
-                                    className="text-white text-sm font-bold bg-surfaceHover px-6 py-2.5 rounded-xl border border-borderColor hover:bg-white hover:text-black transition-all shadow-lg active:scale-95"
-                                    onClick={() => setStep('manual')}
-                                    disabled={saving}
-                                >
-                                    Continue
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                ) : (
+                {
                     <motion.div
                         key="manual-step"
                         initial={{ opacity: 0, x: 20 }}
@@ -233,11 +202,64 @@ export default function OnboardingPage() {
                             <div className="flex flex-col">
                                 <span className="text-[10px] text-bloodRed font-bold tracking-[0.2em] mb-1">STEP 2</span>
                                 <h3 className="text-white font-black tracking-tight text-2xl mb-1 uppercase italic">Complete Your Profile</h3>
-                                <p className="text-secondaryText text-sm font-medium">Tell us your game and pick your look.</p>
+                                <p className="text-secondaryText text-sm font-medium">Tell us your name and pick your look.</p>
+                            </div>
+
+                            {/* Nickname Input */}
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between px-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-secondaryText">Your Nickname</label>
+                                </div>
+                                <div className="relative">
+                                    <input
+                                        id="nickname-input"
+                                        type="text"
+                                        placeholder="The Shark"
+                                        className="block w-full px-4 py-4 border-2 border-borderColor rounded-2xl bg-surface text-white placeholder-secondaryText focus:outline-none focus:border-bloodRed/50 focus:shadow-[0_0_15px_rgba(255,0,63,0.1)] text-sm font-bold transition-all"
+                                        value={nickname}
+                                        onChange={(e) => setNickname(e.target.value)}
+                                        onFocus={killTour}
+                                        onBlur={evalTourStep}
+                                    />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-secondaryText/30 flex items-center">
+                                        <User className="w-5 h-5" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Country Selection */}
+                            <div id="country-select" className="space-y-3">
+                                <div className="flex items-center justify-between px-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-secondaryText">Representation</label>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        killTour();
+                                        setShowCountryPicker(true);
+                                    }}
+                                    className="w-full h-14 bg-surface rounded-2xl border-2 border-borderColor flex items-center justify-between px-4 hover:border-bloodRed/30 transition-all group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        {selectedCountry ? (
+                                            <>
+                                                <span className="text-2xl">{selectedCountry.flag}</span>
+                                                <span className="text-sm font-bold text-white italic uppercase tracking-tight">{selectedCountry.name}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="w-8 h-8 rounded-full bg-bloodRed/10 flex items-center justify-center">
+                                                    <Globe className="w-4 h-4 text-bloodRed" />
+                                                </div>
+                                                <span className="text-sm font-bold text-secondaryText italic uppercase tracking-tight">Select Country</span>
+                                            </>
+                                        )}
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-secondaryText group-hover:text-bloodRed transition-colors" />
+                                </button>
                             </div>
 
                             {/* Handicap Input */}
-                            <div className="space-y-3">
+                            <div id="handicap-input" className="space-y-3">
                                 <div className="flex items-center justify-between px-1">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-secondaryText">Handicap Index</label>
                                 </div>
@@ -249,24 +271,49 @@ export default function OnboardingPage() {
                                         className="block w-full px-6 py-5 border-2 border-borderColor rounded-2xl bg-background text-4xl font-black text-white focus:outline-none focus:ring-2 focus:ring-bloodRed focus:border-bloodRed transition-all text-center tracking-tighter shadow-inner"
                                         value={handicap}
                                         onChange={(e) => setHandicap(e.target.value)}
+                                        onFocus={killTour}
+                                        onBlur={evalTourStep}
                                     />
                                     <div className="absolute right-6 top-1/2 -translate-y-1/2 text-secondaryText/30 font-black text-xl italic select-none">INDEX</div>
                                 </div>
                             </div>
 
                             {/* Avatar Selection */}
-                            <div className="space-y-4">
+                            <div id="avatar-picker" className="space-y-4">
                                 <div className="flex items-center justify-between px-1">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-secondaryText">Choose Your Look</label>
                                 </div>
 
                                 <div className="grid grid-cols-3 gap-4">
+                                    {/* Grint / Uploaded Avatar Option */}
+                                    {customAvatar && (
+                                        <button
+                                            onClick={() => {
+                                                setSelectedAvatar('custom');
+                                                killTour();
+                                                setTimeout(evalTourStep, 300);
+                                            }}
+                                            className={`relative aspect-square rounded-2xl overflow-hidden border-2 transition-all group ${selectedAvatar === 'custom' ? 'border-bloodRed scale-105 shadow-[0_0_15px_rgba(255,0,63,0.4)]' : 'border-borderColor hover:border-bloodRed/50'}`}
+                                        >
+                                            <img src={customAvatar} alt="Custom" className="w-full h-full object-cover" />
+                                            <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-black/60 text-[6px] font-black text-white uppercase tracking-widest border border-white/10">Photo</div>
+                                            {selectedAvatar === 'custom' && (
+                                                <div className="absolute inset-0 bg-bloodRed/10 flex items-center justify-center">
+                                                    <Check className="w-8 h-8 text-white drop-shadow-lg" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    )}
+
                                     {/* Large Upload Button */}
                                     <motion.button
                                         type="button"
                                         whileHover={{ scale: 1.02, borderColor: '#FF003F' }}
                                         whileTap={{ scale: 0.98 }}
-                                        onClick={() => fileInputRef.current?.click()}
+                                        onClick={() => {
+                                            killTour();
+                                            fileInputRef.current?.click();
+                                        }}
                                         className="relative aspect-square rounded-2xl border-2 border-dashed border-borderColor bg-surface/30 flex flex-col items-center justify-center gap-3 group transition-all"
                                     >
                                         {uploadingImage ? (
@@ -291,13 +338,13 @@ export default function OnboardingPage() {
                                         onChange={handleAvatarUpload}
                                     />
 
-
                                     {AVATARS.map((avatar) => (
                                         <button
                                             key={avatar.id}
                                             onClick={() => {
                                                 setSelectedAvatar(avatar.id);
-                                                setCustomAvatar(null);
+                                                killTour();
+                                                setTimeout(evalTourStep, 300);
                                             }}
                                             className={`relative aspect-square rounded-2xl overflow-hidden border-2 transition-all group ${selectedAvatar === avatar.id ? 'border-bloodRed scale-105 shadow-[0_0_15px_rgba(255,0,63,0.4)]' : 'border-borderColor hover:border-bloodRed/50'
                                                 }`}
@@ -311,21 +358,10 @@ export default function OnboardingPage() {
                                         </button>
                                     ))}
                                 </div>
-
-                                {customAvatar && (
-                                    <div className="flex items-center gap-4 p-4 bg-background border border-bloodRed/30 rounded-2xl shadow-inner">
-                                        <img src={customAvatar} className="w-16 h-16 rounded-full object-cover border-2 border-bloodRed shadow-lg" alt="Custom" />
-                                        <div className="flex-1">
-                                            <p className="text-white font-bold text-sm">Custom Photo Ready!</p>
-                                            <p className="text-secondaryText text-[10px] uppercase font-bold tracking-wider">Tap below to finish</p>
-                                        </div>
-                                        <Check className="w-6 h-6 text-neonGreen" />
-                                    </div>
-                                )}
                             </div>
 
                             {/* Founder Intro */}
-                            <div className="p-4 bg-bloodRed/5 border border-bloodRed/20 rounded-2xl flex gap-4 items-center">
+                            <div id="founder-callout" className="p-4 bg-bloodRed/5 border border-bloodRed/20 rounded-2xl flex gap-4 items-center">
                                 <div className="w-12 h-12 rounded-full bg-surfaceHover border border-borderColor flex items-center justify-center shrink-0">
                                     <User className="w-6 h-6 text-secondaryText" />
                                 </div>
@@ -340,6 +376,7 @@ export default function OnboardingPage() {
 
                             <div className="space-y-3 pt-2">
                                 <Button
+                                    id="tee-it-up-btn"
                                     className="w-full py-6 text-lg tracking-wider"
                                     onClick={handleManualSubmit}
                                     disabled={saving || uploadingImage}
@@ -353,9 +390,61 @@ export default function OnboardingPage() {
                                     Skip & Finish
                                 </button>
                             </div>
+
+                            {/* Country Picker Modal */}
+                            <BottomSheet
+                                open={showCountryPicker}
+                                onClose={() => {
+                                    setShowCountryPicker(false);
+                                    setTimeout(evalTourStep, 300); // 300ms delay to wait for bottom sheet closing animation
+                                }}
+                                title="Represent Your Nation"
+                                className="z-[10001]"
+                            >
+                                <div className="p-4">
+                                    <div className="relative">
+                                        <Search className="w-4 h-4 text-secondaryText absolute left-3 top-3.5" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search your country..."
+                                            className="w-full bg-background border border-borderColor rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-bloodRed/50 placeholder:text-secondaryText/40"
+                                            value={countrySearch}
+                                            onChange={e => setCountrySearch(e.target.value)}
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto px-2 pb-6 custom-scrollbar">
+                                    <div className="space-y-1">
+                                        {filteredCountries.map(country => (
+                                            <button
+                                                key={country.code}
+                                                onClick={() => {
+                                                    setSelectedCountryCode(country.code);
+                                                    countryRef.current = country.code; // update ref immediately
+                                                    setShowCountryPicker(false);
+                                                    setTimeout(evalTourStep, 400);
+                                                }}
+                                                className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${selectedCountryCode === country.code ? 'bg-bloodRed/10 border border-bloodRed/30' : 'hover:bg-white/5 border border-transparent hover:border-borderColor'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <span className="text-2xl">{country.flag}</span>
+                                                    <span className={`text-sm font-bold uppercase italic tracking-tight ${selectedCountryCode === country.code ? 'text-bloodRed' : 'text-white'
+                                                        }`}>
+                                                        {country.name}
+                                                    </span>
+                                                </div>
+                                                {selectedCountryCode === country.code && <Check className="w-5 h-5 text-bloodRed" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </BottomSheet>
                         </div>
                     </motion.div>
-                )}
+                }
             </AnimatePresence>
         </div>
     );

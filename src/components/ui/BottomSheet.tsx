@@ -6,9 +6,10 @@ interface BottomSheetProps {
     onClose: () => void;
     title?: string;
     children: ReactNode;
+    className?: string;
 }
 
-export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
+export function BottomSheet({ open, onClose, title, children, className }: BottomSheetProps) {
 
     // Lock body scroll when open
     useEffect(() => {
@@ -47,14 +48,15 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
             <div
                 onClick={e => e.stopPropagation()}
                 onMouseDown={e => e.stopPropagation()}
+                className={className}
                 style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 9999,
-            }}>
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 9999,
+                }}>
                 {/* Backdrop */}
                 <div
                     onClick={onClose}

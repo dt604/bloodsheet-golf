@@ -13,6 +13,8 @@ import { searchCourses, searchNearbyCourses, fetchCourseImage } from '../lib/cou
 import { Course } from '../types';
 import SEO from '../components/SEO';
 import { BloodCoin } from '../components/ui/BloodCoin';
+import { useUIStore } from '../store/useUIStore';
+import { startMatchSetupTour, startMatchConfigTour, startMatchFormatTour, startMatchStrokesTour, killTour } from '../lib/tour';
 
 export default function MatchSetupPage() {
     const navigate = useNavigate();
@@ -39,6 +41,19 @@ export default function MatchSetupPage() {
     const setCurrentStep = useMatchStore((s) => s.setCurrentStep);
     const teamSkins = useMatchStore((s) => s.pendingTeamSkins);
     const setPendingTeamSkins = useMatchStore((s) => s.setPendingTeamSkins);
+    const {
+        hasSeenMatchFormatTour,
+        setSeenMatchFormatTour,
+        hasSeenMatchSetupTour,
+        setSeenMatchSetupTour,
+        hasSeenMatchStrokesTour,
+        setSeenMatchStrokesTour,
+        hasSeenMatchConfigTour,
+        setSeenMatchConfigTour
+    } = useUIStore();
+
+    // Tour tracking
+    const [currentConfigStep, setCurrentConfigStep] = useState(0);
 
     const [wager, setWager] = useState(10);
     const [bloodCoinWager, setBloodCoinWager] = useState(0);
@@ -60,21 +75,6 @@ export default function MatchSetupPage() {
     const [courseSearching, setCourseSearching] = useState(false);
     const [courseError, setCourseError] = useState('');
 
-    async function handleCourseSelection(course: Course) {
-        setCourseSearching(true);
-        try {
-            const imageUrl = await fetchCourseImage(course.name);
-            setSelectedCourse({ ...course, imageUrl });
-            setCourseResults([]);
-        } catch (err) {
-            console.error('Failed to fetch image:', err);
-            setSelectedCourse(course);
-            setCourseResults([]);
-        } finally {
-            setCourseSearching(false);
-        }
-    }
-
     // Side bets / trash (shared across all matches in a group)
     const [greenies, setGreenies] = useState(true);
     const [sandies, setSandies] = useState(true);
@@ -90,6 +90,109 @@ export default function MatchSetupPage() {
     const [par5Pot, setPar5Pot] = useState(5);
     const [bonusSkins, setBonusSkins] = useState(false);
     const [potMode, setPotMode] = useState(false);
+
+    const resumeFormatTour = (stepIdx: number) => {
+        if (currentStep === 1 && !hasSeenMatchFormatTour) {
+            startMatchFormatTour(() => setSeenMatchFormatTour(true), stepIdx);
+        }
+    };
+
+    const resumeConfigTour = (stepIdx: number) => {
+        if (currentStep === 4 && !hasSeenMatchConfigTour) {
+            startMatchConfigTour(() => setSeenMatchConfigTour(true), stepIdx);
+            setCurrentConfigStep(stepIdx);
+        }
+    };
+
+    // Tour for Step 1: Format Selection
+    useEffect(() => {
+        if (currentStep === 1 && !hasSeenMatchFormatTour) {
+            const timer = setTimeout(() => {
+                resumeFormatTour(0);
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [currentStep, hasSeenMatchFormatTour]);
+
+    // Tour for Step 2: Add Players
+    useEffect(() => {
+        if (currentStep === 2 && !hasSeenMatchSetupTour) {
+            const timer = setTimeout(() => {
+                startMatchSetupTour(() => setSeenMatchSetupTour(true));
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [currentStep, hasSeenMatchSetupTour]);
+
+    // Advance setup tour if players added
+    useEffect(() => {
+        if (currentStep === 2 && !hasSeenMatchSetupTour) {
+            const totalPlayers = format === 'skins' ? poolPlayers.length : stagedPlayers.length;
+            if (totalPlayers >= 1) {
+                // In Step 2, once a player is added, the tour is mostly done
+            }
+        }
+    }, [currentStep, poolPlayers.length, stagedPlayers.length, hasSeenMatchSetupTour]);
+
+    // Tour for Step 3: Matches (Strokes/Handicaps)
+    useEffect(() => {
+        if (currentStep === 3 && !hasSeenMatchStrokesTour && format !== 'skins') {
+            const timer = setTimeout(() => {
+                startMatchStrokesTour(() => setSeenMatchStrokesTour(true));
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [currentStep, hasSeenMatchStrokesTour, format]);
+
+    // Tour for Step 4: Setup (Course, Stakes, Trash)
+    useEffect(() => {
+        if (currentStep === 4 && !hasSeenMatchConfigTour) {
+            const timer = setTimeout(() => {
+                resumeConfigTour(0);
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [currentStep, hasSeenMatchConfigTour]);
+
+    // Reactive Advancing for Step 4 Tour
+    useEffect(() => {
+        if (currentStep === 4 && !hasSeenMatchConfigTour) {
+            if (selectedCourse && currentConfigStep === 0) resumeConfigTour(1);
+        }
+    }, [selectedCourse, currentStep, currentConfigStep, hasSeenMatchConfigTour]);
+
+    useEffect(() => {
+        if (currentStep === 4 && !hasSeenMatchConfigTour) {
+            if (wager > 0 && currentConfigStep === 1) resumeConfigTour(2);
+        }
+    }, [wager, currentStep, currentConfigStep, hasSeenMatchConfigTour]);
+
+    useEffect(() => {
+        if (currentStep === 4 && !hasSeenMatchConfigTour) {
+            if (bloodCoinWager > 0 && currentConfigStep === 2) resumeConfigTour(3);
+        }
+    }, [bloodCoinWager, currentStep, currentConfigStep, hasSeenMatchConfigTour]);
+
+    useEffect(() => {
+        if (currentStep === 4 && !hasSeenMatchConfigTour) {
+            if (trashOpen && currentConfigStep === 3) resumeConfigTour(4);
+        }
+    }, [trashOpen, currentStep, currentConfigStep, hasSeenMatchConfigTour]);
+
+    async function handleCourseSelection(course: Course) {
+        setCourseSearching(true);
+        try {
+            const imageUrl = await fetchCourseImage(course.name || '');
+            setSelectedCourse({ ...course, imageUrl });
+            setCourseResults([]);
+        } catch (err) {
+            console.error('Failed to fetch image:', err);
+            setSelectedCourse(course);
+            setCourseResults([]);
+        } finally {
+            setCourseSearching(false);
+        }
+    }
 
     // When toggling team skins mode, clear the conflicting player list
     function handleTeamSkinsToggle(enabled: boolean) {
@@ -173,6 +276,10 @@ export default function MatchSetupPage() {
         if (currentStep === 4 && format === 'skins') { setCurrentStep(2); return; } // skip back over Matches
         if (currentStep > 1) setCurrentStep(currentStep - 1);
         else navigate(-1);
+    };
+
+    const handleTourFinish = () => {
+        nextStep();
     };
 
     // Auto-search with 400ms debounce
@@ -340,6 +447,7 @@ export default function MatchSetupPage() {
                             <div className="text-sm font-black text-white uppercase tracking-wider mb-4">Choose Match Format</div>
                             <div className="grid grid-cols-1 gap-4">
                                 <button
+                                    id="format-1v1-btn"
                                     className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 text-left overflow-hidden ${format === '1v1' ? 'border-bloodRed bg-bloodRed/5 shadow-[0_0_30px_rgba(255,0,63,0.1)]' : 'border-borderColor bg-surface hover:border-secondaryText'}`}
                                     onClick={() => { setFormat('1v1'); nextStep(); }}
                                 >
@@ -364,6 +472,7 @@ export default function MatchSetupPage() {
                                 </button>
 
                                 <button
+                                    id="format-2v2-btn"
                                     className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 text-left overflow-hidden ${format === '2v2' ? 'border-bloodRed bg-bloodRed/5 shadow-[0_0_30px_rgba(255,0,63,0.1)]' : 'border-borderColor bg-surface hover:border-secondaryText'}`}
                                     onClick={() => { setFormat('2v2'); nextStep(); }}
                                 >
@@ -391,6 +500,7 @@ export default function MatchSetupPage() {
                                 </button>
 
                                 <button
+                                    id="format-skins-btn"
                                     className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 text-left overflow-hidden ${format === 'skins' ? 'border-bloodRed bg-bloodRed/5 shadow-[0_0_30px_rgba(255,0,63,0.1)]' : 'border-borderColor bg-surface hover:border-secondaryText'}`}
                                     onClick={() => { setFormat('skins'); nextStep(); }}
                                 >
@@ -413,6 +523,8 @@ export default function MatchSetupPage() {
                                         </div>
                                     )}
                                 </button>
+
+
                             </div>
                         </motion.div>
                     )}
@@ -487,7 +599,7 @@ export default function MatchSetupPage() {
                                                             value={creatorHcp}
                                                             onChange={(e) => setCreatorHcp(parseFloat(e.target.value) || 0)}
                                                             className="w-12 bg-transparent text-xs font-bold text-white focus:outline-none focus:text-neonGreen border-b border-borderColor/30"
-                                                            onFocus={(e) => e.target.select()}
+                                                            onFocus={(e) => { e.target.select(); killTour(); }}
                                                         />
                                                     </div>
                                                 </div>
@@ -514,7 +626,7 @@ export default function MatchSetupPage() {
                                                                     value={p.handicap}
                                                                     onChange={(e) => updatePoolPlayerHandicap(p.userId, parseFloat(e.target.value) || 0)}
                                                                     className="w-12 bg-transparent text-xs font-bold text-white focus:outline-none focus:text-neonGreen border-b border-borderColor/30"
-                                                                    onFocus={(e) => e.target.select()}
+                                                                    onFocus={(e) => { e.target.select(); killTour(); }}
                                                                 />
                                                             </div>
                                                         </div>
@@ -528,6 +640,7 @@ export default function MatchSetupPage() {
 
                                         {(format !== 'skins' || poolPlayers.length < 3) && (
                                             <button
+                                                id="add-players-btn"
                                                 onClick={() => navigate('/add-player?pool=1')}
                                                 className="w-full p-4 rounded-xl border-2 border-dashed border-borderColor hover:border-neonGreen/50 transition-all flex items-center justify-center gap-2 group bg-surface/30"
                                             >
@@ -566,7 +679,7 @@ export default function MatchSetupPage() {
                                                                     value={creatorHcp}
                                                                     onChange={(e) => setCreatorHcp(parseFloat(e.target.value) || 0)}
                                                                     className="w-12 bg-transparent text-xs font-bold text-white focus:outline-none focus:text-neonGreen border-b border-borderColor/30"
-                                                                    onFocus={(e) => e.target.select()}
+                                                                    onFocus={(e) => { e.target.select(); killTour(); }}
                                                                 />
                                                             </div>
                                                         </div>
@@ -590,7 +703,7 @@ export default function MatchSetupPage() {
                                                                             value={p.handicap}
                                                                             onChange={(e) => updateStagedPlayerHandicap(p.userId, parseFloat(e.target.value) || 0)}
                                                                             className="w-12 bg-transparent text-xs font-bold text-white focus:outline-none border-b border-borderColor/30"
-                                                                            onFocus={(e) => e.target.select()}
+                                                                            onFocus={(e) => { e.target.select(); killTour(); }}
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -612,6 +725,7 @@ export default function MatchSetupPage() {
                                                 ))}
                                                 {stagedPlayers.filter(p => p.team === 'A').length < 1 && (
                                                     <button
+                                                        id="add-players-btn"
                                                         onClick={() => navigate('/add-player?team=A')}
                                                         className="w-full h-14 rounded-xl border-2 border-dashed border-borderColor hover:border-neonGreen/50 transition-all flex items-center justify-center gap-2 group bg-surface/30"
                                                     >
@@ -653,7 +767,7 @@ export default function MatchSetupPage() {
                                                                             value={p.handicap}
                                                                             onChange={(e) => updateStagedPlayerHandicap(p.userId, parseFloat(e.target.value) || 0)}
                                                                             className="w-12 bg-transparent text-xs font-bold text-white focus:outline-none border-b border-borderColor/30"
-                                                                            onFocus={(e) => e.target.select()}
+                                                                            onFocus={(e) => { e.target.select(); killTour(); }}
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -675,6 +789,7 @@ export default function MatchSetupPage() {
                                                 ))}
                                                 {stagedPlayers.filter(p => p.team === 'B').length < 2 && (
                                                     <button
+                                                        id="add-players-btn"
                                                         onClick={() => navigate('/add-player?team=B')}
                                                         className="w-full h-14 rounded-xl border-2 border-dashed border-borderColor hover:border-bloodRed/50 transition-all flex items-center justify-center gap-2 group bg-surface/30"
                                                     >
@@ -686,7 +801,6 @@ export default function MatchSetupPage() {
                                         </div>
                                     </div>
                                 )}
-
                             </div>
                         </motion.div>
                     )}
@@ -740,6 +854,7 @@ export default function MatchSetupPage() {
                                                                     className={`w-full h-12 px-4 rounded-xl bg-background border transition-colors text-center text-sm font-bold appearance-none ${slot.player1Id ? 'border-neonGreen/50 text-white' : 'border-borderColor text-secondaryText'}`}
                                                                     value={slot.player1Id || user?.id || ''}
                                                                     onChange={(e) => setSlotPlayer1(slot.id, e.target.value)}
+                                                                    onFocus={killTour}
                                                                 >
                                                                     <option value={user?.id || ''}>{profile?.fullName || 'Me'}</option>
                                                                     {poolPlayers.map((p) => (
@@ -760,6 +875,7 @@ export default function MatchSetupPage() {
                                                                     className={`w-full h-12 px-4 rounded-xl bg-background border transition-colors text-center text-sm font-bold appearance-none ${slot.opponentId ? 'border-bloodRed/50 text-white' : 'border-borderColor text-secondaryText'}`}
                                                                     value={slot.opponentId || ''}
                                                                     onChange={(e) => setSlotOpponent(slot.id, e.target.value)}
+                                                                    onFocus={killTour}
                                                                 >
                                                                     <option value="">Select Opponent</option>
                                                                     {poolPlayers.map((p) => (
@@ -783,9 +899,9 @@ export default function MatchSetupPage() {
                                                                     const isEven = strokes === 0;
                                                                     return (
                                                                         <>
-                                                                            <div className="flex items-center gap-3">
+                                                                            <div id="strokes-adjustment" className="tour-strokes-section flex items-center gap-3">
                                                                                 <button
-                                                                                    onClick={() => setSlotStrokes(slot.id, strokes - 1)}
+                                                                                    onClick={() => { killTour(); setSlotStrokes(slot.id, strokes - 1); }}
                                                                                     className="w-8 h-8 rounded-full border border-borderColor/50 hover:border-bloodRed hover:text-bloodRed flex items-center justify-center text-sm font-bold transition-all active:scale-90"
                                                                                 >−</button>
                                                                                 <div className={`px-5 py-2 rounded-full border-2 flex items-center gap-2 transition-all ${isEven ? 'border-borderColor/50 bg-surface' : 'border-neonGreen/40 bg-neonGreen/5 shadow-[0_0_12px_rgba(0,255,102,0.15)]'}`}>
@@ -793,7 +909,7 @@ export default function MatchSetupPage() {
                                                                                     <span className="text-[9px] font-bold text-secondaryText uppercase tracking-wider">strokes</span>
                                                                                 </div>
                                                                                 <button
-                                                                                    onClick={() => setSlotStrokes(slot.id, strokes + 1)}
+                                                                                    onClick={() => { killTour(); setSlotStrokes(slot.id, strokes + 1); }}
                                                                                     className="w-8 h-8 rounded-full border border-borderColor/50 hover:border-neonGreen hover:text-neonGreen flex items-center justify-center text-sm font-bold transition-all active:scale-90"
                                                                                 >+</button>
                                                                             </div>
@@ -887,9 +1003,9 @@ export default function MatchSetupPage() {
                                                 <div className="p-3 border-t border-borderColor/50 text-center bg-surfaceHover/10">
                                                     <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest flex items-center justify-center gap-1">
                                                         Scratch Match •
-                                                        <button onClick={() => setTeamStrokeOverride(effectiveDiff - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed">−</button>
+                                                        <button onClick={() => { killTour(); setTeamStrokeOverride(effectiveDiff - 1); }} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed">−</button>
                                                         <span className="text-sm text-bloodRed">{absDiff}</span>
-                                                        <button onClick={() => setTeamStrokeOverride(effectiveDiff + 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen">+</button>
+                                                        <button onClick={() => { killTour(); setTeamStrokeOverride(effectiveDiff + 1); }} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen">+</button>
                                                         Strokes Given
                                                     </span>
                                                 </div>
@@ -909,12 +1025,12 @@ export default function MatchSetupPage() {
                                                             <span className="text-sm font-black text-bloodRed">{teamBExact.toFixed(1)}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="bg-background/80 rounded-xl p-3 border border-bloodRed/20 flex items-center justify-center shadow-[0_4px_12px_rgba(255,0,63,0.1)]">
+                                                    <div id="team-strokes-adjustment" className="tour-strokes-section bg-background/80 rounded-xl p-3 border border-bloodRed/20 flex items-center justify-center shadow-[0_4px_12px_rgba(255,0,63,0.1)]">
                                                         <p className="text-xs font-black uppercase tracking-widest text-white text-center flex items-center justify-center gap-1">
                                                             {spottingName} spots {spottedName}
-                                                            <button onClick={() => setTeamStrokeOverride(effectiveDiff > 0 ? effectiveDiff - 1 : effectiveDiff + 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed shrink-0">−</button>
+                                                            <button onClick={() => { killTour(); setTeamStrokeOverride(effectiveDiff > 0 ? effectiveDiff - 1 : effectiveDiff + 1); }} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-bloodRed shrink-0">−</button>
                                                             <span className="text-sm text-bloodRed px-1">{absDiff}</span>
-                                                            <button onClick={() => setTeamStrokeOverride(effectiveDiff > 0 ? effectiveDiff + 1 : effectiveDiff - 1)} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen shrink-0">+</button>
+                                                            <button onClick={() => { killTour(); setTeamStrokeOverride(effectiveDiff > 0 ? effectiveDiff + 1 : effectiveDiff - 1); }} className="w-5 h-5 rounded bg-surfaceHover flex items-center justify-center text-xs hover:text-neonGreen shrink-0">+</button>
                                                             stroke{absDiff !== 1 ? 's' : ''}
                                                         </p>
                                                     </div>
@@ -925,7 +1041,8 @@ export default function MatchSetupPage() {
                                 </section>
                             )}
                         </motion.div>
-                    )}
+                    )
+                    }
 
                     {/* STEP 4: SETUP */}
                     {currentStep === 4 && (
@@ -988,19 +1105,21 @@ export default function MatchSetupPage() {
                                         <div className="relative">
                                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-secondaryText pointer-events-none" />
                                             <input
+                                                id="course-search-box"
                                                 type="text"
                                                 className="block w-full pl-11 pr-24 py-4 border-2 border-borderColor rounded-2xl bg-surface text-white placeholder-secondaryText focus:outline-none focus:border-bloodRed/50 focus:shadow-[0_0_15px_rgba(255,0,63,0.1)] text-sm font-bold transition-all"
                                                 placeholder="Find Your Course…"
                                                 value={courseQuery}
                                                 onChange={(e) => setCourseQuery(e.target.value)}
                                                 onKeyDown={(e) => e.key === 'Enter' && handleCourseSearch()}
+                                                onFocus={killTour}
                                             />
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                                                 {courseSearching ? (
                                                     <Loader className="w-5 h-5 text-bloodRed animate-spin" />
                                                 ) : (
-                                                    <button onClick={handleNearbySearch} className="px-3 py-1.5 bg-bloodRed/10 rounded-xl text-bloodRed hover:bg-bloodRed/20 transition-colors flex items-center gap-1.5 border border-bloodRed/20">
-                                                        <MapPin className="w-3 h-3" />
+                                                    <button onClick={handleNearbySearch} className="px-3 py-1.5 bg-bloodRed/10 rounded-xl text-bloodRed hover:bg-bloodRed/20 transition-colors flex items-center gap-1.5 border border-bloodRed/20 relative group">
+                                                        <MapPin className="w-3 h-3 group-hover:scale-110 transition-transform" />
                                                         <span className="text-[10px] font-black uppercase tracking-tighter">Near Me</span>
                                                     </button>
                                                 )}
@@ -1052,9 +1171,9 @@ export default function MatchSetupPage() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3">
-                                                <button onClick={() => setStartingHole((h) => Math.max(1, h - 1))} className="w-8 h-8 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all">-</button>
+                                                <button onClick={() => { killTour(); setStartingHole((h) => Math.max(1, h - 1)); }} className="w-8 h-8 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all">-</button>
                                                 <span className="text-xl font-black w-8 text-center tabular-nums">{startingHole}</span>
-                                                <button onClick={() => setStartingHole((h) => Math.min(18, h + 1))} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
+                                                <button onClick={() => { killTour(); setStartingHole((h) => Math.min(18, h + 1)); }} className="w-8 h-8 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all">+</button>
                                             </div>
                                         </div>
                                     </Card>
@@ -1095,8 +1214,8 @@ export default function MatchSetupPage() {
                                         )}
 
                                         {/* ── USD Wager Panel ──────────────────── */}
-                                        <div className="p-5 border-b border-borderColor/30">
-                                            <div className="flex items-center justify-between">
+                                        <div id="real-money-wager" className="p-5 border-b border-borderColor/30 relative" onClick={() => { }}>
+                                            <div className="flex items-center justify-between relative z-10">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-12 h-12 rounded-2xl bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,102,0.1)]">
                                                         <span className="text-neonGreen font-black text-xl">$</span>
@@ -1119,14 +1238,14 @@ export default function MatchSetupPage() {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <button
-                                                        onClick={() => setWager(Math.max(0, wager - 5))}
+                                                        onClick={() => { killTour(); setWager(Math.max(0, wager - 5)); }}
                                                         className="w-9 h-9 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all text-lg font-bold active:scale-90"
                                                     >−</button>
                                                     <span className="text-2xl font-black min-w-[4rem] text-center tabular-nums text-white">
                                                         ${wager}
                                                     </span>
                                                     <button
-                                                        onClick={() => setWager(wager + 5)}
+                                                        onClick={() => { killTour(); setWager(wager + 5); }}
                                                         className="w-9 h-9 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all text-lg font-bold active:scale-90"
                                                     >+</button>
                                                 </div>
@@ -1170,7 +1289,7 @@ export default function MatchSetupPage() {
                                         </div>
 
                                         {/* ── Blood Coin Wager Panel ──────────── */}
-                                        <div className="p-5 border-b border-borderColor/30 relative overflow-hidden">
+                                        <div id="blood-coins-wager" className="p-5 border-b border-borderColor/30 relative overflow-hidden" onClick={() => { }}>
                                             {/* Ambient glow */}
                                             {bloodCoinWager > 0 && (
                                                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-bloodRed/8 rounded-full blur-3xl pointer-events-none" />
@@ -1196,14 +1315,14 @@ export default function MatchSetupPage() {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <button
-                                                        onClick={() => setBloodCoinWager(Math.max(0, bloodCoinWager - 50))}
+                                                        onClick={() => { killTour(); setBloodCoinWager(Math.max(0, bloodCoinWager - 50)); }}
                                                         className="w-9 h-9 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all text-lg font-bold active:scale-90"
                                                     >−</button>
                                                     <span className={`text-2xl font-black min-w-[4rem] text-center tabular-nums flex items-center justify-center transition-colors ${bloodCoinWager > 0 ? 'text-bloodRed drop-shadow-[0_0_10px_rgba(255,0,63,0.3)]' : 'text-secondaryText'}`}>
                                                         {bloodCoinWager}
                                                     </span>
                                                     <button
-                                                        onClick={() => setBloodCoinWager(bloodCoinWager + 50)}
+                                                        onClick={() => { killTour(); setBloodCoinWager(bloodCoinWager + 50); }}
                                                         className="w-9 h-9 rounded-full border border-borderColor hover:border-neonGreen hover:text-neonGreen flex items-center justify-center transition-all text-lg font-bold active:scale-90"
                                                     >+</button>
                                                 </div>
@@ -1212,7 +1331,8 @@ export default function MatchSetupPage() {
 
                                         {/* Trash Bets Trigger */}
                                         <button
-                                            onClick={() => setTrashOpen(true)}
+                                            id="trash-bets-btn"
+                                            onClick={() => { killTour(); setTrashOpen(true); }}
                                             className="w-full flex justify-between items-center p-4 hover:bg-surfaceHover/50 transition-colors group"
                                         >
                                             <div className="flex items-center gap-3">
@@ -1228,8 +1348,7 @@ export default function MatchSetupPage() {
                                         </button>
                                     </Card>
 
-                                    {/* Trash Bets Bottom Sheet */}
-                                    <BottomSheet open={trashOpen} onClose={() => setTrashOpen(false)} title="Trash & Side Bets">
+                                    <BottomSheet open={trashOpen} onClose={() => setTrashOpen(false)} title="Trash & Side Bets" className="z-[10001]">
                                         <div className="divide-y divide-borderColor/50 px-2">
                                             {[
                                                 { id: 'greenies', label: 'Greenies', sub: 'Closest to pin, par+', desc: 'Awarded to the player whose tee shot is closest to the pin on a Par 3, provided they make par or better.', state: greenies, set: setGreenies, skinsOnly: false },
@@ -1332,14 +1451,18 @@ export default function MatchSetupPage() {
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="p-4 pt-0">
-                                            <Button className="w-full uppercase font-black tracking-widest" onClick={() => setTrashOpen(false)}>Done</Button>
+                                        <div className="p-4 pt-0 relative">
+                                            <Button className="w-full uppercase font-black tracking-widest relative" onClick={() => setTrashOpen(false)}>
+                                                Done
+                                            </Button>
                                         </div>
                                     </BottomSheet>
                                 </section>
                             </div>
                         </motion.div>
-                    )}
+                    )
+                    }
+
                 </AnimatePresence>
             </main>
 
@@ -1355,9 +1478,10 @@ export default function MatchSetupPage() {
                         </button>
                     )}
                     <Button
+                        id="tee-off-btn"
                         size="lg"
-                        className={`flex-1 h-14 text-lg uppercase tracking-wider font-black shadow-[0_8px_30px_rgba(255,0,63,0.3)] transition-all transform active:scale-[0.98] ${!canAdvance() ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:shadow-[0_8px_40px_rgba(255,0,63,0.5)]'}`}
-                        onClick={nextStep}
+                        className={`flex-1 h-14 text-lg uppercase tracking-wider font-black shadow-[0_8px_30px_rgba(255,0,63,0.3)] transition-all transform active:scale-[0.98] relative ${!canAdvance() ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:shadow-[0_8px_40px_rgba(255,0,63,0.5)]'}`}
+                        onClick={handleTourFinish}
                         disabled={creating || (!canAdvance() && currentStep !== 1)} // Step 1 can always advance if format selected
                     >
                         {currentStep === 4 ? (creating ? 'Starting...' : 'Tee Off') : 'Continue'}
