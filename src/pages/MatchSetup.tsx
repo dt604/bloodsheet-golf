@@ -14,7 +14,7 @@ import { Course } from '../types';
 import SEO from '../components/SEO';
 import { BloodCoin } from '../components/ui/BloodCoin';
 import { useUIStore } from '../store/useUIStore';
-import { startMatchSetupTour, startMatchConfigTour, startMatchFormatTour, startMatchStrokesTour, killTour } from '../lib/tour';
+import { startMatchSetupTour, startMatch2v2SetupTour, startMatchConfigTour, startMatchFormatTour, startMatchStrokesTour, killTour } from '../lib/tour';
 
 export default function MatchSetupPage() {
     const navigate = useNavigate();
@@ -118,11 +118,35 @@ export default function MatchSetupPage() {
     useEffect(() => {
         if (currentStep === 2 && !hasSeenMatchSetupTour) {
             const timer = setTimeout(() => {
-                startMatchSetupTour(() => setSeenMatchSetupTour(true));
+                if (format === '2v2') {
+                    const teamAFull = stagedPlayers.filter(p => p.team === 'A').length >= 1; // You + 1
+                    const teamBFull = stagedPlayers.filter(p => p.team === 'B').length >= 2;
+                    let stepIdx = 0;
+                    if (teamAFull && !teamBFull) stepIdx = 1;
+                    else if (teamAFull && teamBFull) stepIdx = 2;
+                    startMatch2v2SetupTour(() => setSeenMatchSetupTour(true), stepIdx);
+                } else {
+                    const isSkins = format === 'skins';
+                    const poolCount = poolPlayers.length; // Only counts guests
+                    const isFull = poolCount >= 3; // 3 added + creator = 4
+
+                    // The user only wants to be guided to Team Skins if there are 4 players (balanced teams)
+                    const shouldShowTeamSkinsTour = isSkins && poolCount === 3;
+
+                    let stepIdx = 0;
+                    if (shouldShowTeamSkinsTour) {
+                        stepIdx = 1; // Start at Team Skins Step
+                    } else if (isFull) {
+                        // If full but not showing Team Skins (e.g. 1v1), step 1 is the Continue button
+                        stepIdx = 1;
+                    }
+
+                    startMatchSetupTour(() => setSeenMatchSetupTour(true), stepIdx, shouldShowTeamSkinsTour);
+                }
             }, 500);
             return () => clearTimeout(timer);
         }
-    }, [currentStep, hasSeenMatchSetupTour]);
+    }, [currentStep, hasSeenMatchSetupTour, poolPlayers.length, stagedPlayers.length, format]);
 
     // Advance setup tour if players added
     useEffect(() => {
@@ -138,7 +162,7 @@ export default function MatchSetupPage() {
     useEffect(() => {
         if (currentStep === 3 && !hasSeenMatchStrokesTour && format !== 'skins') {
             const timer = setTimeout(() => {
-                startMatchStrokesTour(() => setSeenMatchStrokesTour(true));
+                startMatchStrokesTour(() => setSeenMatchStrokesTour(true), format === '1v1');
             }, 500);
             return () => clearTimeout(timer);
         }
@@ -161,17 +185,9 @@ export default function MatchSetupPage() {
         }
     }, [selectedCourse, currentStep, currentConfigStep, hasSeenMatchConfigTour]);
 
-    useEffect(() => {
-        if (currentStep === 4 && !hasSeenMatchConfigTour) {
-            if (wager > 0 && currentConfigStep === 1) resumeConfigTour(2);
-        }
-    }, [wager, currentStep, currentConfigStep, hasSeenMatchConfigTour]);
-
-    useEffect(() => {
-        if (currentStep === 4 && !hasSeenMatchConfigTour) {
-            if (bloodCoinWager > 0 && currentConfigStep === 2) resumeConfigTour(3);
-        }
-    }, [bloodCoinWager, currentStep, currentConfigStep, hasSeenMatchConfigTour]);
+    // Note: We don't auto-advance for wager or bloodCoinWager because 
+    // USD wager has a default value (10) which causes an immediate skip.
+    // Users will use the tour's "Next" button to move through the stakes.
 
     useEffect(() => {
         if (currentStep === 4 && !hasSeenMatchConfigTour) {
@@ -259,11 +275,15 @@ export default function MatchSetupPage() {
 
     const nextStep = () => {
         if (currentStep === 2 && format === 'skins') { setCurrentStep(4); return; } // skip Matches step
-        if (currentStep === 2 && format === '1v1' && poolPlayers.length === 1) {
-            // Auto-configure the match slot to default to the selected player
+        if (currentStep === 2 && format === '1v1') {
+            // Auto-configure the match slot to default to the first available pool player
             const slot = matchSlots[0];
-            if (!slot.opponentId) {
-                setSlotOpponent(slot.id, poolPlayers[0].userId);
+            if (slot && !slot.opponentId && poolPlayers.length > 0) {
+                // Find a player that isn't the current user to be the default opponent
+                const potentialOpponent = poolPlayers.find(p => p.userId !== user?.id) || poolPlayers[0];
+                if (potentialOpponent) {
+                    setSlotOpponent(slot.id, potentialOpponent.userId);
+                }
             }
             setCurrentStep(3);
             return;
@@ -547,7 +567,7 @@ export default function MatchSetupPage() {
 
                             {/* Team Skins toggle — shown at top of player step for skins format */}
                             {format === 'skins' && (
-                                <div className="p-4 rounded-xl border border-borderColor/50 bg-surface/50">
+                                <div id="team-skins-toggle" className="p-4 rounded-xl border border-borderColor/50 bg-surface/50">
                                     <div className="flex items-center justify-between mb-1">
                                         <div
                                             className="flex flex-col cursor-pointer group"
@@ -638,10 +658,10 @@ export default function MatchSetupPage() {
                                             </Card>
                                         ))}
 
-                                        {(format !== 'skins' || poolPlayers.length < 3) && (
+                                        {poolPlayers.length < 3 && (
                                             <button
                                                 id="add-players-btn"
-                                                onClick={() => navigate('/add-player?pool=1')}
+                                                onClick={() => { killTour(); navigate('/add-player?pool=1'); }}
                                                 className="w-full p-4 rounded-xl border-2 border-dashed border-borderColor hover:border-neonGreen/50 transition-all flex items-center justify-center gap-2 group bg-surface/30"
                                             >
                                                 <div className="w-8 h-8 rounded-full bg-surfaceHover flex items-center justify-center text-secondaryText group-hover:text-neonGreen transition-colors">
@@ -725,8 +745,8 @@ export default function MatchSetupPage() {
                                                 ))}
                                                 {stagedPlayers.filter(p => p.team === 'A').length < 1 && (
                                                     <button
-                                                        id="add-players-btn"
-                                                        onClick={() => navigate('/add-player?team=A')}
+                                                        id="add-teammate-btn"
+                                                        onClick={() => { killTour(); navigate('/add-player?team=A'); }}
                                                         className="w-full h-14 rounded-xl border-2 border-dashed border-borderColor hover:border-neonGreen/50 transition-all flex items-center justify-center gap-2 group bg-surface/30"
                                                     >
                                                         <Plus className="w-4 h-4 text-secondaryText group-hover:text-neonGreen" />
@@ -789,8 +809,8 @@ export default function MatchSetupPage() {
                                                 ))}
                                                 {stagedPlayers.filter(p => p.team === 'B').length < 2 && (
                                                     <button
-                                                        id="add-players-btn"
-                                                        onClick={() => navigate('/add-player?team=B')}
+                                                        id="add-opponent-btn"
+                                                        onClick={() => { killTour(); navigate('/add-player?team=B'); }}
                                                         className="w-full h-14 rounded-xl border-2 border-dashed border-borderColor hover:border-bloodRed/50 transition-all flex items-center justify-center gap-2 group bg-surface/30"
                                                     >
                                                         <Plus className="w-4 h-4 text-secondaryText group-hover:text-bloodRed" />
@@ -822,7 +842,11 @@ export default function MatchSetupPage() {
                                             <div className="text-[10px] text-bloodRed font-bold uppercase tracking-widest pb-0.5">Live Odds</div>
                                         </div>
                                         {poolPlayers.length > 1 && matchSlots.length < poolPlayers.length && (
-                                            <button onClick={() => addMatchSlot(10)} className="flex items-center gap-1.5 text-xs font-black text-neonGreen uppercase tracking-tighter hover:opacity-80 transition-opacity p-1 px-2 border border-neonGreen/20 rounded-lg bg-neonGreen/5">
+                                            <button
+                                                id="add-match-btn"
+                                                onClick={() => addMatchSlot(10)}
+                                                className="flex items-center gap-1.5 text-xs font-black text-neonGreen uppercase tracking-tighter hover:opacity-80 transition-opacity p-1 px-2 border border-neonGreen/20 rounded-lg bg-neonGreen/5"
+                                            >
                                                 <Plus className="w-3 h-3" />
                                                 <span>Add Match</span>
                                             </button>

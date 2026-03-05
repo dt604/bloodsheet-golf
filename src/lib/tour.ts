@@ -107,16 +107,89 @@ export const startMatchFormatTour = (onComplete: () => void, stepIndex: number =
     driverObj.drive(stepIndex);
 };
 
-export const startMatchSetupTour = (onComplete: () => void) => {
+export const startMatchSetupTour = (onComplete: () => void, stepIdx: number = 0, isSkins: boolean = false) => {
+    const steps: any[] = [
+        {
+            element: '#add-players-btn',
+            popover: {
+                title: 'Add Your Rivals',
+                description: "Add all the golfers in your group here. You can pick up to four players for your round pool.",
+                side: 'bottom',
+                align: 'center',
+            }
+        }
+    ];
+
+    if (isSkins) {
+        steps.push({
+            element: '#team-skins-toggle',
+            popover: {
+                title: 'Team Skins?',
+                description: "Toggle this to play 2v2 Team Skins instead of individual. Best ball format with skin carry-overs!",
+                side: 'bottom',
+                align: 'center',
+            }
+        });
+    }
+
+    steps.push({
+        element: '#tee-off-btn',
+        popover: {
+            title: 'Ready to Roll?',
+            description: "Your group is full! Hit Continue to set up the matches.",
+            side: 'top',
+            align: 'center',
+        }
+    });
+
+    const driverObj = driver({
+        ...baseDriverConfig,
+        steps,
+        onDestroyed: () => {
+            if (!isKilledExplicitly) {
+                onComplete();
+            }
+            activeDriver = null;
+        },
+        popoverClass: 'bloodsheet-tour-theme'
+    });
+
+    activeDriver = driverObj;
+    if (stepIdx > 0) {
+        driverObj.drive(stepIdx);
+    } else {
+        driverObj.drive();
+    }
+};
+
+export const startMatch2v2SetupTour = (onComplete: () => void, stepIdx: number = 0) => {
     const driverObj = driver({
         ...baseDriverConfig,
         steps: [
             {
-                element: '#add-players-btn',
+                element: '#add-teammate-btn',
                 popover: {
-                    title: 'Add Your Rivals',
-                    description: "You can pick up to four players for your group, including yourself.",
+                    title: 'Pick a Partner',
+                    description: "Select a teammate for your 2v2 match.",
                     side: 'bottom',
+                    align: 'center',
+                }
+            },
+            {
+                element: '#add-opponent-btn',
+                popover: {
+                    title: 'The Opposition',
+                    description: "Add two opponents to complete your foursome.",
+                    side: 'bottom',
+                    align: 'center',
+                }
+            },
+            {
+                element: '#tee-off-btn',
+                popover: {
+                    title: 'Ready to Roll?',
+                    description: "Teams are full! Hit Continue to set up the matches.",
+                    side: 'top',
                     align: 'center',
                 }
             }
@@ -131,23 +204,43 @@ export const startMatchSetupTour = (onComplete: () => void) => {
     });
 
     activeDriver = driverObj;
-    driverObj.drive();
+    if (stepIdx > 0) {
+        driverObj.drive(stepIdx);
+    } else {
+        driverObj.drive();
+    }
 };
 
-export const startMatchStrokesTour = (onComplete: () => void) => {
+export const startMatchStrokesTour = (onComplete: () => void, isMultiMatch: boolean = true) => {
+    const steps: any[] = [
+        {
+            element: '.tour-strokes-section',
+            popover: {
+                title: 'Handicap & Strokes',
+                description: isMultiMatch
+                    ? "This is where you adjust the strokes for the match. We've auto-populated a default opponent, but you can change it or add more matches."
+                    : "This is where you adjust the strokes for your 2v2 match. We've calculated the differential based on your handicaps.",
+                side: 'bottom',
+                align: 'center',
+            }
+        }
+    ];
+
+    if (isMultiMatch) {
+        steps.push({
+            element: '#add-match-btn',
+            popover: {
+                title: 'Multi-Match Setup',
+                description: "Want to play multiple 1v1s at once? Use this button to add another match against a different opponent in your group.",
+                side: 'bottom',
+                align: 'end',
+            }
+        });
+    }
+
     const driverObj = driver({
         ...baseDriverConfig,
-        steps: [
-            {
-                element: '.tour-strokes-section',
-                popover: {
-                    title: 'Handicap & Strokes',
-                    description: "This is where you adjust the strokes for the match. We calculate the differential based on your handicaps, but you can override it here.",
-                    side: 'bottom',
-                    align: 'center',
-                }
-            }
-        ],
+        steps,
         onDestroyed: () => {
             if (!isKilledExplicitly) {
                 onComplete();
