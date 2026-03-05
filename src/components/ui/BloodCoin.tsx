@@ -15,7 +15,7 @@ const sizeMap = {
     giant: 200
 };
 
-export function BloodCoin({ size = "md", className = "", animated = true }: BloodCoinProps) {
+export function BloodCoin({ size = "md", className = "", animated = false }: BloodCoinProps) {
     const dimension = sizeMap[size];
 
     // The "wow" factor: A 3D spinning coin container

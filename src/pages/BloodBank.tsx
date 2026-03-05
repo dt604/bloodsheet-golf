@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Shield, History, Wallet as WalletIcon, ChevronRight, Zap, Trophy, Star, Target, Coins } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Shield, History, Wallet as WalletIcon, ChevronRight, Trophy, Target } from 'lucide-react';
 import { BloodCoin } from '../components/ui/BloodCoin';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -130,7 +130,7 @@ export default function BloodBankPage() {
                                 transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
                                 className="absolute inset-[-20px] border border-bloodRed/10 rounded-full"
                             />
-                            <BloodCoin size="giant" className="drop-shadow-[0_0_60px_rgba(255,0,63,0.4)] relative z-10" />
+                            <BloodCoin animated={true} size="giant" className="drop-shadow-[0_0_60px_rgba(255,0,63,0.4)] relative z-10" />
 
                             {/* Scanning beam effect */}
                             <motion.div
@@ -163,16 +163,18 @@ export default function BloodBankPage() {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-3 mb-8">
+                <div className="grid grid-cols-2 gap-3 mb-10 pt-2 isolate">
                     <Button
-                        className="h-14 bg-white/10 hover:bg-white/15 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-1 backdrop-blur-md transition-all shadow-lg text-white"
+                        className="h-16 bg-white/[0.07] hover:bg-white/10 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-1 backdrop-blur-md transition-all shadow-lg text-white transform-gpu"
+                        style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
                         onClick={() => alert("Send Coins logic coming soon!")}
                     >
                         <ArrowUpRight className="w-5 h-5 text-bloodRed mb-0.5" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Send</span>
                     </Button>
                     <Button
-                        className="h-14 bg-white/10 hover:bg-white/15 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-1 backdrop-blur-md transition-all shadow-lg text-white"
+                        className="h-16 bg-white/[0.07] hover:bg-white/10 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-1 backdrop-blur-md transition-all shadow-lg text-white transform-gpu"
+                        style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
                         onClick={() => alert("Request Coins logic coming soon!")}
                     >
                         <ArrowDownLeft className="w-5 h-5 text-neonGreen mb-0.5" />
@@ -238,18 +240,6 @@ export default function BloodBankPage() {
                                     case 'wager_deduction':
                                         txTitle = "Match Deduction";
                                         txIcon = <Target className="w-5 h-5 text-bloodRed" />;
-                                        break;
-                                    case 'reward':
-                                        const rType = tx.metadata?.reward_type;
-                                        txTitle = rType === 'birdie' ? "Birdie Bonus" :
-                                            rType === 'eagle' ? "Eagle Bonus" :
-                                                rType === 'sandie' ? "Sandy Save" :
-                                                    rType === 'round_completion' ? "Loyalty Reward" : "Reward Earned";
-
-                                        // Specialized icons for rewards
-                                        if (rType === 'birdie' || rType === 'eagle') txIcon = <Zap className={`w-5 h-5 ${rType === 'eagle' ? 'text-yellow-400' : 'text-neonGreen'}`} />;
-                                        else if (rType === 'sandie') txIcon = <Star className="w-5 h-5 text-neonGreen" />;
-                                        else if (rType === 'round_completion') txIcon = <Coins className="w-5 h-5 text-bloodRed" />;
                                         break;
                                     case 'admin_adjustment':
                                         txTitle = "Admin Adjustment";
