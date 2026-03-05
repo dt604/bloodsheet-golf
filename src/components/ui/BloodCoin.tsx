@@ -34,7 +34,7 @@ export function BloodCoin({ size = "md", className = "", animated = false }: Blo
                     rotateY: [0, 360]
                 } : {}}
                 transition={animated ? {
-                    duration: 6,
+                    duration: 10,
                     repeat: Infinity,
                     ease: "linear"
                 } : {}}

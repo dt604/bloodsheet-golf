@@ -127,19 +127,23 @@ export default function BloodBankPage() {
                             <div className="h-[1px] w-8 bg-bloodRed/50 mb-8" />
                         </div>
 
-                        {/* THE CENTERPIECE */}
-                        <div className="relative mb-8">
+                        {/* THE CENTERPIECE - Static container for layout stability, internal content animates */}
+                        <div className="relative mb-8 w-[200px] h-[200px] flex items-center justify-center">
                             <motion.div
                                 animate={{ rotate: 360 }}
-                                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                                className="absolute inset-[-40px] border border-white/5 rounded-full"
+                                transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                                className="absolute inset-[-40px] border border-white/5 rounded-full transform-gpu"
                             />
                             <motion.div
                                 animate={{ rotate: -360 }}
-                                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                                className="absolute inset-[-20px] border border-bloodRed/10 rounded-full"
+                                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                className="absolute inset-[-20px] border border-bloodRed/10 rounded-full transform-gpu"
                             />
-                            <BloodCoin animated={true} size="giant" className="drop-shadow-[0_0_60px_rgba(255,0,63,0.4)] relative z-10" />
+
+                            {/* The Coin itself - GPU forced for smooth rotation */}
+                            <div className="relative z-10 transform-gpu translate-z-0">
+                                <BloodCoin animated={true} size="giant" className="drop-shadow-[0_0_60px_rgba(255,0,63,0.4)]" />
+                            </div>
 
                             {/* Scanning beam effect */}
                             <motion.div
@@ -168,9 +172,9 @@ export default function BloodBankPage() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/pro-shop')}
-                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-bloodRed/20 hover:border-bloodRed/50 transition-all duration-500"
+                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-bloodRed/20 bg-[#1C1C1E] transition-all duration-300"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 via-background to-bloodRed/5 backdrop-blur-2xl" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/5 to-transparent opacity-50" />
                         <div className="absolute -right-10 -top-10 w-32 h-32 bg-bloodRed/10 rounded-full blur-3xl pointer-events-none group-hover:bg-bloodRed/20 transition-colors" />
 
                         <div className="relative z-10 p-4 sm:p-5 flex items-center justify-between">
@@ -203,10 +207,10 @@ export default function BloodBankPage() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/balances')}
-                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-neonGreen/20 hover:border-neonGreen/50 transition-all duration-500"
+                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-neonGreen/20 bg-[#1C1C1E] transition-all duration-300"
                     >
-                        {/* Background Layer with Glassmorphism and subtle green tint */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-neonGreen/10 via-background to-neonGreen/5 backdrop-blur-2xl" />
+                        {/* Background Layer with subtle green tint */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-neonGreen/5 to-transparent opacity-50" />
 
                         {/* Subtle internal glow */}
                         <div className="absolute -left-10 -top-10 w-32 h-32 bg-neonGreen/10 rounded-full blur-3xl pointer-events-none group-hover:bg-neonGreen/20 transition-colors" />
