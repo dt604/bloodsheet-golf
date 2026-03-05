@@ -1199,8 +1199,7 @@ export default function MatchSetupPage() {
                                                         onClick={() => setBloodCoinWager(Math.max(0, bloodCoinWager - 50))}
                                                         className="w-9 h-9 rounded-full border border-borderColor hover:border-bloodRed hover:text-bloodRed flex items-center justify-center transition-all text-lg font-bold active:scale-90"
                                                     >−</button>
-                                                    <span className={`text-2xl font-black min-w-[4rem] text-center tabular-nums flex items-center justify-center gap-1 transition-colors ${bloodCoinWager > 0 ? 'text-bloodRed drop-shadow-[0_0_10px_rgba(255,0,63,0.3)]' : 'text-secondaryText'}`}>
-                                                        <BloodCoin className="w-5 h-5" />
+                                                    <span className={`text-2xl font-black min-w-[4rem] text-center tabular-nums flex items-center justify-center transition-colors ${bloodCoinWager > 0 ? 'text-bloodRed drop-shadow-[0_0_10px_rgba(255,0,63,0.3)]' : 'text-secondaryText'}`}>
                                                         {bloodCoinWager}
                                                     </span>
                                                     <button
