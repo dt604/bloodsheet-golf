@@ -173,26 +173,26 @@ export default function BloodBankPage() {
                         <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 via-background to-bloodRed/5 backdrop-blur-2xl" />
                         <div className="absolute -right-10 -top-10 w-32 h-32 bg-bloodRed/10 rounded-full blur-3xl pointer-events-none group-hover:bg-bloodRed/20 transition-colors" />
 
-                        <div className="relative p-5 flex items-center justify-between">
-                            <div className="flex items-center gap-5">
-                                <div className="relative">
+                        <div className="relative p-4 sm:p-5 flex items-center justify-between">
+                            <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
+                                <div className="relative shrink-0">
                                     <div className="absolute inset-0 bg-bloodRed/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <div className="w-14 h-14 rounded-xl bg-bloodRed/5 border border-bloodRed/20 flex items-center justify-center relative flex-shrink-0 group-hover:bg-bloodRed/10 transition-all shadow-[0_0_15px_rgba(255,0,63,0.15)]">
-                                        <ShoppingBag className="w-6 h-6 text-bloodRed" />
+                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-bloodRed/5 border border-bloodRed/20 flex items-center justify-center relative group-hover:bg-bloodRed/10 transition-all shadow-[0_0_15px_rgba(255,0,63,0.15)]">
+                                        <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-bloodRed" />
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-start">
-                                    <span className="text-white font-black text-xl leading-none uppercase italic tracking-tight mb-1.5 flex items-center gap-2">
+                                <div className="flex flex-col items-start flex-1 min-w-0">
+                                    <span className="text-white font-black text-lg sm:text-xl leading-none uppercase italic tracking-tight mb-1 sm:mb-1.5 flex items-center gap-2 truncate w-full">
                                         The Pro Shop
-                                        <div className="h-1.5 w-1.5 rounded-full bg-bloodRed/50 group-hover:bg-bloodRed shadow-[0_0_8px_rgba(255,0,63,0.8)] animate-pulse" />
+                                        <div className="h-1.5 w-1.5 rounded-full bg-bloodRed/50 group-hover:bg-bloodRed shadow-[0_0_8px_rgba(255,0,63,0.8)] animate-pulse shrink-0" />
                                     </span>
-                                    <span className="text-[10px] text-bloodRed uppercase tracking-[0.2em] font-black italic">Spend Blood Coins</span>
+                                    <span className="text-[9px] sm:text-[10px] text-bloodRed uppercase tracking-[0.2em] font-black italic truncate w-full">Spend Blood Coins</span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-black text-bloodRed uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 italic">Enter</span>
-                                <div className="w-10 h-10 rounded-full border border-bloodRed/20 flex items-center justify-center bg-bloodRed/10 group-hover:border-bloodRed/40 transition-all">
-                                    <ChevronRight className="w-5 h-5 text-bloodRed" />
+                            <div className="flex items-center gap-2 shrink-0 ml-2">
+                                <span className="hidden sm:block text-[9px] font-black text-bloodRed uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 italic">Enter</span>
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-bloodRed/20 flex items-center justify-center bg-bloodRed/10 group-hover:border-bloodRed/40 transition-all shrink-0">
+                                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-bloodRed" />
                                 </div>
                             </div>
                         </div>
@@ -211,29 +211,29 @@ export default function BloodBankPage() {
                         {/* Subtle internal glow */}
                         <div className="absolute -left-10 -top-10 w-32 h-32 bg-neonGreen/10 rounded-full blur-3xl pointer-events-none group-hover:bg-neonGreen/20 transition-colors" />
 
-                        <div className="relative p-5 flex items-center justify-between">
-                            <div className="flex items-center gap-5">
+                        <div className="relative p-4 sm:p-5 flex items-center justify-between">
+                            <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
                                 {/* Icon with nested glow */}
-                                <div className="relative">
+                                <div className="relative shrink-0">
                                     <div className="absolute inset-0 bg-neonGreen/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <div className="w-14 h-14 rounded-xl bg-neonGreen/5 border border-neonGreen/20 flex items-center justify-center relative flex-shrink-0 group-hover:bg-neonGreen/10 transition-all shadow-[0_0_15px_rgba(0,255,102,0.15)]">
-                                        <WalletIcon className="w-6 h-6 text-neonGreen" />
+                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-neonGreen/5 border border-neonGreen/20 flex items-center justify-center relative group-hover:bg-neonGreen/10 transition-all shadow-[0_0_15px_rgba(0,255,102,0.15)]">
+                                        <WalletIcon className="w-5 h-5 sm:w-6 sm:h-6 text-neonGreen" />
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col items-start">
-                                    <span className="text-white font-black text-xl leading-none uppercase italic tracking-tight mb-1.5 flex items-center gap-2">
+                                <div className="flex flex-col items-start flex-1 min-w-0">
+                                    <span className="text-white font-black text-lg sm:text-xl leading-none uppercase italic tracking-tight mb-1 sm:mb-1.5 flex items-center gap-2 truncate w-full">
                                         Cash Ledger
-                                        <div className="h-1.5 w-1.5 rounded-full bg-neonGreen/50 group-hover:bg-neonGreen shadow-[0_0_8px_rgba(0,255,102,0.8)] animate-pulse" />
+                                        <div className="h-1.5 w-1.5 rounded-full bg-neonGreen/50 group-hover:bg-neonGreen shadow-[0_0_8px_rgba(0,255,102,0.8)] animate-pulse shrink-0" />
                                     </span>
-                                    <span className="text-[10px] text-neonGreen uppercase tracking-[0.2em] font-black italic">Settle Your Debts</span>
+                                    <span className="text-[9px] sm:text-[10px] text-neonGreen uppercase tracking-[0.2em] font-black italic truncate w-full">Settle Your Debts</span>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-black text-neonGreen uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 italic">Enter</span>
-                                <div className="w-10 h-10 rounded-full border border-neonGreen/20 flex items-center justify-center bg-neonGreen/10 group-hover:border-neonGreen/40 transition-all">
-                                    <ChevronRight className="w-5 h-5 text-neonGreen" />
+                            <div className="flex items-center gap-2 shrink-0 ml-2">
+                                <span className="hidden sm:block text-[9px] font-black text-neonGreen uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 italic">Enter</span>
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-neonGreen/20 flex items-center justify-center bg-neonGreen/10 group-hover:border-neonGreen/40 transition-all shrink-0">
+                                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-neonGreen" />
                                 </div>
                             </div>
                         </div>
