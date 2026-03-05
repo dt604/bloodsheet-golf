@@ -119,7 +119,6 @@ export default function LiveScorecardPage() {
     const [showTrashValueHelp, setShowTrashValueHelp] = useState(false);
     const [settingsSaving, setSettingsSaving] = useState(false);
     const [pingMessage, setPingMessage] = useState<{ message: string; timestamp: number } | null>(null);
-    const [pingingPlayerId, setPingingPlayerId] = useState<string | null>(null);
     const [focusedMatchIdx, setFocusedMatchIdx] = useState(0);
     const isGroupMode = activeMatchIds.length > 1;
     const isScorekeeper = match?.createdBy === user?.id;
@@ -141,7 +140,6 @@ export default function LiveScorecardPage() {
         setUnreadChatCount(c => c + 1);
         setChatBubble({ sender: senderName, msg: msg.content, id });
 
-        if (navigator.vibrate) navigator.vibrate([20, 50, 20]);
 
         setTimeout(() => {
             setChatBubble(current => current?.id === id ? null : current);
@@ -254,11 +252,6 @@ export default function LiveScorecardPage() {
         // Ensure we don't ping infinitely or for ourselves. 
         if (lastScoreUpdate.playerId === user.id) return;
 
-        // Trigger Haptic
-        if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
-
-        setPingingPlayerId(lastScoreUpdate.playerId);
-
         setPingMessage({
             message: `Scores updated for Hole ${lastScoreUpdate.holeNumber}`,
             timestamp: Date.now()
@@ -267,7 +260,6 @@ export default function LiveScorecardPage() {
         // Clear ping after 3 seconds
         const t = setTimeout(() => {
             setPingMessage(null);
-            setPingingPlayerId(null);
         }, 3000);
         return () => clearTimeout(t);
     }, [lastScoreUpdate, user?.id]);
@@ -944,11 +936,8 @@ export default function LiveScorecardPage() {
                                 transition={{ duration: 0.3 }}
                             >
                                 <Card
-                                    className={`p-4 transition-all duration-300 relative overflow-hidden ${isUnder ? 'border-neonGreen/40 bg-neonGreen/5 shadow-[0_0_20px_rgba(0,255,102,0.05)]' : 'border-borderColor/50'} ${!isMe ? (isUnder ? 'opacity-90' : 'opacity-70') : ''} ${pingingPlayerId === player.userId ? 'ring-2 ring-neonGreen shadow-[0_0_30px_rgba(0,255,102,0.6)] z-20 scale-[1.02]' : ''}`}
+                                    className={`p-4 transition-all duration-300 relative overflow-hidden ${isUnder ? 'border-neonGreen/40 bg-neonGreen/5' : 'border-borderColor/50'} ${!isMe ? (isUnder ? 'opacity-90' : 'opacity-70') : ''}`}
                                 >
-                                    {isUnder && (
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-neonGreen/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
-                                    )}
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-surfaceHover flex items-center justify-center font-bold text-white border border-borderColor overflow-hidden shrink-0">
