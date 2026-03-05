@@ -193,7 +193,7 @@ export default function MatchSetupPage() {
 
     useEffect(() => {
         if (currentStep === 4 && !hasSeenMatchConfigTour) {
-            if (trashOpen && currentConfigStep === 3) resumeConfigTour(4);
+            if (trashOpen && currentConfigStep === 4) resumeConfigTour(5);
         }
     }, [trashOpen, currentStep, currentConfigStep, hasSeenMatchConfigTour]);
 
@@ -1183,7 +1183,7 @@ export default function MatchSetupPage() {
                             <div className="grid grid-cols-1 gap-4">
                                 <section>
                                     <div className="text-[10px] font-black text-secondaryText uppercase tracking-[0.2em] mb-3 ml-1">Tee Time Details</div>
-                                    <Card className="p-4 border-borderColor/50 bg-background/30">
+                                    <Card id="starting-hole-section" className="p-4 border-borderColor/50 bg-background/30">
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-xl bg-surfaceHover flex items-center justify-center">

@@ -268,6 +268,15 @@ export const startMatchConfigTour = (onComplete: () => void, stepIndex: number =
                 }
             },
             {
+                element: '#starting-hole-section',
+                popover: {
+                    title: 'Tee Off Location',
+                    description: "Shotgun start or playing the back nine? Set your starting hole here so the scorecard tracks correctly.",
+                    side: 'top',
+                    align: 'center',
+                }
+            },
+            {
                 element: '#real-money-wager',
                 popover: {
                     title: 'Real Money Stakes',
