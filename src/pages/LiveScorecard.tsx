@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Camera } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight, Trash2, MessageSquare, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight, Trash2, MessageSquare, Info, LogOut } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
@@ -1272,8 +1272,8 @@ export default function LiveScorecardPage() {
                                     </div>
                                 </div>
 
-                                {isScorekeeper && (
-                                    <div className="pt-6 pb-2">
+                                {isScorekeeper ? (
+                                    <div className="pt-6 pb-6">
                                         <button
                                             onClick={() => {
                                                 setShowEditSettings(false);
@@ -1282,7 +1282,21 @@ export default function LiveScorecardPage() {
                                             className="group flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-bloodRed/20 hover:border-bloodRed/50 hover:bg-bloodRed/5 transition-all"
                                         >
                                             <Trash2 className="w-3.5 h-3.5 text-bloodRed/60 group-hover:text-bloodRed" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-bloodRed/60 group-hover:text-bloodRed">Delete Match</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-bloodRed/60 group-hover:text-bloodRed">Quit & Delete Match</span>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="pt-6 pb-6">
+                                        <button
+                                            onClick={() => {
+                                                if (matchId) sessionStorage.setItem('dismissedMatchId', matchId);
+                                                navigate('/dashboard', { replace: true });
+                                                setTimeout(() => clearMatch(), 10);
+                                            }}
+                                            className="group flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all"
+                                        >
+                                            <LogOut className="w-3.5 h-3.5 text-secondaryText group-hover:text-white" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-secondaryText group-hover:text-white">Quit Match</span>
                                         </button>
                                     </div>
                                 )}
