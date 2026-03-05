@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Shield, History, Wallet as WalletIcon, ChevronRight, Trophy, Target } from 'lucide-react';
+import { ArrowLeft, Shield, History, Wallet as WalletIcon, ChevronRight, Trophy, Target } from 'lucide-react';
 import { BloodCoin } from '../components/ui/BloodCoin';
-import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import SEO from '../components/SEO';
 import { useAuth } from '../contexts/AuthContext';
@@ -114,7 +113,7 @@ export default function BloodBankPage() {
                     >
                         {/* Title integrated into the visual stack */}
                         <div className="mb-8 flex flex-col items-center">
-                            <h2 className="text-[11px] font-black text-white/30 tracking-[0.5em] uppercase mb-1">Vault Status</h2>
+                            <h2 className="text-[11px] font-black text-white/30 tracking-[0.5em] uppercase mb-1">Coin Holdings</h2>
                             <div className="h-[1px] w-8 bg-bloodRed/50 mb-8" />
                         </div>
 
@@ -143,44 +142,15 @@ export default function BloodBankPage() {
                             <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-48 h-8 bg-bloodRed/20 blur-3xl rounded-[100%] scale-x-150" />
                         </div>
 
-                        <div className="flex flex-col items-center text-center mt-4 w-full px-6">
-                            <h3 className="text-secondaryText font-black uppercase tracking-[0.4em] text-[10px] mb-3 opacity-40 italic">Total Available Credit</h3>
-                            <h1 className="text-5xl sm:text-7xl md:text-8xl font-black text-white italic tracking-tight drop-shadow-[0_0_35px_rgba(255,0,63,0.3)] leading-none mb-6 break-words pr-2">
+                        <div className="flex flex-col items-center text-center mt-4 w-full px-6 mb-4">
+                            <h3 className="text-secondaryText font-black uppercase tracking-[0.4em] text-[10px] mb-3 opacity-40 italic">Total Available Coins</h3>
+                            <h1 className="text-5xl sm:text-7xl md:text-8xl font-black text-white italic tracking-tight drop-shadow-[0_0_35px_rgba(255,0,63,0.3)] leading-none break-words pr-2">
                                 {isLoading ? '...' : <AnimatedNumber value={balance} />}
                             </h1>
-
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                                className="px-5 py-2.5 bg-gradient-to-r from-white/[0.02] via-white/[0.08] to-white/[0.02] border border-white/[0.1] rounded-2xl flex items-center gap-2.5 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] whitespace-nowrap"
-                            >
-                                <Shield className="w-4 h-4 text-neonGreen shadow-[0_0_15px_rgba(0,255,102,0.6)]" />
-                                <span className="text-[9px] text-white/70 uppercase font-black tracking-[0.2em]">Verified Secure Vault Access</span>
-                            </motion.div>
                         </div>
                     </motion.div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-3 mb-10 pt-2 isolate">
-                    <Button
-                        className="h-16 bg-white/[0.07] hover:bg-white/10 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-1 backdrop-blur-md transition-all shadow-lg text-white transform-gpu"
-                        style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
-                        onClick={() => alert("Send Coins logic coming soon!")}
-                    >
-                        <ArrowUpRight className="w-5 h-5 text-bloodRed mb-0.5" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Send</span>
-                    </Button>
-                    <Button
-                        className="h-16 bg-white/[0.07] hover:bg-white/10 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-1 backdrop-blur-md transition-all shadow-lg text-white transform-gpu"
-                        style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
-                        onClick={() => alert("Request Coins logic coming soon!")}
-                    >
-                        <ArrowDownLeft className="w-5 h-5 text-neonGreen mb-0.5" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Request</span>
-                    </Button>
-                </div>
 
                 {/* Cash Balances Link */}
                 <button
