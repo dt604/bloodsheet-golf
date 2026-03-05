@@ -26,10 +26,12 @@ function AnimatedNumber({ value }: { value: number }) {
             const easeOutExpo = 1 - Math.pow(2, -10 * progress);
 
             const current = Math.floor(start + (end - start) * easeOutExpo);
-            setDisplayValue(current);
 
             if (progress < 1) {
+                setDisplayValue(current);
                 requestAnimationFrame(animate);
+            } else {
+                setDisplayValue(end);
             }
         }
 

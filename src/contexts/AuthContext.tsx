@@ -5,8 +5,10 @@ import { supabase } from '../lib/supabase';
 interface Profile {
   id: string;
   fullName: string;
+  nickname?: string;
   email: string;
   avatarUrl?: string;
+  countryCode?: string;
   handicap: number;
   is_admin: boolean;
   createdAt: string;
@@ -22,7 +24,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<string | null>;
   signInAsGuest: () => Promise<string | null>;
   signOut: () => Promise<void>;
-  updateProfile: (data: Partial<Pick<Profile, 'fullName' | 'handicap' | 'avatarUrl'>>) => Promise<void>;
+  updateProfile: (data: Partial<Pick<Profile, 'fullName' | 'nickname' | 'handicap' | 'avatarUrl' | 'countryCode'>>) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<string | null>;
   updatePassword: (password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
@@ -51,8 +53,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile({
             id: data.id,
             fullName: data.full_name,
+            nickname: data.nickname ?? undefined,
             email: data.email ?? '',
             avatarUrl: data.avatar_url ?? undefined,
+            countryCode: data.country_code ?? undefined,
             handicap: data.handicap,
             is_admin: data.is_admin ?? false,
             createdAt: data.created_at,
@@ -163,12 +167,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error?.message ?? null;
   }
 
-  async function updateProfile(data: Partial<Pick<Profile, 'fullName' | 'handicap' | 'avatarUrl'>>) {
+  async function updateProfile(data: Partial<Pick<Profile, 'fullName' | 'nickname' | 'handicap' | 'avatarUrl' | 'countryCode'>>) {
     if (!user) return;
     const updates: Record<string, unknown> = {};
     if (data.fullName !== undefined) updates.full_name = data.fullName;
+    if (data.nickname !== undefined) updates.nickname = data.nickname;
     if (data.handicap !== undefined) updates.handicap = data.handicap;
     if (data.avatarUrl !== undefined) updates.avatar_url = data.avatarUrl;
+    if (data.countryCode !== undefined) updates.country_code = data.countryCode;
     await supabase.from('profiles').update(updates).eq('id', user.id);
     setProfile((prev) => prev ? { ...prev, ...data } : prev);
   }

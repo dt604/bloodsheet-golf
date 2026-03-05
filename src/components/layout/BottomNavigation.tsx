@@ -6,6 +6,7 @@ import { useMatchStore } from '../../store/useMatchStore';
 import { useSocialStore } from '../../store/useSocialStore';
 import { useAuth } from '../../contexts/AuthContext';
 
+
 export default function BottomNavigation() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -87,6 +88,7 @@ export default function BottomNavigation() {
                         {/* Housing / Cutout base */}
                         <div className="absolute -top-7 w-20 h-20 bg-[#0B0B0C] rounded-full flex items-center justify-center p-[6px] border border-white/[0.05] shadow-[0_-15px_25px_rgba(0,0,0,0.6)]">
                             <button
+                                id="new-match-btn"
                                 onClick={handleStartMatch}
                                 className="w-full h-full rounded-full relative group overflow-hidden shadow-[inset_0_-4px_10px_rgba(0,0,0,0.7),0_10px_20px_rgba(255,0,63,0.3)] hover:shadow-[inset_0_-4px_10px_rgba(0,0,0,0.7),0_10px_35px_rgba(255,0,63,0.6)] transition-all duration-500 active:scale-95 flex items-center justify-center"
                                 style={{
@@ -101,6 +103,8 @@ export default function BottomNavigation() {
 
                                 {/* Glowing center play icon */}
                                 <Play className="w-8 h-8 text-white ml-0.5 relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] group-hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.9)] transition-all duration-500" fill="currentColor" />
+
+
 
                                 {/* Engine heartbeat glow on hover */}
                                 <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />

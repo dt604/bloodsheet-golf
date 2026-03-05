@@ -60,3 +60,99 @@
     padding-right: env(safe-area-inset-right);
   }
 }
+
+/* Custom Driver.js Styling */
+.driver-popover.bloodsheet-tour-theme {
+  background-color: #1a1a1c !important; /* Extremely dark grey, nearly black */
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 0, 63, 0.3) !important;
+  box-shadow: 0 0 30px rgba(255, 0, 63, 0.2) !important;
+  border-radius: 16px !important;
+  font-family: inherit !important;
+  padding: 1.5rem !important;
+}
+
+.driver-popover.bloodsheet-tour-theme .driver-popover-title {
+  font-weight: 900 !important;
+  font-size: 1.25rem !important;
+  text-transform: uppercase !important;
+  color: #FF003F !important; /* Blood Red */
+  margin-bottom: 0.5rem !important;
+  letter-spacing: 0.05em !important;
+}
+
+.driver-popover.bloodsheet-tour-theme .driver-popover-description {
+  font-size: 0.875rem !important;
+  color: #A1A1AA !important; /* text-secondaryText */
+  line-height: 1.6 !important;
+  font-weight: 500 !important;
+}
+
+.driver-popover.bloodsheet-tour-theme .driver-popover-footer button {
+  background-color: transparent !important;
+  text-shadow: none !important;
+  font-weight: 900 !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  color: #A1A1AA !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 9999px !important;
+  padding: 0.5rem 1rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.driver-popover.bloodsheet-tour-theme .driver-popover-footer button.driver-next-btn,
+.driver-popover.bloodsheet-tour-theme .driver-popover-footer button.driver-close-btn {
+  color: #00FF66 !important; /* Neon Green */
+  border-color: rgba(0, 255, 102, 0.3) !important;
+  background: rgba(0, 255, 102, 0.05) !important;
+}
+
+.driver-popover.bloodsheet-tour-theme .driver-popover-footer button.driver-next-btn:hover,
+.driver-popover.bloodsheet-tour-theme .driver-popover-footer button.driver-close-btn:hover {
+  background: rgba(0, 255, 102, 0.1) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 102, 0.2) !important;
+}
+
+.driver-popover.bloodsheet-tour-theme .driver-popover-footer button:hover {
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.driver-popover.bloodsheet-tour-theme .driver-popover-navigation-btns {
+  gap: 0.5rem !important;
+}
+
+div#driver-page-overlay {
+  background: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Base spotlight style */
+.driver-active-element {
+  box-shadow: 0 0 0 2px #FF003F, 0 0 30px rgba(255, 0, 63, 0.5) !important;
+  border-radius: inherit !important;
+  z-index: 1000000 !important;
+}
+
+/* Neon Green spotlight for the new match button specifically if we wanted it */
+.driver-active-element.neon-spotlight {
+  box-shadow: 0 0 0 2px #00FF66, 0 0 30px rgba(0, 255, 102, 0.5) !important;
+}
+
+/* Make arrow follow theme */
+.driver-popover.bloodsheet-tour-theme .driver-popover-arrow-side-top {
+  border-bottom-color: #1a1a1c !important;
+}
+.driver-popover.bloodsheet-tour-theme .driver-popover-arrow-side-bottom {
+  border-top-color: #1a1a1c !important;
+}
+.driver-popover.bloodsheet-tour-theme .driver-popover-arrow-side-left {
+  border-right-color: #1a1a1c !important;
+}
+.driver-popover.bloodsheet-tour-theme .driver-popover-arrow-side-right {
+  border-left-color: #1a1a1c !important;
+}

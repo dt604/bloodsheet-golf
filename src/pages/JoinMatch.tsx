@@ -6,11 +6,14 @@ import { supabase } from '../lib/supabase';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
+import { PulseBeacon } from '../components/ui/PulseBeacon';
+import { useUIStore } from '../store/useUIStore';
 
 export default function JoinMatchPage() {
     const navigate = useNavigate();
     const loadMatch = useMatchStore((s) => s.loadMatch);
     const { isGuest } = useAuth();
+    const { hasSeenJoinPulse, setSeenJoinPulse } = useUIStore();
 
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
@@ -106,9 +109,19 @@ export default function JoinMatchPage() {
                     <Button
                         size="lg"
                         className="w-full py-6 text-lg font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(255,0,63,0.3)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,0,63,0.5)] hover:scale-[1.02] active:scale-95 disabled:hover:scale-100 disabled:opacity-50 mt-4 border border-bloodRed/50"
-                        onClick={handleJoin}
+                        onClick={() => {
+                            handleJoin();
+                            setSeenJoinPulse(true);
+                        }}
                         disabled={loading || code.trim().length < 4}
                     >
+                        {!hasSeenJoinPulse && code.trim().length >= 4 && !loading && (
+                            <PulseBeacon
+                                color="white"
+                                size="md"
+                                className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none"
+                            />
+                        )}
                         {loading ? (
                             <span className="flex items-center gap-2 justify-center">
                                 <Loader className="w-5 h-5 animate-spin" /> Joining…

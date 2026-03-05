@@ -9,7 +9,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useMatchStore } from '../store/useMatchStore';
 import SEO from '../components/SEO';
+import { useUIStore } from '../store/useUIStore';
 import { RecentMedia } from '../components/dashboard/RecentMedia';
+import { startDashboardTour } from '../lib/tour';
 
 // Import avatars
 import juniorAvatar from '../assets/avatars/junior.png';
@@ -52,6 +54,16 @@ interface Stats {
 export default function DashboardPage() {
     const navigate = useNavigate();
     const { user, profile, updateProfile } = useAuth();
+    const { hasSeenDashboardTour, setSeenDashboardTour } = useUIStore();
+
+    useEffect(() => {
+        if (!hasSeenDashboardTour) {
+            const timer = setTimeout(() => {
+                startDashboardTour(() => setSeenDashboardTour(true));
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [hasSeenDashboardTour, setSeenDashboardTour]);
 
     const [showAvatarPicker, setShowAvatarPicker] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -696,14 +708,17 @@ export default function DashboardPage() {
                     <button onClick={() => navigate('/history')} className="text-xs font-bold text-bloodRed uppercase tracking-widest hover:opacity-70 transition-opacity">View All</button>
                 </div>
                 {history.length === 0 ? (
-                    <div className="mt-4">
-                        <EmptyState
-                            title="No Rounds Recorded"
-                            description="Your status isn't built in a day. Tee off to start your legacy."
-                            actionLabel="Tee It Up"
-                            onAction={() => navigate('/setup')}
-                            accentColor="bloodRed"
-                        />
+                    <div className="mt-4 flex justify-center w-full">
+                        <div className="relative inline-block">
+                            <EmptyState
+                                title="No Rounds Recorded"
+                                description="Your status isn't built in a day. Tee off to start your legacy."
+                                actionLabel="Tee It Up"
+                                onAction={() => navigate('/setup')}
+                                accentColor="bloodRed"
+                            />
+
+                        </div>
                     </div>
                 ) : (
                     <Card className="divide-y divide-borderColor/50">
