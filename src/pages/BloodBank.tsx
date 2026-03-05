@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Shield, History, Wallet as WalletIcon, ChevronRight, Trophy, Target } from 'lucide-react';
+import { ArrowLeft, Shield, History, Wallet as WalletIcon, ChevronRight, Trophy, Target, ShoppingBag } from 'lucide-react';
 import { BloodCoin } from '../components/ui/BloodCoin';
 import { Card } from '../components/ui/Card';
 import SEO from '../components/SEO';
@@ -152,48 +152,83 @@ export default function BloodBankPage() {
                 </div>
 
 
-                {/* Cash Balances Link - Redesigned for more impact without overshadowing the hero coin */}
-                <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('/balances')}
-                    className="w-full mb-10 relative group overflow-hidden text-left"
-                >
-                    {/* Background Layer with Glassmorphism and subtle gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-surface/90 via-neonGreen/[0.03] to-surface/90 rounded-2xl border border-white/10 group-hover:border-neonGreen/20 transition-all duration-500 backdrop-blur-2xl" />
+                <div className="flex flex-col gap-3 mb-10 w-full">
+                    {/* The Pro Shop - Primary Action */}
+                    <motion.button
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => navigate('/pro-shop')}
+                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-bloodRed/20 hover:border-bloodRed/50 transition-all duration-500"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 via-background to-bloodRed/5 backdrop-blur-2xl" />
+                        <div className="absolute -right-10 -top-10 w-32 h-32 bg-bloodRed/10 rounded-full blur-3xl pointer-events-none group-hover:bg-bloodRed/20 transition-colors" />
 
-                    {/* Subtle internal glow */}
-                    <div className="absolute -left-10 -top-10 w-32 h-32 bg-neonGreen/5 rounded-full blur-3xl pointer-events-none group-hover:bg-neonGreen/10 transition-colors" />
-
-                    <div className="relative p-5 flex items-center justify-between">
-                        <div className="flex items-center gap-5">
-                            {/* Icon with nested glow */}
-                            <div className="relative">
-                                <div className="absolute inset-0 bg-neonGreen/10 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="w-14 h-14 rounded-xl bg-white/[0.02] border border-white/10 flex items-center justify-center relative flex-shrink-0 group-hover:bg-neonGreen/10 group-hover:border-neonGreen/30 transition-all">
-                                    <WalletIcon className="w-6 h-6 text-secondaryText group-hover:text-neonGreen transition-colors duration-300" />
+                        <div className="relative p-5 flex items-center justify-between">
+                            <div className="flex items-center gap-5">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-bloodRed/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="w-14 h-14 rounded-xl bg-bloodRed/5 border border-bloodRed/20 flex items-center justify-center relative flex-shrink-0 group-hover:bg-bloodRed/10 transition-all shadow-[0_0_15px_rgba(255,0,63,0.15)]">
+                                        <ShoppingBag className="w-6 h-6 text-bloodRed" />
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-start">
+                                    <span className="text-white font-black text-xl leading-none uppercase italic tracking-tight mb-1.5 flex items-center gap-2">
+                                        The Pro Shop
+                                        <div className="h-1.5 w-1.5 rounded-full bg-bloodRed/50 group-hover:bg-bloodRed shadow-[0_0_8px_rgba(255,0,63,0.8)] animate-pulse" />
+                                    </span>
+                                    <span className="text-[10px] text-bloodRed uppercase tracking-[0.2em] font-black italic">Spend Blood Coins</span>
                                 </div>
                             </div>
-
-                            <div className="flex flex-col items-start">
-                                <span className="text-white font-black text-xl leading-none uppercase italic tracking-tight mb-1.5 flex items-center gap-2">
-                                    Cash Ledger
-                                    <div className="h-1.5 w-1.5 rounded-full bg-neonGreen/50 group-hover:bg-neonGreen shadow-[0_0_8px_rgba(0,255,102,0.8)] animate-pulse" />
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] text-secondaryText uppercase tracking-[0.2em] font-black italic">Settle Your Debts</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-black text-bloodRed uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 italic">Enter</span>
+                                <div className="w-10 h-10 rounded-full border border-bloodRed/20 flex items-center justify-center bg-bloodRed/10 group-hover:border-bloodRed/40 transition-all">
+                                    <ChevronRight className="w-5 h-5 text-bloodRed" />
                                 </div>
                             </div>
                         </div>
+                    </motion.button>
 
-                        <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black text-neonGreen uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 italic">Enter</span>
-                            <div className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center bg-white/[0.02] group-hover:border-neonGreen/20 group-hover:bg-neonGreen/5 transition-all">
-                                <ChevronRight className="w-5 h-5 text-secondaryText group-hover:text-white transition-colors" />
+                    {/* Cash Balances Link - High Visibility / Pro Shop Style */}
+                    <motion.button
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => navigate('/balances')}
+                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-neonGreen/20 hover:border-neonGreen/50 transition-all duration-500"
+                    >
+                        {/* Background Layer with Glassmorphism and subtle green tint */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-neonGreen/10 via-background to-neonGreen/5 backdrop-blur-2xl" />
+
+                        {/* Subtle internal glow */}
+                        <div className="absolute -left-10 -top-10 w-32 h-32 bg-neonGreen/10 rounded-full blur-3xl pointer-events-none group-hover:bg-neonGreen/20 transition-colors" />
+
+                        <div className="relative p-5 flex items-center justify-between">
+                            <div className="flex items-center gap-5">
+                                {/* Icon with nested glow */}
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-neonGreen/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="w-14 h-14 rounded-xl bg-neonGreen/5 border border-neonGreen/20 flex items-center justify-center relative flex-shrink-0 group-hover:bg-neonGreen/10 transition-all shadow-[0_0_15px_rgba(0,255,102,0.15)]">
+                                        <WalletIcon className="w-6 h-6 text-neonGreen" />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col items-start">
+                                    <span className="text-white font-black text-xl leading-none uppercase italic tracking-tight mb-1.5 flex items-center gap-2">
+                                        Cash Ledger
+                                        <div className="h-1.5 w-1.5 rounded-full bg-neonGreen/50 group-hover:bg-neonGreen shadow-[0_0_8px_rgba(0,255,102,0.8)] animate-pulse" />
+                                    </span>
+                                    <span className="text-[10px] text-neonGreen uppercase tracking-[0.2em] font-black italic">Settle Your Debts</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-black text-neonGreen uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 italic">Enter</span>
+                                <div className="w-10 h-10 rounded-full border border-neonGreen/20 flex items-center justify-center bg-neonGreen/10 group-hover:border-neonGreen/40 transition-all">
+                                    <ChevronRight className="w-5 h-5 text-neonGreen" />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </motion.button>
+                    </motion.button>
+                </div>
 
                 {/* Ledger / History Placeholder */}
                 <div className="relative">
@@ -207,7 +242,7 @@ export default function BloodBankPage() {
                     {isLoading ? (
                         <Card className="border border-white/5 bg-surface/50 backdrop-blur-xl p-6 flex flex-col items-center justify-center text-center overflow-hidden relative min-h-[200px]">
                             <div className="w-12 h-12 mx-auto bg-surfaceHover border border-white/10 rounded-full flex items-center justify-center mb-2 animate-pulse">
-                                <BloodCoin className="w-6 h-6 grayscale opacity-50" />
+                                <BloodCoin animated={false} className="w-6 h-6 grayscale opacity-50" />
                             </div>
                             <h4 className="text-white font-black uppercase tracking-wide">Securely Loading</h4>
                             <p className="text-xs text-secondaryText">Connecting to the Vault...</p>
@@ -221,7 +256,7 @@ export default function BloodBankPage() {
                         >
                             {transactions.map(tx => {
                                 const isPositive = tx.amount > 0;
-                                let txIcon = <BloodCoin className="w-5 h-5" />;
+                                let txIcon = <BloodCoin animated={false} className="w-5 h-5" />;
                                 let txTitle = "Transaction";
 
                                 switch (tx.type) {
@@ -273,7 +308,7 @@ export default function BloodBankPage() {
                             <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent z-10 pointer-events-none" />
                             <div className="relative z-20 space-y-3">
                                 <div className="w-12 h-12 mx-auto bg-surfaceHover border border-white/10 rounded-full flex items-center justify-center mb-2 animate-pulse">
-                                    <BloodCoin className="w-6 h-6 grayscale opacity-50" />
+                                    <BloodCoin animated={false} className="w-6 h-6 grayscale opacity-50" />
                                 </div>
                                 <h4 className="text-white font-black uppercase tracking-wide">No Transactions Yet</h4>
                                 <p className="text-xs text-secondaryText max-w-[200px] mx-auto leading-relaxed">

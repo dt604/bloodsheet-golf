@@ -10,6 +10,24 @@ export interface WalletTransaction {
     created_at: string;
 }
 
+export interface StoreItem {
+    id: string;
+    name: string;
+    description: string;
+    image_url: string;
+    blood_coin_price: number;
+    category: string;
+    stock_count: number;
+    is_active: boolean;
+}
+
+export interface RedemptionResult {
+    success: boolean;
+    redemption_id?: string;
+    new_balance?: number;
+    error?: string;
+}
+
 export async function getBloodCoinBalance(userId: string): Promise<number> {
     const { data, error } = await supabase
         .from('user_blood_coin_balances')
@@ -43,4 +61,34 @@ export async function fetchRecentTransactions(userId: string): Promise<WalletTra
     }
 
     return data as WalletTransaction[];
+}
+
+export async function getStoreItems(): Promise<StoreItem[]> {
+    const { data, error } = await supabase
+        .from('store_items')
+        .select('*')
+        .eq('is_active', true)
+        .order('blood_coin_price', { ascending: true });
+
+    if (error) {
+        console.error("Error fetching store items:", error);
+        return [];
+    }
+
+    return data as StoreItem[];
+}
+
+export async function redeemBloodCoins(userId: string, itemId: string): Promise<RedemptionResult> {
+    const { data, error } = await supabase.rpc('redeem_blood_coins', {
+        p_user_id: userId,
+        p_item_id: itemId
+    });
+
+    if (error) {
+        console.error("RPC Error in redeem_blood_coins:", error);
+        return { success: false, error: error.message };
+    }
+
+    // The RPC returns a JSON object matching RedemptionResult
+    return data as RedemptionResult;
 }

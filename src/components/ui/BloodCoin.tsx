@@ -31,10 +31,10 @@ export function BloodCoin({ size = "md", className = "", animated = false }: Blo
             <motion.div
                 className="relative w-full h-full"
                 animate={animated ? {
-                    rotateY: 360
+                    rotateY: [0, 360]
                 } : {}}
                 transition={animated ? {
-                    duration: 4,
+                    duration: 6,
                     repeat: Infinity,
                     ease: "linear"
                 } : {}}

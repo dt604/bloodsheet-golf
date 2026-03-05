@@ -31,6 +31,7 @@ import ResetPasswordPage from './pages/ResetPassword';
 import AuthCallbackPage from './pages/AuthCallback';
 import OnboardingPage from './pages/Onboarding';
 import NotificationsPage from './pages/Notifications';
+import TheProShopPage from './pages/TheProShop';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
@@ -94,6 +95,7 @@ function AppRoutes() {
         <Route path="/reset-password" element={<PageWrapper><ResetPasswordPage /></PageWrapper>} />
         <Route path="/auth/callback" element={<PageWrapper><AuthCallbackPage /></PageWrapper>} />
         <Route path="/onboarding" element={<ProtectedRoute><PageWrapper><OnboardingPage /></PageWrapper></ProtectedRoute>} />
+        <Route path="/pro-shop" element={<ProtectedRoute><PageWrapper><MainLayout><TheProShopPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><PageWrapper><MainLayout><DashboardPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/balances" element={<ProtectedRoute><PageWrapper><MainLayout><BalancesPage /></MainLayout></PageWrapper></ProtectedRoute>} />
         <Route path="/blood-bank" element={<ProtectedRoute><PageWrapper><MainLayout><BloodBankPage /></MainLayout></PageWrapper></ProtectedRoute>} />
