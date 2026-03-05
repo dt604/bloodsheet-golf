@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Shield, History, Wallet as WalletIcon, ChevronRight, Trophy, Target, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Shield, History, Wallet as WalletIcon, ChevronRight, Trophy, Target, ShoppingBag, HelpCircle } from 'lucide-react';
 import { BloodCoin } from '../components/ui/BloodCoin';
 import { Card } from '../components/ui/Card';
+import { VaultProtocolModal } from '../components/ui/VaultProtocolModal';
 import SEO from '../components/SEO';
 import { useAuth } from '../contexts/AuthContext';
 import { getBloodCoinBalance, fetchRecentTransactions, WalletTransaction } from '../lib/walletApi';
@@ -46,6 +47,7 @@ export default function BloodBankPage() {
     const [balance, setBalance] = useState<number>(0);
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
 
     useEffect(() => {
         if (!user?.id) return;
@@ -92,12 +94,20 @@ export default function BloodBankPage() {
 
             {/* Floating Navigation Overlay (Transparent) */}
             <div className="fixed top-0 left-0 right-0 z-50 pt-safe pointer-events-none">
-                <div className="flex items-center p-4">
+                <div className="flex items-center justify-between p-4">
                     <button
                         onClick={() => navigate(-1)}
                         className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all pointer-events-auto backdrop-blur-md active:scale-90 group"
                     >
                         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                    </button>
+
+                    <button
+                        onClick={() => setIsVaultModalOpen(true)}
+                        className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all pointer-events-auto backdrop-blur-md active:scale-90 group"
+                        title="What are Blood Coins?"
+                    >
+                        <HelpCircle className="w-5 h-5 group-hover:text-bloodRed transition-colors" />
                     </button>
                 </div>
             </div>
@@ -319,6 +329,11 @@ export default function BloodBankPage() {
                     )}
                 </div>
             </main>
+
+            <VaultProtocolModal
+                isOpen={isVaultModalOpen}
+                onClose={() => setIsVaultModalOpen(false)}
+            />
         </div>
     );
 }

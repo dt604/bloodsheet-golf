@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, ShoppingBag, Loader, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ShoppingBag, Loader, AlertCircle, HelpCircle } from 'lucide-react';
 import { BloodCoin } from '../components/ui/BloodCoin';
 import { Card } from '../components/ui/Card';
+import { VaultProtocolModal } from '../components/ui/VaultProtocolModal';
 import SEO from '../components/SEO';
 import { useAuth } from '../contexts/AuthContext';
 import { getBloodCoinBalance, getStoreItems, redeemBloodCoins, StoreItem } from '../lib/walletApi';
@@ -20,6 +21,7 @@ export default function TheProShopPage() {
     const [isRedeeming, setIsRedeeming] = useState(false);
     const [redemptionSuccess, setRedemptionSuccess] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
 
     useEffect(() => {
         if (!user?.id) return;
@@ -120,11 +122,20 @@ export default function TheProShopPage() {
             <main className="flex-1 overflow-y-auto px-4 pb-24 relative z-10 pt-[calc(env(safe-area-inset-top)+80px)]">
 
                 {/* Intro Section */}
-                <div className="mb-8 mt-2">
-                    <h2 className="text-2xl font-black text-white italic tracking-tight mb-2 uppercase">Your Vault</h2>
-                    <p className="text-sm text-secondaryText font-medium leading-relaxed">
-                        Redeem your hard-earned Blood Coins for premium gear, digital flex items, and exclusive experiences.
-                    </p>
+                <div className="mb-8 mt-2 flex items-start justify-between">
+                    <div>
+                        <h2 className="text-2xl font-black text-white italic tracking-tight mb-2 uppercase">Your Vault</h2>
+                        <p className="text-sm text-secondaryText font-medium leading-relaxed max-w-[280px]">
+                            Redeem your hard-earned Blood Coins for premium gear, digital flex items, and exclusive experiences.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setIsVaultModalOpen(true)}
+                        className="p-2 -mt-1 -mr-2 bg-white/5 hover:bg-white/10 rounded-full transition-all group"
+                        title="What are Blood Coins?"
+                    >
+                        <HelpCircle className="w-5 h-5 text-secondaryText group-hover:text-bloodRed transition-colors" />
+                    </button>
                 </div>
 
                 {isLoading ? (
@@ -375,6 +386,11 @@ export default function TheProShopPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <VaultProtocolModal
+                isOpen={isVaultModalOpen}
+                onClose={() => setIsVaultModalOpen(false)}
+            />
         </div>
     );
 }
