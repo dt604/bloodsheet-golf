@@ -152,22 +152,50 @@ export default function BloodBankPage() {
                 </div>
 
 
-                {/* Cash Balances Link */}
-                <button
+                {/* Cash Balances Link - Redesigned for more impact without overshadowing the hero coin */}
+                <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => navigate('/balances')}
-                    className="w-full mb-8 bg-surface/80 hover:bg-surface border border-borderColor hover:border-white/20 rounded-2xl p-4 flex items-center justify-between transition-all group backdrop-blur-xl shadow-xl"
+                    className="w-full mb-10 relative group overflow-hidden text-left"
                 >
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <WalletIcon className="w-5 h-5 text-neonGreen shadow-[0_0_15px_rgba(0,255,102,0.5)]" />
+                    {/* Background Layer with Glassmorphism and subtle gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-surface/90 via-neonGreen/[0.03] to-surface/90 rounded-2xl border border-white/10 group-hover:border-neonGreen/20 transition-all duration-500 backdrop-blur-2xl" />
+
+                    {/* Subtle internal glow */}
+                    <div className="absolute -left-10 -top-10 w-32 h-32 bg-neonGreen/5 rounded-full blur-3xl pointer-events-none group-hover:bg-neonGreen/10 transition-colors" />
+
+                    <div className="relative p-5 flex items-center justify-between">
+                        <div className="flex items-center gap-5">
+                            {/* Icon with nested glow */}
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-neonGreen/10 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="w-14 h-14 rounded-xl bg-white/[0.02] border border-white/10 flex items-center justify-center relative flex-shrink-0 group-hover:bg-neonGreen/10 group-hover:border-neonGreen/30 transition-all">
+                                    <WalletIcon className="w-6 h-6 text-secondaryText group-hover:text-neonGreen transition-colors duration-300" />
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col items-start">
+                                <span className="text-white font-black text-xl leading-none uppercase italic tracking-tight mb-1.5 flex items-center gap-2">
+                                    Cash Ledger
+                                    <div className="h-1.5 w-1.5 rounded-full bg-neonGreen/50 group-hover:bg-neonGreen shadow-[0_0_8px_rgba(0,255,102,0.8)] animate-pulse" />
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-secondaryText uppercase tracking-[0.2em] font-black italic">Settle Your Debts</span>
+                                    <div className="h-[1px] w-4 bg-white/10" />
+                                    <span className="text-[9px] text-white/20 uppercase tracking-widest font-bold">USD Settlements</span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex flex-col items-start">
-                            <span className="text-white font-bold text-lg leading-tight uppercase tracking-tight">Real Cash Debts</span>
-                            <span className="text-[10px] text-secondaryText uppercase tracking-widest font-bold">Venmo, Zelle, E-Transfer</span>
+
+                        <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black text-neonGreen uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 italic">Enter</span>
+                            <div className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center bg-white/[0.02] group-hover:border-neonGreen/20 group-hover:bg-neonGreen/5 transition-all">
+                                <ChevronRight className="w-5 h-5 text-secondaryText group-hover:text-white transition-colors" />
+                            </div>
                         </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-secondaryText group-hover:text-white transition-colors" />
-                </button>
+                </motion.button>
 
                 {/* Ledger / History Placeholder */}
                 <div className="relative">
