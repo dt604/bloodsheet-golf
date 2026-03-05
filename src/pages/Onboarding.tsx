@@ -105,11 +105,9 @@ export default function OnboardingPage() {
     const evalTourStep = () => {
         if (hasSeenOnboardingTour) return;
 
-        if (nicknameRef.current.length < 3) {
-            resumeTour(0);
-        } else if (!countryRef.current) {
-            resumeTour(1);
-        } else if (handicapRef.current === '' || handicapRef.current === '0' || handicapRef.current === '0.0') {
+        // Nickname and Country are now optional. We only FORCE the tour back to 
+        // the fields that are essential for the game logic (Handicap & Avatar).
+        if (handicapRef.current === '' || handicapRef.current === '0' || handicapRef.current === '0.0') {
             resumeTour(2);
         } else if (!avatarRef.current && !customAvatarRef.current) {
             resumeTour(3);
@@ -122,7 +120,15 @@ export default function OnboardingPage() {
     useEffect(() => {
         if (!hasSeenOnboardingTour) {
             const timer = setTimeout(() => {
-                evalTourStep();
+                // On first load, start at the very beginning (Optional fields included)
+                // but evalTourStep (called on blur) will only enforce the mandatory ones.
+                if (nicknameRef.current === '') {
+                    resumeTour(0);
+                } else if (!countryRef.current) {
+                    resumeTour(1);
+                } else {
+                    evalTourStep();
+                }
             }, 800);
             return () => clearTimeout(timer);
         }

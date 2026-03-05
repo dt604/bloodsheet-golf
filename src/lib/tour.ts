@@ -324,7 +324,7 @@ export const startOnboardingTour = (onComplete: () => void, stepIndex: number = 
             {
                 element: '#nickname-input',
                 popover: {
-                    title: 'Your Legend Starts Here',
+                    title: 'Your Legend Starts Here (Optional)',
                     description: "Pick a nickname that will strike fear into your opponents on the leaderboard.",
                     side: 'bottom',
                     align: 'center',
@@ -333,7 +333,7 @@ export const startOnboardingTour = (onComplete: () => void, stepIndex: number = 
             {
                 element: '#country-select',
                 popover: {
-                    title: 'Represent Your Nation',
+                    title: 'Represent Your Nation (Optional)',
                     description: "Stand tall behind your flag. This will show up next to your name in every match.",
                     side: 'bottom',
                     align: 'center',
