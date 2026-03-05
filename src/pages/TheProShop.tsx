@@ -10,25 +10,45 @@ import { getBloodCoinBalance, getStoreItems, redeemBloodCoins, StoreItem } from 
 
 function ShopItemImage({ src, alt, children }: { src: string; alt: string; children?: React.ReactNode }) {
     const [isLoaded, setIsLoaded] = useState(false);
+
+    // Optimize Unsplash images on the fly if they are too big
+    const optimizedSrc = src.includes('unsplash.com') && !src.includes('w=')
+        ? `${src}&w=800&auto=format&fit=crop&q=80`
+        : src.replace(/w=\d+/, 'w=800');
+
     return (
-        <div className="w-full h-full relative">
-            {/* Image Layer */}
+        <div className="w-full h-full relative bg-surfaceHover">
+            {/* The Image Layer - Hardware accelerated fade */}
             <img
-                src={src}
+                src={optimizedSrc}
                 alt={alt}
                 onLoad={() => setIsLoaded(true)}
-                className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
+                className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-110 transform-gpu ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
 
-            {/* Darkening Gradient - Synchronized with load */}
-            <div className={`absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`} />
+            {/* The Overlay - Always present to prevent 'flicker' delay, but fades in with image for smoothness */}
+            <div className={`absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`} />
 
-            {/* Placeholder / Skeleton - Fades out as image fades in */}
-            <div className={`absolute inset-0 bg-white/5 flex items-center justify-center transition-opacity duration-300 ${isLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100 animate-pulse'}`}>
-                <ShoppingBag className="w-8 h-8 text-white/10" />
-            </div>
-
+            {/* Minimal Skeleton - Stays until image is fully ready */}
+            {!isLoaded && (
+                <div className="absolute inset-0 bg-white/5 animate-pulse flex items-center justify-center">
+                    <ShoppingBag className="w-8 h-8 text-white/10" />
+                </div>
+            )}
             {children}
+        </div>
+    );
+}
+
+function ShopItemSkeleton() {
+    return (
+        <div className="flex flex-col h-full rounded-3xl overflow-hidden border border-white/5 bg-surface/20 animate-pulse">
+            <div className="aspect-[4/3] w-full bg-white/5" />
+            <div className="p-5 flex flex-col flex-1">
+                <div className="h-6 w-3/4 bg-white/5 rounded-lg mb-3" />
+                <div className="h-4 w-full bg-white/5 rounded-lg mb-6" />
+                <div className="mt-auto h-12 w-full bg-white/5 rounded-xl" />
+            </div>
         </div>
     );
 }
@@ -162,99 +182,101 @@ export default function TheProShopPage() {
                     </button>
                 </div>
 
-                {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <Loader className="w-8 h-8 text-bloodRed animate-spin mb-4" />
-                        <span className="text-secondaryText text-sm font-bold uppercase tracking-widest">Stocking Shelves...</span>
-                    </div>
-                ) : items.length > 0 ? (
-                    <motion.div
-                        variants={containerVariants}
-                        initial="hidden"
-                        animate="visible"
-                        className="grid grid-cols-1 sm:grid-cols-2 gap-6"
-                    >
-                        {items.map(item => {
-                            const canAfford = balance >= item.blood_coin_price;
-                            const isOutOfStock = item.stock_count === 0;
+                {/* Grid Section - Skeleton or Data */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-12">
+                    {isLoading ? (
+                        <>
+                            <ShopItemSkeleton />
+                            <ShopItemSkeleton />
+                            <ShopItemSkeleton />
+                            <ShopItemSkeleton />
+                        </>
+                    ) : items.length > 0 ? (
+                        <AnimatePresence>
+                            {items.map(item => {
+                                const canAfford = balance >= item.blood_coin_price;
+                                const isOutOfStock = item.stock_count === 0;
 
-                            return (
-                                <motion.div
-                                    key={item.id}
-                                    variants={itemVariants}
-                                    onClick={() => {
-                                        if (!isOutOfStock) setSelectedItem(item);
-                                    }}
-                                    whileHover={!isOutOfStock ? { y: -5, transition: { duration: 0.2 } } : {}}
-                                    className={`flex flex-col h-full relative rounded-3xl overflow-hidden border transition-all duration-300 backdrop-blur-md group ${canAfford && !isOutOfStock ? 'border-white/10 bg-surface/40 cursor-pointer hover:border-bloodRed/40 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4),0_0_20px_rgba(255,0,63,0.1)]' : 'border-white/5 bg-surface/20 grayscale-[40%] cursor-not-allowed'}`}
-                                >
-                                    {/* Item Image Area */}
-                                    <div className="aspect-[4/3] w-full relative bg-surfaceHover overflow-hidden shrink-0">
-                                        {item.image_url ? (
-                                            <ShopItemImage src={item.image_url} alt={item.name}>
-                                                {/* Category Badge - Inside the sync container */}
-                                                <div className="absolute top-4 left-4 z-20">
-                                                    <span className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[9px] font-black text-neonGreen uppercase tracking-[0.2em] italic">
-                                                        {item.category}
-                                                    </span>
-                                                </div>
-
-                                                {isOutOfStock && (
-                                                    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
-                                                        <span className="px-4 py-2 border-2 border-bloodRed text-bloodRed font-black uppercase text-xl italic tracking-tighter rotate-[-12deg] shadow-2xl">SOLDOUT</span>
+                                return (
+                                    <motion.div
+                                        key={item.id}
+                                        variants={itemVariants}
+                                        initial="hidden"
+                                        animate="visible"
+                                        onClick={() => {
+                                            if (!isOutOfStock) setSelectedItem(item);
+                                        }}
+                                        whileHover={!isOutOfStock ? { y: -5, transition: { duration: 0.2 } } : {}}
+                                        className={`flex flex-col h-full relative rounded-3xl overflow-hidden border transition-all duration-300 group ${canAfford && !isOutOfStock ? 'border-white/10 bg-surface/40 cursor-pointer hover:border-bloodRed/40 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4),0_0_20px_rgba(255,0,63,0.1)]' : 'border-white/5 bg-surface/20 grayscale-[40%] cursor-not-allowed'}`}
+                                    >
+                                        {/* Item Image Area */}
+                                        <div className="aspect-[4/3] w-full relative bg-surfaceHover overflow-hidden shrink-0">
+                                            {item.image_url ? (
+                                                <ShopItemImage src={item.image_url} alt={item.name}>
+                                                    {/* Category Badge - Inside the sync container */}
+                                                    <div className="absolute top-4 left-4 z-20">
+                                                        <span className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[9px] font-black text-neonGreen uppercase tracking-[0.2em] italic">
+                                                            {item.category}
+                                                        </span>
                                                     </div>
-                                                )}
-                                            </ShopItemImage>
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/5 to-transparent">
-                                                <ShoppingBag className="w-12 h-12 text-white/5" />
-                                            </div>
-                                        )}
-                                    </div>
 
-                                    {/* Item Content Area */}
-                                    <div className="p-5 flex flex-col flex-1">
-                                        <div className="flex justify-between items-start gap-4 mb-3 text-left">
-                                            <h3 className="text-white font-black italic uppercase tracking-tighter text-lg leading-tight flex-1">{item.name}</h3>
-                                            <div className={`flex items-center gap-1.5 shrink-0 ${!canAfford ? 'text-secondaryText opacity-60' : 'text-white'}`}>
-                                                <BloodCoin animated={false} size="xs" className={!canAfford ? 'grayscale opacity-50' : ''} />
-                                                <span className="text-sm font-black italic">{item.blood_coin_price.toLocaleString()}</span>
-                                            </div>
-                                        </div>
-
-                                        <p className="text-[11px] text-secondaryText font-medium leading-relaxed mb-6 opacity-70 flex-1 text-left">
-                                            {item.description}
-                                        </p>
-
-                                        <div className="mt-auto">
-                                            {isOutOfStock ? (
-                                                <button disabled className="w-full py-3 rounded-xl bg-white/5 border border-white/5 text-secondaryText text-[10px] font-black uppercase tracking-widest cursor-not-allowed">
-                                                    Out of Stock
-                                                </button>
+                                                    {isOutOfStock && (
+                                                        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
+                                                            <span className="px-4 py-2 border-2 border-bloodRed text-bloodRed font-black uppercase text-xl italic tracking-tighter rotate-[-12deg] shadow-2xl">SOLDOUT</span>
+                                                        </div>
+                                                    )}
+                                                </ShopItemImage>
                                             ) : (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedItem(item);
-                                                    }}
-                                                    className={`w-full py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all ${canAfford ? 'bg-bloodRed text-white hover:bg-red-600 shadow-[0_4px_15px_rgba(255,0,63,0.3)]' : 'bg-white/5 border border-white/10 text-secondaryText'}`}
-                                                >
-                                                    {canAfford ? 'Redeem Item' : 'Insufficient Coins'}
-                                                </button>
+                                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/5 to-transparent">
+                                                    <ShoppingBag className="w-12 h-12 text-white/5" />
+                                                </div>
                                             )}
                                         </div>
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                    </motion.div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <ShoppingBag className="w-12 h-12 text-white/10 mb-4" />
-                        <h4 className="text-white font-black uppercase mb-1">Vault Empty</h4>
-                        <p className="text-xs text-secondaryText uppercase tracking-widest">New items coming soon</p>
-                    </div>
-                )}
+
+                                        {/* Item Content Area */}
+                                        <div className="p-5 flex flex-col flex-1">
+                                            <div className="flex justify-between items-start gap-4 mb-3 text-left">
+                                                <h3 className="text-white font-black italic uppercase tracking-tighter text-lg leading-tight flex-1">{item.name}</h3>
+                                                <div className={`flex items-center gap-1.5 shrink-0 ${!canAfford ? 'text-secondaryText opacity-60' : 'text-white'}`}>
+                                                    <BloodCoin animated={false} size="xs" className={!canAfford ? 'grayscale opacity-50' : ''} />
+                                                    <span className="text-sm font-black italic">{item.blood_coin_price.toLocaleString()}</span>
+                                                </div>
+                                            </div>
+
+                                            <p className="text-[11px] text-secondaryText font-medium leading-relaxed mb-6 opacity-70 flex-1 text-left">
+                                                {item.description}
+                                            </p>
+
+                                            <div className="mt-auto">
+                                                {isOutOfStock ? (
+                                                    <button disabled className="w-full py-3 rounded-xl bg-white/5 border border-white/5 text-secondaryText text-[10px] font-black uppercase tracking-widest cursor-not-allowed">
+                                                        Out of Stock
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedItem(item);
+                                                        }}
+                                                        className={`w-full py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all ${canAfford ? 'bg-bloodRed text-white hover:bg-red-600 shadow-[0_4px_15px_rgba(255,0,63,0.3)]' : 'bg-white/5 border border-white/10 text-secondaryText'}`}
+                                                    >
+                                                        {canAfford ? 'Redeem Item' : 'Insufficient Coins'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-center col-span-full">
+                            <ShoppingBag className="w-12 h-12 text-white/10 mb-4 mx-auto" />
+                            <h4 className="text-white font-black uppercase mb-1">Vault Empty</h4>
+                            <p className="text-xs text-secondaryText uppercase tracking-widest">New items coming soon</p>
+                        </div>
+                    )}
+                </div>
             </main>
 
             {/* Redemption Confirmation Modal */}
