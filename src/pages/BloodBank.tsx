@@ -168,9 +168,9 @@ export default function BloodBankPage() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/pro-shop')}
-                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-bloodRed/20 hover:border-bloodRed/50 transition-all duration-500"
+                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-bloodRed/20 hover:border-bloodRed/50 transition-all duration-500 transform-gpu"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 via-background to-bloodRed/5 backdrop-blur-2xl" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-bloodRed/10 via-background to-bloodRed/5 backdrop-blur-2xl transform-gpu" />
                         <div className="absolute -right-10 -top-10 w-32 h-32 bg-bloodRed/10 rounded-full blur-3xl pointer-events-none group-hover:bg-bloodRed/20 transition-colors" />
 
                         <div className="relative z-10 p-4 sm:p-5 flex items-center justify-between">
@@ -203,10 +203,10 @@ export default function BloodBankPage() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/balances')}
-                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-neonGreen/20 hover:border-neonGreen/50 transition-all duration-500"
+                        className="w-full relative group overflow-hidden text-left rounded-2xl border border-neonGreen/20 hover:border-neonGreen/50 transition-all duration-500 transform-gpu"
                     >
                         {/* Background Layer with Glassmorphism and subtle green tint */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-neonGreen/10 via-background to-neonGreen/5 backdrop-blur-2xl" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-neonGreen/10 via-background to-neonGreen/5 backdrop-blur-2xl transform-gpu" />
 
                         {/* Subtle internal glow */}
                         <div className="absolute -left-10 -top-10 w-32 h-32 bg-neonGreen/10 rounded-full blur-3xl pointer-events-none group-hover:bg-neonGreen/20 transition-colors" />
