@@ -4,7 +4,7 @@ export interface WalletTransaction {
     id: string;
     user_id: string;
     amount: number;
-    type: 'grant' | 'wager_deduction' | 'wager_win' | 'transfer_sent' | 'transfer_received' | 'redemption' | 'reward' | 'admin_adjustment';
+    type: 'grant' | 'wager_deduction' | 'wager_win' | 'transfer_sent' | 'transfer_received' | 'redemption' | 'admin_adjustment';
     reference_id?: string;
     metadata?: any;
     created_at: string;
