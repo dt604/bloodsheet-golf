@@ -113,7 +113,7 @@ export default function BloodBankPage() {
                     >
                         {/* Title integrated into the visual stack */}
                         <div className="mb-8 flex flex-col items-center">
-                            <h2 className="text-[11px] font-black text-white/30 tracking-[0.5em] uppercase mb-1">Coin Holdings</h2>
+                            <h2 className="text-[11px] font-black text-white/30 tracking-[0.5em] uppercase mb-1">BloodBank</h2>
                             <div className="h-[1px] w-8 bg-bloodRed/50 mb-8" />
                         </div>
 
