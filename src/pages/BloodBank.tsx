@@ -94,7 +94,7 @@ export default function BloodBankPage() {
             <div className="fixed top-0 left-0 right-0 z-50 pt-safe pointer-events-none">
                 <div className="flex items-center p-4">
                     <button
-                        onClick={() => navigate('/home')}
+                        onClick={() => navigate(-1)}
                         className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all pointer-events-auto backdrop-blur-md active:scale-90 group"
                     >
                         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
