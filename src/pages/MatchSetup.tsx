@@ -162,11 +162,13 @@ export default function MatchSetupPage() {
     useEffect(() => {
         if (currentStep === 3 && !hasSeenMatchStrokesTour && format !== 'skins') {
             const timer = setTimeout(() => {
-                startMatchStrokesTour(() => setSeenMatchStrokesTour(true), format === '1v1');
+                // Only show multi-match tour if it's 1v1 AND there's more than one opponent to even play against
+                const isMultiMatch = format === '1v1' && poolPlayers.length > 1;
+                startMatchStrokesTour(() => setSeenMatchStrokesTour(true), isMultiMatch);
             }, 500);
             return () => clearTimeout(timer);
         }
-    }, [currentStep, hasSeenMatchStrokesTour, format]);
+    }, [currentStep, hasSeenMatchStrokesTour, format, poolPlayers.length]);
 
     // Tour for Step 4: Setup (Course, Stakes, Trash)
     useEffect(() => {
