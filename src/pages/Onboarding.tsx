@@ -108,7 +108,11 @@ export default function OnboardingPage() {
         // Nickname and Country are now optional. We only FORCE the tour back to 
         // the fields that are essential for the game logic (Handicap & Avatar).
         // Note: '0' is a valid handicap (Scratch), so we only force if it's strictly empty.
-        if (handicapRef.current === '') {
+        if (nicknameRef.current === '' && handicapRef.current === '') {
+            resumeTour(0);
+        } else if (!countryRef.current && handicapRef.current === '') {
+            resumeTour(1);
+        } else if (handicapRef.current === '') {
             resumeTour(2);
         } else if (!avatarRef.current && !customAvatarRef.current) {
             resumeTour(3);
