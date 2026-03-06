@@ -8,6 +8,7 @@ import { Toggle } from '../components/ui/Toggle';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useUIStore } from '../store/useUIStore';
+import { COUNTRIES } from '../constants/countries';
 
 // Import avatars
 import juniorAvatar from '../assets/avatars/junior.png';
@@ -36,6 +37,14 @@ export default function SettingsPage() {
     const [editingName, setEditingName] = useState(false);
     const [nameInput, setNameInput] = useState(profile?.fullName ?? '');
     const [savingName, setSavingName] = useState(false);
+
+    const [editingNickname, setEditingNickname] = useState(false);
+    const [nicknameInput, setNicknameInput] = useState(profile?.nickname ?? '');
+    const [savingNickname, setSavingNickname] = useState(false);
+
+    const [editingCountry, setEditingCountry] = useState(false);
+    const [countryInput, setCountryInput] = useState(profile?.countryCode ?? '');
+    const [savingCountry, setSavingCountry] = useState(false);
 
     const [editingHandicap, setEditingHandicap] = useState(false);
     const [handicapInput, setHandicapInput] = useState(String(profile?.handicap ?? '0.0'));
@@ -87,6 +96,22 @@ export default function SettingsPage() {
         await updateProfile({ fullName: val });
         setSavingName(false);
         setEditingName(false);
+    }
+
+    async function handleSaveNickname() {
+        const val = nicknameInput.trim();
+        setSavingNickname(true);
+        await updateProfile({ nickname: val || undefined });
+        setSavingNickname(false);
+        setEditingNickname(false);
+    }
+
+    async function handleSaveCountry(code: string) {
+        setSavingCountry(true);
+        await updateProfile({ countryCode: code });
+        setSavingCountry(false);
+        setEditingCountry(false);
+        setCountryInput(code);
     }
 
     async function handleSaveHandicap() {
@@ -225,7 +250,7 @@ export default function SettingsPage() {
                             </AnimatePresence>
                         </div>
                         <div className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer" onClick={() => setEditingName(!editingName)}>
-                            <span className="font-semibold text-white">Name</span>
+                            <span className="font-semibold text-white">Full Name</span>
                             <div className="flex items-center gap-2">
                                 {editingName ? (
                                     <input
@@ -235,6 +260,7 @@ export default function SettingsPage() {
                                         onChange={(e) => setNameInput(e.target.value)}
                                         onClick={(e) => e.stopPropagation()}
                                         onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                                        autoFocus
                                     />
                                 ) : (
                                     <span className="text-secondaryText">{profile?.fullName ?? '—'}</span>
@@ -247,6 +273,80 @@ export default function SettingsPage() {
                                     <ChevronRight className="w-4 h-4 text-secondaryText" />
                                 )}
                             </div>
+                        </div>
+
+                        <div className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer" onClick={() => setEditingNickname(!editingNickname)}>
+                            <div className="flex flex-col">
+                                <span className="font-semibold text-white">Tour Nickname</span>
+                                <span className="text-[10px] text-secondaryText italic">Displayed on your Dashboard & Scores</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {editingNickname ? (
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. The Shark"
+                                        className="w-40 text-right font-bold text-white bg-background border border-bloodRed px-3 py-1 rounded focus:outline-none"
+                                        value={nicknameInput}
+                                        onChange={(e) => setNicknameInput(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSaveNickname()}
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <span className="text-secondaryText italic">{profile?.nickname || 'Set Nickname'}</span>
+                                )}
+                                {editingNickname ? (
+                                    <Button size="sm" className="h-8 px-3 text-xs" onClick={(e) => { e.stopPropagation(); handleSaveNickname(); }} disabled={savingNickname}>
+                                        {savingNickname ? '…' : 'Save'}
+                                    </Button>
+                                ) : (
+                                    <ChevronRight className="w-4 h-4 text-secondaryText" />
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-4 flex flex-col hover:bg-surfaceHover transition-colors cursor-pointer" onClick={() => setEditingCountry(!editingCountry)}>
+                            <div className="flex items-center justify-between w-full">
+                                <span className="font-semibold text-white">Country / Region</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 bg-background border border-borderColor px-3 py-1 rounded">
+                                        <span className="text-lg">{COUNTRIES.find(c => c.code === (profile?.countryCode || countryInput))?.flag || '🏳️'}</span>
+                                        <span className="font-bold text-white uppercase text-xs">{profile?.countryCode || '—'}</span>
+                                    </div>
+                                    <ChevronRight className={`w-4 h-4 text-secondaryText transition-transform ${editingCountry ? 'rotate-90' : ''}`} />
+                                </div>
+                            </div>
+
+                            <AnimatePresence>
+                                {editingCountry && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-borderColor max-h-60 overflow-y-auto momentum-scroll pr-2">
+                                            {COUNTRIES.map((c) => (
+                                                <button
+                                                    key={c.code}
+                                                    onClick={() => handleSaveCountry(c.code)}
+                                                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${(profile?.countryCode || countryInput) === c.code
+                                                            ? 'border-bloodRed bg-bloodRed/5'
+                                                            : 'border-borderColor bg-background/50 hover:border-bloodRed/30'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xl">{c.flag}</span>
+                                                        <span className="text-xs font-bold text-white uppercase tracking-tight">{c.name}</span>
+                                                    </div>
+                                                    {savingCountry && countryInput === c.code && <Loader className="w-3 h-3 animate-spin text-bloodRed" />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                         <div className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors">
                             <span className="font-semibold text-white">Linked Email</span>

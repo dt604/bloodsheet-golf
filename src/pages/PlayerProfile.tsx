@@ -9,11 +9,14 @@ import { useFriendsStore } from '../store/useFriendsStore';
 import { supabase } from '../lib/supabase';
 import SEO from '../components/SEO';
 import { PresenceIndicator } from '../components/ui/PresenceIndicator';
+import { COUNTRIES } from '../constants/countries';
 
 
 interface ProfileData {
     id: string;
     fullName: string;
+    nickname?: string;
+    countryCode?: string;
     avatarUrl?: string;
     handicap: number;
     createdAt: string;
@@ -77,7 +80,7 @@ export default function PlayerProfilePage() {
 
             const { data: prof } = await supabase
                 .from('profiles')
-                .select('id, full_name, avatar_url, handicap, created_at')
+                .select('id, full_name, nickname, country_code, avatar_url, handicap, created_at')
                 .eq('id', userId!)
                 .single();
 
@@ -89,6 +92,8 @@ export default function PlayerProfilePage() {
             setProfileData({
                 id: prof.id,
                 fullName: prof.full_name,
+                nickname: prof.nickname ?? undefined,
+                countryCode: prof.country_code ?? undefined,
                 avatarUrl: prof.avatar_url ?? undefined,
                 handicap: prof.handicap ?? 0,
                 createdAt: prof.created_at,
@@ -326,14 +331,32 @@ export default function PlayerProfilePage() {
                 <div className="space-y-10">
                     {/* Identity card */}
                     <section className="bg-surface rounded-2xl p-6 border border-borderColor flex flex-col items-center relative overflow-hidden">
-                        <div className="w-20 h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-3xl mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden transition-transform">
-                            {profileData.avatarUrl ? (
-                                <img src={profileData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                                <img src="/logo-final.png" alt="Default Avatar" className="w-full h-full object-cover opacity-60" />
-                            )}
+                        {/* Avatar with Status Ring */}
+                        <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-bloodRed via-bloodRed/50 to-transparent shadow-[0_0_30px_rgba(255,0,63,0.2)] mb-6 overflow-hidden">
+                            <div className="w-full h-full rounded-full bg-surface border-4 border-surface overflow-hidden relative">
+                                {profileData.avatarUrl ? (
+                                    <img src={profileData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <img src="/logo-final.png" alt="Default Avatar" className="w-full h-full object-cover opacity-60" />
+                                )}
+                            </div>
                         </div>
-                        <h2 className="text-3xl font-black tracking-tight mb-1 truncate max-w-full px-2">{profileData.fullName}</h2>
+
+                        {/* Moniker Section (Full Name Only) */}
+                        <div className="text-center mb-6 w-full px-6 flex flex-col items-center">
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-2xl font-black italic tracking-tight uppercase leading-none drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent truncate max-w-[200px]">
+                                    {profileData.fullName}
+                                </h2>
+                                {profileData.countryCode && (
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-surfaceHover border border-borderColor shadow-inner">
+                                        <span className="text-xl leading-none">
+                                            {COUNTRIES.find(c => c.code === profileData.countryCode)?.flag}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                         {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
                             <div className="flex items-center justify-center gap-1.5 mt-1 mb-2 px-3 py-1 rounded-full bg-bloodRed/10 border border-bloodRed/30 shadow-[0_0_10px_rgba(255,0,63,0.15)]">
                                 <Crown className="w-4 h-4 text-bloodRed" />
@@ -341,7 +364,7 @@ export default function PlayerProfilePage() {
                             </div>
                         )}
                         <div className="flex flex-col items-center gap-2 mb-8 mt-1">
-                            <span className="text-xs font-semibold uppercase tracking-wider text-secondaryText block">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-secondaryText/40 block">
                                 Member since {memberYear}
                             </span>
                             {userId && (

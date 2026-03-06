@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, History, PenLine, Clock, Camera, Loader, Check, X } from 'lucide-react';
+import { Crown, History, PenLine, Clock, Camera, Loader, Check, X, ChevronRight } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -12,6 +12,7 @@ import SEO from '../components/SEO';
 import { useUIStore } from '../store/useUIStore';
 import { RecentMedia } from '../components/dashboard/RecentMedia';
 import { startDashboardTour } from '../lib/tour';
+import { COUNTRIES } from '../constants/countries';
 
 // Import avatars
 import juniorAvatar from '../assets/avatars/junior.png';
@@ -541,49 +542,105 @@ export default function DashboardPage() {
         <div className="space-y-12">
             <SEO title="Dashboard" />
             {/* Scrollable Content */}
+            {/* Profile Completion Nudge */}
+            {profile && (!profile.nickname || !profile.countryCode) && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mx-2 mb-6 p-4 rounded-2xl bg-gradient-to-r from-bloodRed/20 to-transparent border border-bloodRed/30 flex items-center justify-between group cursor-pointer hover:bg-bloodRed/10 transition-all shadow-[0_0_20px_rgba(255,0,63,0.1)]"
+                    onClick={() => navigate('/settings')}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-bloodRed/20 flex items-center justify-center border border-bloodRed/40 animate-pulse">
+                            <PenLine className="w-5 h-5 text-bloodRed" />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-black uppercase tracking-tight text-white group-hover:text-bloodRed transition-colors">Complete Your Tour Profile</h4>
+                            <p className="text-[10px] font-bold text-secondaryText uppercase tracking-widest leading-tight">Add a nickname & country to unlock your legend status</p>
+                        </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-secondaryText group-hover:text-white group-hover:translate-x-1 transition-all" />
+                </motion.div>
+            )}
+
             {/* Ident & Ledger Bal */}
             <AnimatePresence mode="wait">
                 {!showAvatarPicker ? (
                     <motion.section
                         key="ident"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="bg-surface rounded-2xl p-4 sm:p-6 border border-borderColor flex flex-col items-center"
+                        className="relative overflow-hidden bg-surface rounded-[2rem] p-8 border border-borderColor/50 shadow-2xl"
                     >
-                        <div
-                            className="w-16 h-16 sm:w-20 sm:h-20 bg-surfaceHover border-2 border-bloodRed rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 relative shadow-[0_0_15px_rgba(255,0,63,0.3)] overflow-hidden cursor-pointer transition-transform hover:scale-105 group"
-                            onClick={() => setShowAvatarPicker(true)}
-                        >
-                            {profile?.avatarUrl ? (
-                                <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                                initials
-                            )}
-                            <div className="absolute inset-0 bg-background/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 w-full h-full">
-                                {uploadingImage ? <Loader className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-white" /> : <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-lg" />}
-                            </div>
-                        </div>
-                        <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5 sm:mb-1 truncate max-w-full px-2">{profile?.fullName ?? '…'}</h2>
-                        {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
-                            <div className="flex items-center justify-center gap-1.5 mt-1 mb-2 px-3 py-1 rounded-full bg-bloodRed/10 border border-bloodRed/30 shadow-[0_0_10px_rgba(255,0,63,0.15)]">
-                                <Crown className="w-4 h-4 text-bloodRed" />
-                                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-bloodRed">BloodSheet Legend</span>
-                            </div>
-                        )}
-                        <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-secondaryText mb-6 sm:mb-8 mt-1 block">Member since {memberYear}</span>
+                        {/* Background Spotlight Decor */}
+                        <div className="absolute -top-24 -right-24 w-64 h-64 bg-bloodRed/10 rounded-full blur-[100px] pointer-events-none" />
+                        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-neonGreen/5 rounded-full blur-[100px] pointer-events-none" />
 
-                        <div className="w-full flex">
-                            <div className="flex-1 border-r border-borderColor flex flex-col items-center justify-center py-1 sm:py-2 px-1">
-                                <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 leading-tight">Index</span>
-                                <span className="text-3xl sm:text-4xl font-black font-sans">{profile?.handicap ?? '—'}</span>
+                        <div className="relative flex flex-col items-center">
+                            {/* Avatar with Status Ring */}
+                            <div className="relative mb-6">
+                                <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-full p-1 bg-gradient-to-tr from-bloodRed via-bloodRed/50 to-transparent shadow-[0_0_30px_rgba(255,0,63,0.2)] cursor-pointer overflow-hidden"
+                                    onClick={() => setShowAvatarPicker(true)}
+                                >
+                                    <div className="w-full h-full rounded-full bg-surface border-4 border-surface overflow-hidden relative group">
+                                        {profile?.avatarUrl ? (
+                                            <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center font-black text-3xl text-secondaryText bg-surfaceHover">
+                                                {initials}
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-bloodRed/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Camera className="w-6 h-6 text-white drop-shadow-md" />
+                                        </div>
+                                    </div>
+                                </motion.div>
+
+                                {profile?.countryCode && (
+                                    <div className="absolute -bottom-1 -right-1 bg-surface border border-borderColor p-1.5 rounded-xl shadow-lg flex items-center justify-center backdrop-blur-md">
+                                        <span className="text-xl leading-none">
+                                            {COUNTRIES.find(c => c.code === profile.countryCode)?.flag}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
-                            <div className="flex-1 flex flex-col items-center justify-center py-1 sm:py-2 px-1">
-                                <span className="text-[10px] sm:text-xs uppercase font-bold text-secondaryText tracking-widest mb-1 sm:mb-1.5 whitespace-nowrap leading-tight text-center">BloodSheet Total</span>
-                                <span className={`text-2xl sm:text-4xl font-black font-sans ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
+
+                            {/* Moniker Section (Full Name Only) */}
+                            <div className="text-center mb-6 w-full px-10 flex flex-col items-center">
+                                <h2 className="text-3xl sm:text-5xl font-black italic tracking-tighter uppercase leading-tight drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent pr-2">
+                                    {profile?.fullName || 'TOUR PRO'}
+                                </h2>
+                            </div>
+
+                            {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
+                                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-bloodRed/10 border border-bloodRed/20 shadow-[0_0_20px_rgba(255,0,63,0.1)] mb-6">
+                                    <Crown className="w-4 h-4 text-bloodRed fill-bloodRed/20" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">BloodSheet Legend</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Leaderboard Stats Section */}
+                        <div className="w-full grid grid-cols-2 gap-px bg-borderColor/30 rounded-2xl border border-borderColor/30 overflow-hidden backdrop-blur-sm mb-6">
+                            <div className="bg-surface/50 p-4 flex flex-col items-center">
+                                <span className="text-[9px] font-black text-secondaryText/60 uppercase tracking-[0.2em] mb-1">Hdcp Index</span>
+                                <span className="text-3xl font-black text-white font-mono">{profile?.handicap ?? '—'}</span>
+                            </div>
+                            <div className="bg-surface/50 p-4 flex flex-col items-center">
+                                <span className="text-[9px] font-black text-secondaryText/60 uppercase tracking-[0.2em] mb-1">Career Earnings</span>
+                                <span className={`text-2xl font-black font-mono ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
                                     {stats.lifetimePayout >= 0 ? '+' : ''}${stats.lifetimePayout}
                                 </span>
                             </div>
+                        </div>
+
+                        <div className="w-full text-center">
+                            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-secondaryText/30 block">
+                                Est. {memberYear} • Player ID: {profile?.id.slice(0, 8)}
+                            </span>
                         </div>
                     </motion.section>
                 ) : (
@@ -667,33 +724,35 @@ export default function DashboardPage() {
 
 
             {/* Action Required — matches needing the current user's attestation */}
-            {needsAttestation.length > 0 && (
-                <section>
-                    <div className="flex items-center gap-2 mb-3 px-2">
-                        <PenLine className="w-5 h-5 text-yellow-400" />
-                        <h3 className="text-sm font-bold tracking-widest uppercase text-yellow-400">Action Required</h3>
-                    </div>
-                    <Card className="divide-y divide-borderColor/50">
-                        {needsAttestation.map((item) => (
-                            <div
-                                key={item.matchId}
-                                className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
-                                onClick={async () => {
-                                    useMatchStore.setState({ matchId: item.matchId, match: null });
-                                    localStorage.setItem('activeMatchId', item.matchId);
-                                    navigate('/ledger');
-                                }}
-                            >
-                                <div>
-                                    <span className="font-bold text-white block">{item.courseName}</span>
-                                    <span className="text-xs text-yellow-400 font-bold uppercase tracking-wider">Your signature is needed</span>
+            {
+                needsAttestation.length > 0 && (
+                    <section>
+                        <div className="flex items-center gap-2 mb-3 px-2">
+                            <PenLine className="w-5 h-5 text-yellow-400" />
+                            <h3 className="text-sm font-bold tracking-widest uppercase text-yellow-400">Action Required</h3>
+                        </div>
+                        <Card className="divide-y divide-borderColor/50">
+                            {needsAttestation.map((item) => (
+                                <div
+                                    key={item.matchId}
+                                    className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer"
+                                    onClick={async () => {
+                                        useMatchStore.setState({ matchId: item.matchId, match: null });
+                                        localStorage.setItem('activeMatchId', item.matchId);
+                                        navigate('/ledger');
+                                    }}
+                                >
+                                    <div>
+                                        <span className="font-bold text-white block">{item.courseName}</span>
+                                        <span className="text-xs text-yellow-400 font-bold uppercase tracking-wider">Your signature is needed</span>
+                                    </div>
+                                    <Clock className="w-5 h-5 text-yellow-400 shrink-0 ml-3" />
                                 </div>
-                                <Clock className="w-5 h-5 text-yellow-400 shrink-0 ml-3" />
-                            </div>
-                        ))}
-                    </Card>
-                </section>
-            )}
+                            ))}
+                        </Card>
+                    </section>
+                )
+            }
 
             {/* Recent Media (The Vault preview) */}
             <RecentMedia />
@@ -768,6 +827,6 @@ export default function DashboardPage() {
                     </Card>
                 )}
             </section>
-        </div>
+        </div >
     );
 }
