@@ -48,21 +48,31 @@ interface TrophyFeedItem extends BaseFeedItem {
     matchId: string;
 }
 
-type FeedItem = MatchFeedItem | MediaFeedItem | TrophyFeedItem;
+interface WelcomeFeedItem extends BaseFeedItem {
+    type: 'welcome';
+    metadata: { handicap: number };
+}
+
+type FeedItem = MatchFeedItem | MediaFeedItem | TrophyFeedItem | WelcomeFeedItem;
 
 export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const { friendships } = useFriendsStore();
+    const { friendships, sendFriendRequest, loadFriendships } = useFriendsStore();
     const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [profiles, setProfiles] = useState<Record<string, { fullName: string; avatarUrl?: string }>>({});
+    const [profiles, setProfiles] = useState<Record<string, { fullName: string; avatarUrl?: string; handicap?: number }>>({});
     const [refreshing, setRefreshing] = useState(false);
     const [pullDistance, setPullDistance] = useState(0);
     const touchStartY = useRef(0);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const fetchFeedRef = useRef<(() => Promise<void>) | null>(null);
+
+    useEffect(() => {
+        if (!user) return;
+        loadFriendships(user.id);
+    }, [user]);
 
     useEffect(() => {
         if (!user) return;
@@ -179,15 +189,42 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
                     }
                 }
 
-                // 3. Fetch missing profiles
+                // 3. Fetch Welcome Events
+                let welcomeQuery = supabase
+                    .from('feed_events')
+                    .select('id, user_id, metadata, created_at')
+                    .eq('type', 'welcome')
+                    .order('created_at', { ascending: false })
+                    .limit(isGlobal ? 20 : 10);
+
+                if (!isGlobal) {
+                    welcomeQuery = welcomeQuery.in('user_id', targetUserIds);
+                }
+
+                const { data: welcomeEvents } = await welcomeQuery;
+                if (welcomeEvents) {
+                    for (const ev of welcomeEvents as any[]) {
+                        profileIdsToFetch.add(ev.user_id);
+                        items.push({
+                            id: `welcome-${ev.user_id}`,
+                            type: 'welcome',
+                            timestamp: new Date(ev.created_at).getTime(),
+                            courseName: '',
+                            playerId: ev.user_id,
+                            metadata: ev.metadata ?? { handicap: 0 }
+                        });
+                    }
+                }
+
+                // 4. Fetch missing profiles
                 if (profileIdsToFetch.size > 0) {
                     const { data: profs } = await supabase.from('profiles')
-                        .select('id, full_name, avatar_url')
+                        .select('id, full_name, avatar_url, handicap')
                         .in('id', Array.from(profileIdsToFetch));
 
                     if (profs) {
                         const pm: Record<string, any> = {};
-                        for (const p of profs) pm[p.id] = { fullName: p.full_name, avatarUrl: p.avatar_url };
+                        for (const p of profs) pm[p.id] = { fullName: p.full_name, avatarUrl: p.avatar_url, handicap: p.handicap };
                         setProfiles(prev => ({ ...prev, ...pm }));
                     }
                 }
@@ -403,6 +440,50 @@ export function ActivityFeed({ isGlobal = false }: { isGlobal?: boolean }) {
                     );
                 }
 
+                if (item.type === 'welcome') {
+                    const isSelf = item.playerId === user?.id;
+                    const alreadyConnected = friendships.some(f =>
+                        f.requesterId === item.playerId || f.addresseeId === item.playerId
+                    );
+                    const hcp = profiles[item.playerId]?.handicap ?? item.metadata.handicap ?? 0;
+                    const hcpLabel = hcp === 0 ? 'Scratch' : `${hcp} HCP`;
+
+                    return (
+                        <Card
+                            key={item.id}
+                            className="p-4 bg-surface border-neonGreen/10 flex flex-col gap-3 shadow-sm"
+                        >
+                            <div className="flex items-center gap-3 w-full">
+                                <div className="relative shrink-0">
+                                    <Avatar />
+                                    <span className="absolute -bottom-1 -right-1 text-sm leading-none">🎉</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-white text-sm">
+                                        <span className="text-neonGreen">{pName}</span> just joined BloodSheet!
+                                    </h4>
+                                    <span className="text-[10px] text-secondaryText font-bold block opacity-80 mt-0.5">
+                                        <TimeAgo timestamp={item.timestamp} />
+                                    </span>
+                                </div>
+                                {!isSelf && !alreadyConnected && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); if (user) sendFriendRequest(user.id, item.playerId); }}
+                                        className="text-xs font-bold text-neonGreen border border-neonGreen/30 rounded-full px-3 py-1 hover:bg-neonGreen/10 transition-colors shrink-0"
+                                    >
+                                        + Add
+                                    </button>
+                                )}
+                            </div>
+                            <div className="bg-neonGreen/5 border border-neonGreen/10 rounded-xl px-3 py-2 flex items-center justify-between">
+                                <span className="text-xs text-secondaryText font-bold uppercase tracking-wider">New to the green</span>
+                                <span className="text-sm font-black text-neonGreen">{hcpLabel}</span>
+                            </div>
+                            <SocialBar feedItemId={item.id} item={item} />
+                        </Card>
+                    );
+                }
+
                 return null;
             })}
         </div>
@@ -525,7 +606,9 @@ function SocialBar({ feedItemId, item }: { feedItemId: string; item: FeedItem })
             ? 'Check out this match on BloodSheet Golf'
             : item.type === 'trophy'
                 ? 'Check out this achievement on BloodSheet Golf'
-                : 'Check out this moment on BloodSheet Golf';
+                : item.type === 'welcome'
+                    ? 'Check out BloodSheet Golf!'
+                    : 'Check out this moment on BloodSheet Golf';
 
         if (navigator.share) {
             try {

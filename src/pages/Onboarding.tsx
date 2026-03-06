@@ -154,12 +154,21 @@ export default function OnboardingPage() {
             finalAvatar = AVATARS.find(a => a.id === selectedAvatar)?.url || DEFAULT_AVATAR;
         }
 
+        const finalHandicap = parseFloat(handicap) || 0;
+
         await updateProfile({
             nickname: nickname || undefined,
-            handicap: parseFloat(handicap) || 0,
+            handicap: finalHandicap,
             avatarUrl: finalAvatar || undefined,
             countryCode: selectedCountryCode || undefined,
         });
+
+        if (user) {
+            await supabase.from('feed_events').upsert(
+                { user_id: user.id, type: 'welcome', metadata: { handicap: finalHandicap } },
+                { onConflict: 'user_id,type' }
+            );
+        }
 
         triggerCelebration();
         setSaving(false);

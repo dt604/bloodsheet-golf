@@ -37,7 +37,7 @@ export default function MessagesInboxPage() {
                 // Fetch chats the user is participating in
                 const { data: participations } = await supabase
                     .from('chat_participants')
-                    .select('chat_id, hidden_at, chats!inner(type, match_id, created_at, messages(content, created_at, user_id))')
+                    .select('chat_id, hidden_at, last_read_at, chats!inner(type, match_id, created_at, messages(content, created_at, user_id))')
                     .eq('user_id', user.id)
                     .eq('chats.type', 'direct')
                     .order('chats(created_at)', { ascending: false });
@@ -88,11 +88,18 @@ export default function MessagesInboxPage() {
 
                     const profiles = otherPerson?.profiles as any;
 
+                    const isUnread = !!(
+                        latestMessage &&
+                        latestMessage.user_id !== user.id &&
+                        (!p.last_read_at || new Date(latestMessage.created_at) > new Date(p.last_read_at))
+                    );
+
                     return {
                         id: p.chat_id,
                         type: chat.type,
                         created_at: chat.created_at,
                         latestMessage: latestMessage,
+                        isUnread,
                         otherPerson: otherPerson ? {
                             id: otherPerson.user_id,
                             fullName: profiles?.full_name || 'Someone',
@@ -101,14 +108,17 @@ export default function MessagesInboxPage() {
                     };
                 });
 
+                // Filter out chats where the other participant no longer exists (e.g. deleted accounts)
+                const validChats = finalChats.filter(c => c.otherPerson.id !== undefined);
+
                 // Sort by latest message time
-                finalChats.sort((a, b) => {
+                validChats.sort((a, b) => {
                     const timeA = a.latestMessage ? new Date(a.latestMessage.created_at).getTime() : new Date(a.created_at).getTime();
                     const timeB = b.latestMessage ? new Date(b.latestMessage.created_at).getTime() : new Date(b.created_at).getTime();
                     return timeB - timeA;
                 });
 
-                setChats(finalChats);
+                setChats(validChats);
             } catch (error) {
                 console.error('Error fetching chats', error);
             } finally {
@@ -335,12 +345,17 @@ export default function MessagesInboxPage() {
 
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="font-bold text-white tracking-wide truncate">{p.fullName}</span>
-                                                <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest shrink-0 ml-2">
-                                                    {chat.latestMessage ? new Date(chat.latestMessage.created_at).toLocaleDateString() : ''}
-                                                </span>
+                                                <span className={`font-bold tracking-wide truncate ${chat.isUnread ? 'text-white' : 'text-white/80'}`}>{p.fullName}</span>
+                                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                                    {chat.isUnread && (
+                                                        <span className="w-2 h-2 rounded-full bg-neonGreen shadow-[0_0_6px_rgba(0,255,102,0.7)]" />
+                                                    )}
+                                                    <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
+                                                        {chat.latestMessage ? new Date(chat.latestMessage.created_at).toLocaleDateString() : ''}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <p className="text-secondaryText text-sm line-clamp-1 italic">
+                                            <p className={`text-sm line-clamp-1 italic ${chat.isUnread ? 'text-white font-semibold' : 'text-secondaryText'}`}>
                                                 {chat.latestMessage
                                                     ? `${chat.latestMessage.user_id === user?.id ? 'You: ' : ''}${chat.latestMessage.content}`
                                                     : 'Start chatting...'}
