@@ -8,7 +8,7 @@ import { supabase } from '../../lib/supabase';
 export default function TopHeader() {
     const navigate = useNavigate();
     const { user, profile } = useAuth();
-    const { activeMatchIds } = useMatchStore();
+    useMatchStore();
     const [pendingCount, setPendingCount] = useState(0);
 
     useEffect(() => {
