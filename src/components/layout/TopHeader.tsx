@@ -53,7 +53,7 @@ export default function TopHeader() {
         checkPending();
     }, [user]);
 
-    const hasNotifications = pendingCount > 0 || activeMatchIds.length > 0;
+    const hasNotifications = pendingCount > 0;
 
     return (
         <header className="sticky top-0 z-40 bg-background/60 backdrop-blur-2xl border-b border-white/5 px-6 h-16 flex items-center justify-between">

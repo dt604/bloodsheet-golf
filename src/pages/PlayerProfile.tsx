@@ -28,6 +28,7 @@ interface MatchHistoryItem {
     playerLabel: string;
     format: string;
     wagerType: string;
+    scoringType?: 'match_play' | 'stroke_play';
     createdAt: string;
     payout: number;
     holesUp: number;
@@ -173,6 +174,7 @@ export default function PlayerProfilePage() {
                         playerLabel,
                         format: m.format as string,
                         wagerType: m.wager_type as string,
+                        scoringType: (m.side_bets as any)?.scoringType,
                         createdAt: m.created_at as string,
                         payout: 0,
                         holesUp: 0,
@@ -290,6 +292,22 @@ export default function PlayerProfilePage() {
                     if (format === 'skins') {
                         // Skins omitted for profile summary simplicity/performance
                         payoutMap[matchId] = { payout: 0, holesUp: 0 };
+                    } else if (sideBets?.scoringType === 'stroke_play') {
+                        function strokeSeg(holes: number[]): number {
+                            let myT = 0, oppT = 0;
+                            for (const h of holes) {
+                                const myS = teamScores(myTeamPlayers, h); const oppS = teamScores(oppTeamPlayers, h);
+                                if (!myS.length || !oppS.length) continue;
+                                myT += myS[0].net; oppT += oppS[0].net;
+                            }
+                            return myT < oppT ? wagerAmount : (oppT < myT ? -wagerAmount : 0);
+                        }
+                        const strokePayout = (front9.length >= 9 ? strokeSeg(front9) : 0) + (back9.length >= 9 ? strokeSeg(back9) : 0) + (holesPlayed.length >= 18 ? strokeSeg(holesPlayed) : 0);
+                        let myNetTotal = 0, oppNetTotal = 0;
+                        for (const h of holesPlayed) { const myS = teamScores(myTeamPlayers, h); const oppS = teamScores(oppTeamPlayers, h); if (!myS.length || !oppS.length) continue; myNetTotal += myS[0].net; oppNetTotal += oppS[0].net; }
+                        payoutMap[matchId] = { payout: strokePayout, holesUp: myNetTotal - oppNetTotal };
+                        lifetimePayout += strokePayout;
+                        if (strokePayout > 0) wins++;
                     } else {
                         payoutMap[matchId] = { payout: matchPayout, holesUp: totalMyPts - totalOppPts };
                         lifetimePayout += matchPayout;
@@ -424,8 +442,8 @@ export default function PlayerProfilePage() {
                                             <div className={`font-black text-base leading-tight ${item.payout > 0 ? 'text-neonGreen' : item.payout < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
                                                 {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
                                             </div>
-                                            <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                {item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
+                                            <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.scoringType === 'stroke_play' ? (item.holesUp < 0 ? 'text-neonGreen' : item.holesUp > 0 ? 'text-bloodRed' : 'text-secondaryText') : (item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText')}`}>
+                                                {item.scoringType === 'stroke_play' ? (item.holesUp === 0 ? 'EVEN' : item.holesUp < 0 ? `${item.holesUp}` : `+${item.holesUp}`) : (item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S')}
                                             </div>
                                         </div>
                                     </div>

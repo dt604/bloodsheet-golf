@@ -90,6 +90,7 @@ export default function MatchSetupPage() {
     const [par5Pot, setPar5Pot] = useState(5);
     const [bonusSkins, setBonusSkins] = useState(false);
     const [potMode, setPotMode] = useState(false);
+    const [scoringType, setScoringType] = useState<'match_play' | 'stroke_play'>('match_play');
 
     const resumeFormatTour = (stepIdx: number) => {
         if (currentStep === 1 && !hasSeenMatchFormatTour) {
@@ -375,7 +376,7 @@ export default function MatchSetupPage() {
         if (!user) return;
         if (!selectedCourse) { setError('Please select a course first.'); return; }
 
-        const sideBets = { greenies, sandies, snake, autoPress, birdiesDouble, trashValue, startingHole, par3Contest, par3Pot, par5Contest, par5Pot, bonusSkins, teamSkins, potMode };
+        const sideBets = { greenies, sandies, snake, autoPress, birdiesDouble: scoringType === 'stroke_play' ? false : birdiesDouble, trashValue, startingHole, par3Contest, par3Pot, par5Contest, par5Pot, bonusSkins, teamSkins, potMode, scoringType: format === 'skins' ? undefined : scoringType };
 
         setCreating(true);
         setError('');
@@ -1257,7 +1258,7 @@ export default function MatchSetupPage() {
                                                         <span className="text-[10px] text-secondaryText font-bold uppercase tracking-widest">
                                                             {format === 'skins'
                                                                 ? (potMode ? `Buy-in · Total Pot: $${wager * ((teamSkins ? stagedPlayers.length : poolPlayers.length) + 1)}` : '$ per skin')
-                                                                : 'Match Play — Front · Back · Overall'
+                                                                : scoringType === 'stroke_play' ? 'Stroke Play — Front · Back · Overall' : 'Match Play — Front · Back · Overall'
                                                             }
                                                         </span>
                                                     </div>
@@ -1276,6 +1277,19 @@ export default function MatchSetupPage() {
                                                     >+</button>
                                                 </div>
                                             </div>
+
+                                            {format !== 'skins' && (
+                                                <div className="flex items-center gap-2 mt-3">
+                                                    <button
+                                                        onClick={() => setScoringType('match_play')}
+                                                        className={`flex-1 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${scoringType === 'match_play' ? 'bg-bloodRed text-white' : 'border border-borderColor text-secondaryText'}`}
+                                                    >Match Play</button>
+                                                    <button
+                                                        onClick={() => setScoringType('stroke_play')}
+                                                        className={`flex-1 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${scoringType === 'stroke_play' ? 'bg-bloodRed text-white' : 'border border-borderColor text-secondaryText'}`}
+                                                    >Stroke Play</button>
+                                                </div>
+                                            )}
 
                                             <AnimatePresence>
                                                 {(showTeamWagerHelp || showSkinsWagerHelp) && (
@@ -1385,7 +1399,7 @@ export default function MatchSetupPage() {
                                                 { id: 'bonusSkins', label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', desc: 'Adds extra skins to the pot for feats: closest to pin (+1), gross birdie (+1), gross eagle (+2).', state: bonusSkins, set: setBonusSkins, skinsOnly: true },
                                             ].filter(item => {
                                                 if ((item as any).skinsOnly) return format === 'skins';
-                                                if ((item as any).nassauOnly) return format !== 'skins';
+                                                if ((item as any).nassauOnly) return format !== 'skins' && scoringType !== 'stroke_play';
                                                 return true;
                                             }).map((item) => (
                                                 <div key={item.id} className="flex flex-col p-4">

@@ -19,6 +19,27 @@ function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): 
     return gross - fullStrokes - extra;
 }
 
+// Returns stroke differential from Team A's perspective (negative = A leads, fewer strokes)
+function calcStrokeDiff(
+    teamAIds: string[],
+    teamBIds: string[],
+    scores: { holeNumber: number; playerId: string; net: number; adjustedNet?: number }[],
+    startHole: number = 1,
+    endHole: number = 18
+): { aDiff: number; holesPlayed: number } {
+    let aTotal = 0, bTotal = 0, holesPlayed = 0;
+    const holes = [...new Set(scores.map(s => s.holeNumber))].filter(h => h >= startHole && h <= endHole);
+    for (const h of holes) {
+        const aScore = scores.find(s => teamAIds.includes(s.playerId) && s.holeNumber === h);
+        const bScore = scores.find(s => teamBIds.includes(s.playerId) && s.holeNumber === h);
+        if (!aScore || !bScore) continue;
+        aTotal += aScore.adjustedNet ?? aScore.net;
+        bTotal += bScore.adjustedNet ?? bScore.net;
+        holesPlayed++;
+    }
+    return { aDiff: aTotal - bTotal, holesPlayed };
+}
+
 // Returns holesUp from Team A's perspective (positive = A leads)
 function calcHolesUp(
     teamAIds: string[],
@@ -656,12 +677,14 @@ export default function LiveScorecardPage() {
         teamHandicapDiff = { diff, spottedTeam };
     }
 
-    const holesUp = match.format === 'skins' ? 0 : calcHolesUp(teamAIds, teamBIds, scoresWithAdjusted, match.format as '1v1' | '2v2', course, match.sideBets?.birdiesDouble, match.sideBets, teamHandicapDiff);
+    const isStrokePlay = match.sideBets?.scoringType === 'stroke_play';
+    const holesUp = (match.format === 'skins' || isStrokePlay) ? 0 : calcHolesUp(teamAIds, teamBIds, scoresWithAdjusted, match.format as '1v1' | '2v2', course, match.sideBets?.birdiesDouble, match.sideBets, teamHandicapDiff);
+    const strokeDiff = isStrokePlay ? calcStrokeDiff(teamAIds, teamBIds, scoresWithAdjusted) : null;
 
 
 
-    // ── Group mode: per-match holes-up calculation ────────────
-    function calcGroupMatchHolesUp(entry: typeof groupState extends null ? never : NonNullable<typeof groupState>['matches'][0]): number {
+    // ── Group mode: per-match holes-up (or stroke diff) calculation ────────────
+    function calcGroupMatchScore(entry: typeof groupState extends null ? never : NonNullable<typeof groupState>['matches'][0]): number {
         const mTeamAIds = entry.players.filter((p) => p.team === 'A').map((p) => p.userId);
         const mTeamBIds = entry.players.filter((p) => p.team === 'B').map((p) => p.userId);
         const mLowestHcp = Math.min(
@@ -674,17 +697,26 @@ export default function LiveScorecardPage() {
             const holeStrokeIdx = course?.holes.find((h) => h.number === s.holeNumber)?.strokeIndex ?? 18;
             return { ...s, adjustedNet: calcNet(s.gross, adjHcp, holeStrokeIdx) };
         });
+        if (entry.match.sideBets?.scoringType === 'stroke_play') {
+            // For stroke play: return aDiff (negative = A winning)
+            return calcStrokeDiff(mTeamAIds, mTeamBIds, mScoresAdj).aDiff;
+        }
         return calcHolesUp(mTeamAIds, mTeamBIds, mScoresAdj, '1v1', course, entry.match.sideBets?.birdiesDouble, entry.match.sideBets);
     }
 
     // Focused match for press button logic in group mode
     const focusedEntry = isGroupMode && groupState ? groupState.matches[Math.min(focusedMatchIdx, groupState.matches.length - 1)] : null;
-    const focusedHolesUp = focusedEntry ? calcGroupMatchHolesUp(focusedEntry) : holesUp;
+    const focusedScore = focusedEntry ? calcGroupMatchScore(focusedEntry) : (isStrokePlay ? (strokeDiff?.aDiff ?? 0) : holesUp);
+    const focusedIsStrokePlay = focusedEntry ? focusedEntry.match.sideBets?.scoringType === 'stroke_play' : isStrokePlay;
 
-    // Team A is down when holesUp < 0; Team B is down when holesUp > 0
+    // Team A is down when: match play: holesUp < 0; stroke play: aDiff > 0 (more strokes = losing)
     const downTeam: 'A' | 'B' | null = isGroupMode
-        ? (focusedHolesUp < 0 ? 'A' : focusedHolesUp > 0 ? 'B' : null)
-        : (holesUp < 0 ? 'A' : holesUp > 0 ? 'B' : null);
+        ? (focusedIsStrokePlay
+            ? (focusedScore > 0 ? 'A' : focusedScore < 0 ? 'B' : null)
+            : (focusedScore < 0 ? 'A' : focusedScore > 0 ? 'B' : null))
+        : isStrokePlay
+            ? (strokeDiff && strokeDiff.aDiff > 0 ? 'A' : strokeDiff && strokeDiff.aDiff < 0 ? 'B' : null)
+            : (holesUp < 0 ? 'A' : holesUp > 0 ? 'B' : null);
 
     let isStrokeHole = false;
     if (match.format === '2v2') {
@@ -801,7 +833,8 @@ export default function LiveScorecardPage() {
                 {isGroupMode && groupState && (
                     <div className="flex items-center gap-2 overflow-x-auto momentum-scroll px-4 pb-3 scrollbar-hide">
                         {groupState.matches.map((entry, i) => {
-                            const mHolesUp = calcGroupMatchHolesUp(entry);
+                            const mScore = calcGroupMatchScore(entry);
+                            const mIsStroke = entry.match.sideBets?.scoringType === 'stroke_play';
                             const pA = entry.players.find(p => p.team === 'A');
                             const pB = entry.players.find(p => p.team === 'B');
                             const nameA = pA?.guestName ?? playerProfiles[pA?.userId ?? '']?.fullName.split(' ')[0] ?? 'P1';
@@ -809,6 +842,14 @@ export default function LiveScorecardPage() {
 
                             const abbr = (s: string) => s.length > 3 ? s.slice(0, 3).toUpperCase() : s.toUpperCase();
                             const isFocused = focusedMatchIdx === i;
+
+                            // For stroke play: mScore is aDiff (negative = A leads). Display from A's view.
+                            // For match play: mScore is holesUp (positive = A leads).
+                            const scoreLabel = mIsStroke
+                                ? (mScore === 0 ? 'E' : mScore < 0 ? `${mScore}` : `+${mScore}`)
+                                : (mScore === 0 ? 'AS' : `${Math.abs(mScore)} ${mScore > 0 ? 'UP' : 'DN'}`);
+                            const isALeading = mIsStroke ? mScore < 0 : mScore > 0;
+                            const isBLeading = mIsStroke ? mScore > 0 : mScore < 0;
 
                             return (
                                 <button
@@ -824,8 +865,8 @@ export default function LiveScorecardPage() {
                                         <span className="text-bloodRed/60 font-serif italic lowercase">v</span>
                                         <span className={isFocused ? 'text-white' : ''}>{abbr(nameB)}</span>
                                     </div>
-                                    <div className={`font-black text-sm leading-none ${mHolesUp > 0 ? 'text-neonGreen' : mHolesUp < 0 ? 'text-bloodRed' : 'text-white'}`}>
-                                        {mHolesUp === 0 ? 'AS' : `${Math.abs(mHolesUp)} ${mHolesUp > 0 ? 'UP' : 'DN'}`}
+                                    <div className={`font-black text-sm leading-none ${isALeading ? 'text-neonGreen' : isBLeading ? 'text-bloodRed' : 'text-white'}`}>
+                                        {scoreLabel}
                                     </div>
                                 </button>
                             );
@@ -911,6 +952,17 @@ export default function LiveScorecardPage() {
                     <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-bloodRed/10 border border-bloodRed/30 rounded-xl">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">Carried Skin Pot</span>
                         <span className="text-sm font-black text-white">${currentSkinPot}</span>
+                    </div>
+                )}
+
+                {/* Stroke Play Running Total Chip */}
+                {isStrokePlay && strokeDiff && strokeDiff.holesPlayed > 0 && (
+                    <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-surface/60 border border-borderColor/50 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-secondaryText">Net Strokes</span>
+                        <span className={`text-sm font-black ${strokeDiff.aDiff < 0 ? 'text-neonGreen' : strokeDiff.aDiff > 0 ? 'text-bloodRed' : 'text-white'}`}>
+                            {strokeDiff.aDiff === 0 ? 'Even' : strokeDiff.aDiff < 0 ? `${strokeDiff.aDiff}` : `+${strokeDiff.aDiff}`}
+                        </span>
+                        <span className="text-[10px] font-bold text-secondaryText/60">thru {strokeDiff.holesPlayed}</span>
                     </div>
                 )}
 
@@ -1203,7 +1255,7 @@ export default function LiveScorecardPage() {
                                         { label: 'Greenies', sub: 'Closest to pin on par 3', val: editGreenies, set: setEditGreenies },
                                         { label: 'Sandies', sub: 'Par+ from bunker', val: editSandies, set: setEditSandies },
                                         { label: 'Snake', sub: '3-putt penalty', val: editSnake, set: setEditSnake },
-                                        ...(match?.format !== 'skins' ? [
+                                        ...(match?.format !== 'skins' && !isStrokePlay ? [
                                             { label: 'Auto Press', sub: 'Press when 2 down', val: editAutoPress, set: setEditAutoPress },
                                             { label: 'Birdies Double', sub: 'Net birdie = 2 pts', val: editBirdiesDouble, set: setEditBirdiesDouble },
                                         ] : []),

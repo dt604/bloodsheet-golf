@@ -208,6 +208,22 @@ export default function LedgerPage() {
                 return { usd: mult * match!.wagerAmount, bc: mult * (match!.bloodCoinWager ?? 0) };
             }
 
+            // Stroke Play Nassau: lower total net strokes in segment wins the bet
+            function nassauStrokeResult(holes: number[]): { usd: number; bc: number } {
+                let myTotal = 0, oppTotal = 0;
+                for (const h of holes) {
+                    const myScores = teamScoresOnHole(myTeamPlayers, h);
+                    const oppScores = teamScoresOnHole(oppTeamPlayers, h);
+                    if (!myScores.length || !oppScores.length) continue;
+                    myTotal += myScores[0].net;
+                    oppTotal += oppScores[0].net;
+                }
+                let mult = 0;
+                if (myTotal < oppTotal) mult = 1;
+                else if (oppTotal < myTotal) mult = -1;
+                return { usd: mult * match!.wagerAmount, bc: mult * (match!.bloodCoinWager ?? 0) };
+            }
+
             // ── Skins settlement (only when format === 'skins') ──────────
             function skinsSettlement(): LineItem[] {
                 const skinValue = match!.wagerAmount;
@@ -494,12 +510,14 @@ export default function LedgerPage() {
             if (match!.format === 'skins') {
                 items.push(...skinsSettlement(), ...skinsTrashItems());
             } else {
-                // Nassau
+                // Nassau (match play or stroke play)
+                const isStrokePlay = match!.sideBets?.scoringType === 'stroke_play';
+                const resultFn = isStrokePlay ? nassauStrokeResult : nassauResult;
                 const front9Holes = holesPlayed.filter((h) => h <= 9);
                 const back9Holes = holesPlayed.filter((h) => h > 9);
-                const front9 = front9Holes.length > 0 ? nassauResult(front9Holes) : { usd: 0, bc: 0 };
-                const back9 = back9Holes.length > 0 ? nassauResult(back9Holes) : { usd: 0, bc: 0 };
-                const overall = holesPlayed.length > 0 ? nassauResult(holesPlayed) : { usd: 0, bc: 0 };
+                const front9 = front9Holes.length > 0 ? resultFn(front9Holes) : { usd: 0, bc: 0 };
+                const back9 = back9Holes.length > 0 ? resultFn(back9Holes) : { usd: 0, bc: 0 };
+                const overall = holesPlayed.length > 0 ? resultFn(holesPlayed) : { usd: 0, bc: 0 };
 
                 items.push(
                     { label: 'Front 9 (Base)', sublabel: front9.usd > 0 || front9.bc > 0 ? 'Won' : front9.usd < 0 || front9.bc < 0 ? 'Lost' : 'Pushed', amount: front9.usd, bloodCoinAmount: front9.bc },
@@ -509,7 +527,7 @@ export default function LedgerPage() {
 
                 for (const press of presses) {
                     const pressHoles = holesPlayed.filter((h) => h >= press.startHole);
-                    const pressResult = nassauResult(pressHoles);
+                    const pressResult = resultFn(pressHoles);
                     items.push({ label: 'Press', sublabel: `Hole ${press.startHole} • Team ${press.pressedByTeam}`, amount: pressResult.usd, bloodCoinAmount: pressResult.bc, isPress: true });
                 }
 
@@ -689,11 +707,28 @@ export default function LedgerPage() {
                     return { usd: mult * entry.match.wagerAmount, bc: mult * (entry.match.bloodCoinWager ?? 0) };
                 }
 
+                function nassauStrokeResult(holes: number[]): { usd: number; bc: number } {
+                    let myTotal = 0, oppTotal = 0;
+                    for (const h of holes) {
+                        const myScores = teamScoresOnHole(myTeamPlayers, h);
+                        const oppScores = teamScoresOnHole(oppTeamPlayers, h);
+                        if (!myScores.length || !oppScores.length) continue;
+                        myTotal += myScores[0].net;
+                        oppTotal += oppScores[0].net;
+                    }
+                    let mult = 0;
+                    if (myTotal < oppTotal) mult = 1;
+                    else if (oppTotal < myTotal) mult = -1;
+                    return { usd: mult * entry.match.wagerAmount, bc: mult * (entry.match.bloodCoinWager ?? 0) };
+                }
+
+                const isStrokePlay = entry.match.sideBets?.scoringType === 'stroke_play';
+                const resultFn = isStrokePlay ? nassauStrokeResult : nassauResult;
                 const front9Holes = holesPlayed.filter((h) => h <= 9);
                 const back9Holes = holesPlayed.filter((h) => h > 9);
-                const front9 = front9Holes.length > 0 ? nassauResult(front9Holes) : { usd: 0, bc: 0 };
-                const back9 = back9Holes.length > 0 ? nassauResult(back9Holes) : { usd: 0, bc: 0 };
-                const overall = holesPlayed.length > 0 ? nassauResult(holesPlayed) : { usd: 0, bc: 0 };
+                const front9 = front9Holes.length > 0 ? resultFn(front9Holes) : { usd: 0, bc: 0 };
+                const back9 = back9Holes.length > 0 ? resultFn(back9Holes) : { usd: 0, bc: 0 };
+                const overall = holesPlayed.length > 0 ? resultFn(holesPlayed) : { usd: 0, bc: 0 };
 
                 const items: LineItem[] = [
                     { label: 'Front 9', sublabel: front9.usd > 0 || front9.bc > 0 ? 'Won' : front9.usd < 0 || front9.bc < 0 ? 'Lost' : 'Pushed', amount: front9.usd, bloodCoinAmount: front9.bc },
@@ -703,7 +738,7 @@ export default function LedgerPage() {
 
                 for (const press of entry.presses) {
                     const pressHoles = holesPlayed.filter((h) => h >= press.startHole);
-                    const pressResult = nassauResult(pressHoles);
+                    const pressResult = resultFn(pressHoles);
                     items.push({ label: 'Press', sublabel: `Hole ${press.startHole}`, amount: pressResult.usd, bloodCoinAmount: pressResult.bc, isPress: true });
                 }
 
@@ -941,10 +976,10 @@ export default function LedgerPage() {
                     </div>
                     <p className="mt-4 text-sm text-white font-bold opacity-80 relative z-10">
                         {isGroupMode
-                            ? `${activeMatchIds.length} Matches • ${match?.wagerType === 'NASSAU' ? 'Match Play' : match?.wagerType}`
+                            ? `${activeMatchIds.length} Matches • ${match?.wagerType === 'NASSAU' ? (match?.sideBets?.scoringType === 'stroke_play' ? 'Stroke Play' : 'Match Play') : match?.wagerType}`
                             : match?.format === 'skins'
                                 ? `Skins Game • $${match.wagerAmount}/skin${(match.bloodCoinWager ?? 0) > 0 ? ` + 🪙${match.bloodCoinWager}` : ''} • ${players.length} players`
-                                : `${match?.format} • $${match?.wagerAmount}${(match?.bloodCoinWager ?? 0) > 0 ? ` + 🪙${match?.bloodCoinWager}` : ''} ${match?.wagerType === 'NASSAU' ? 'Match Play' : match?.wagerType}: ${settlement?.opponentName ?? '…'}`
+                                : `${match?.format} • $${match?.wagerAmount}${(match?.bloodCoinWager ?? 0) > 0 ? ` + 🪙${match?.bloodCoinWager}` : ''} ${match?.wagerType === 'NASSAU' ? (match?.sideBets?.scoringType === 'stroke_play' ? 'Stroke Play' : 'Match Play') : match?.wagerType}: ${settlement?.opponentName ?? '…'}`
                         }
                     </p>
                 </section>

@@ -236,8 +236,46 @@ function calcSkinsStandings(
     return { earned, skinsWon, holeResults, currentCarry: carry, currentPot: (1 + carry) * skinValue, potWinnerLabel, isPotMode };
 }
 
-function matchLabel(holesUp: number, holesPlayed: number = 0, format: string = '1v1'): string {
-    if (holesPlayed === 0) return 'AS';
+// Returns stroke play breakdown — same shape as calcMatchPlay but using stroke totals
+// holesUp field = aDiff: negative means Team A has fewer strokes (leads)
+function calcStrokePlay(
+    teamAIds: string[],
+    teamBIds: string[],
+    scores: { holeNumber: number; playerId: string; net: number; adjustedNet?: number }[]
+) {
+    const stats = {
+        front9: { aDiff: 0, holesPlayed: 0 },
+        back9: { aDiff: 0, holesPlayed: 0 },
+        overall: { aDiff: 0, holesPlayed: 0 }
+    };
+    const holes = [...new Set(scores.map(s => s.holeNumber))].sort((a, b) => a - b);
+    for (const hole of holes) {
+        const aScore = scores.find(s => teamAIds.includes(s.playerId) && s.holeNumber === hole);
+        const bScore = scores.find(s => teamBIds.includes(s.playerId) && s.holeNumber === hole);
+        if (!aScore || !bScore) continue;
+        const aN = aScore.adjustedNet ?? aScore.net;
+        const bN = bScore.adjustedNet ?? bScore.net;
+        const diff = aN - bN;
+        const seg = hole <= 9 ? stats.front9 : stats.back9;
+        seg.aDiff += diff;
+        seg.holesPlayed++;
+        stats.overall.aDiff += diff;
+        stats.overall.holesPlayed++;
+    }
+    return {
+        overall: { holesUp: stats.overall.aDiff, holesPlayed: stats.overall.holesPlayed },
+        front9: { holesUp: stats.front9.aDiff, holesPlayed: stats.front9.holesPlayed },
+        back9: { holesUp: stats.back9.aDiff, holesPlayed: stats.back9.holesPlayed }
+    };
+}
+
+function matchLabel(holesUp: number, holesPlayed: number = 0, format: string = '1v1', isStrokePlay: boolean = false): string {
+    if (holesPlayed === 0) return isStrokePlay ? 'E' : 'AS';
+    if (isStrokePlay) {
+        // holesUp is aDiff: negative = A leads
+        if (holesUp === 0) return 'E';
+        return holesUp < 0 ? `${holesUp}` : `+${holesUp}`;
+    }
     const holesRemaining = 18 - holesPlayed;
     const absUp = Math.abs(holesUp);
 
@@ -537,7 +575,10 @@ export default function LeaderboardPage() {
         teamHandicapDiff = { diff, spottedTeam };
     }
 
-    const matchPlaySplits = isSkins ? null : calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format as '1v1' | '2v2', course, currentMatch?.sideBets?.birdiesDouble, currentMatch?.sideBets, teamHandicapDiff);
+    const isStrokePlay = currentMatch?.sideBets?.scoringType === 'stroke_play';
+    const matchPlaySplits = isSkins ? null : isStrokePlay
+        ? calcStrokePlay(teamAIds, teamBIds, scoresWithAdjusted)
+        : calcMatchPlay(teamAIds, teamBIds, scoresWithAdjusted, format as '1v1' | '2v2', course, currentMatch?.sideBets?.birdiesDouble, currentMatch?.sideBets, teamHandicapDiff);
     const { holesUp, holesPlayed } = matchPlaySplits?.overall ?? { holesUp: 0, holesPlayed: 0 };
     const skinsStandings = isSkins && currentMatch ? calcSkinsStandings(currentPlayers, currentScores.map(s => ({ ...s, net: scoresWithAdjusted.find(x => x.playerId === s.playerId && x.holeNumber === s.holeNumber)?.adjustedNet ?? s.net })), currentMatch.wagerAmount, currentMatch.sideBets, course) : null;
 
@@ -578,8 +619,11 @@ export default function LeaderboardPage() {
         }
     }
 
-    const heroLabel = matchLabel(holesUp, holesPlayed, format);
-    const heroLeader = holesUp > 0 ? 'A' : holesUp < 0 ? 'B' : null;
+    const heroLabel = matchLabel(holesUp, holesPlayed, format, isStrokePlay);
+    // For stroke play: holesUp is aDiff (negative = A leads). For match play: positive = A leads.
+    const heroLeader = isStrokePlay
+        ? (holesUp < 0 ? 'A' : holesUp > 0 ? 'B' : null)
+        : (holesUp > 0 ? 'A' : holesUp < 0 ? 'B' : null);
 
     const hcpDiffForDots = showAllPlayers ? globalMaxDiff : (format === '2v2' ? (teamHandicapDiff?.diff ?? 0) : (Math.max(0, ...matchHcps) - lowestMatchHcp));
 
@@ -901,22 +945,20 @@ export default function LeaderboardPage() {
                         </div>
                         <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
                             {groupState.matches.map((entry, i) => {
-                                const splits = calcMatchPlay(
-                                    entry.players.filter((p: MatchPlayer) => p.team === 'A').map((p: MatchPlayer) => p.userId),
-                                    entry.players.filter((p: MatchPlayer) => p.team === 'B').map((p: MatchPlayer) => p.userId),
-                                    entry.scores.map((s: HoleScore) => {
-                                        const p = entry.players.find(x => x.userId === s.playerId);
-                                        const pData = playerProfiles[s.playerId] || { handicap: p?.initialHandicap ?? 0 };
-                                        const mHcps = entry.players.map(x => Math.round(playerProfiles[x.userId]?.handicap ?? x.initialHandicap));
-                                        const mLHcp = Math.min(...mHcps);
-                                        const adj = Math.max(0, Math.round(pData.handicap) - Math.max(0, mLHcp));
-                                        return { ...s, adjustedNet: calcNet(s.gross, adj, course?.holes.find((h: any) => h.number === s.holeNumber)?.strokeIndex ?? 18) };
-                                    }),
-                                    '1v1',
-                                    course,
-                                    entry.match.sideBets?.birdiesDouble,
-                                    entry.match.sideBets
-                                );
+                                const mTeamAIds = entry.players.filter((p: MatchPlayer) => p.team === 'A').map((p: MatchPlayer) => p.userId);
+                                const mTeamBIds = entry.players.filter((p: MatchPlayer) => p.team === 'B').map((p: MatchPlayer) => p.userId);
+                                const mAdjScores = entry.scores.map((s: HoleScore) => {
+                                    const p = entry.players.find(x => x.userId === s.playerId);
+                                    const pData = playerProfiles[s.playerId] || { handicap: p?.initialHandicap ?? 0 };
+                                    const mHcps = entry.players.map(x => Math.round(playerProfiles[x.userId]?.handicap ?? x.initialHandicap));
+                                    const mLHcp = Math.min(...mHcps);
+                                    const adj = Math.max(0, Math.round(pData.handicap) - Math.max(0, mLHcp));
+                                    return { ...s, adjustedNet: calcNet(s.gross, adj, course?.holes.find((h: any) => h.number === s.holeNumber)?.strokeIndex ?? 18) };
+                                });
+                                const mIsStroke = entry.match.sideBets?.scoringType === 'stroke_play';
+                                const splits = mIsStroke
+                                    ? calcStrokePlay(mTeamAIds, mTeamBIds, mAdjScores)
+                                    : calcMatchPlay(mTeamAIds, mTeamBIds, mAdjScores, '1v1', course, entry.match.sideBets?.birdiesDouble, entry.match.sideBets);
                                 const mHolesUp = splits.overall.holesUp;
                                 const mHolesPlayed = splits.overall.holesPlayed;
                                 const pA = entry.players.find(p => p.team === 'A');
@@ -939,8 +981,8 @@ export default function LeaderboardPage() {
                                             <span className="text-bloodRed/60 font-serif italic lowercase px-0.5">v</span>
                                             <span className={isFocused ? 'text-white' : 'text-secondaryText/80'}>{abbr(nameB)}</span>
                                         </div>
-                                        <div className={`text-xl font-black leading-none ${mHolesUp > 0 ? 'text-neonGreen drop-shadow-[0_0_8px_rgba(0,255,102,0.3)]' : mHolesUp < 0 ? 'text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.3)]' : 'text-white/80'}`}>
-                                            {matchLabel(mHolesUp, mHolesPlayed)}
+                                        <div className={`text-xl font-black leading-none ${(mIsStroke ? mHolesUp < 0 : mHolesUp > 0) ? 'text-neonGreen drop-shadow-[0_0_8px_rgba(0,255,102,0.3)]' : (mIsStroke ? mHolesUp > 0 : mHolesUp < 0) ? 'text-bloodRed drop-shadow-[0_0_8px_rgba(255,0,63,0.3)]' : 'text-white/80'}`}>
+                                            {matchLabel(mHolesUp, mHolesPlayed, '1v1', mIsStroke)}
                                         </div>
                                         <div className="text-[8px] font-black text-secondaryText/50 uppercase mt-2 tracking-[0.2em]">THRU {mHolesPlayed}</div>
                                     </button>
@@ -1061,11 +1103,12 @@ export default function LeaderboardPage() {
                                 { label: 'BACK', data: matchPlaySplits.back9, isComplete: matchPlaySplits.back9.holesPlayed === 9 },
                                 { label: 'OVERALL', data: matchPlaySplits.overall, isComplete: matchPlaySplits.overall.holesPlayed === 18 }
                             ].map((split, i) => {
-                                const rawLabel = matchLabel(split.data.holesUp, split.data.holesPlayed, format);
-                                const isClinched = rawLabel === 'FINAL' || split.isComplete;
+                                const rawLabel = matchLabel(split.data.holesUp, split.data.holesPlayed, format, isStrokePlay);
+                                const isClinched = !isStrokePlay && (rawLabel === 'FINAL' || split.isComplete);
                                 const leaderLabel = rawLabel.replace(' UP', '').replace(' DN', '');
+                                // For stroke play: aDiff < 0 = A leads; for match play: holesUp > 0 = A leads
                                 const isAS = split.data.holesUp === 0;
-                                const tALeads = split.data.holesUp > 0;
+                                const tALeads = isStrokePlay ? split.data.holesUp < 0 : split.data.holesUp > 0;
 
                                 const leaderName = tALeads
                                     ? playerRows.filter(r => r.team === 'A').map(r => r.fullName.split(' ')[0]).join(' & ') || 'Team A'
@@ -1077,14 +1120,14 @@ export default function LeaderboardPage() {
                                         {split.data.holesPlayed === 0 ? (
                                             <span className="text-xs font-bold text-secondaryText/40">—</span>
                                         ) : isAS ? (
-                                            <span className="text-sm font-black text-secondaryText">AS</span>
+                                            <span className="text-sm font-black text-secondaryText">{isStrokePlay ? 'E' : 'AS'}</span>
                                         ) : (
                                             <div className="flex flex-col items-center leading-none mt-0.5">
                                                 <span className="text-[10px] font-bold text-white truncate max-w-full block mb-0.5">
                                                     {leaderName}
                                                 </span>
                                                 <span className={`text-xs font-black ${isClinched ? (tALeads ? 'text-neonGreen drop-shadow-[0_0_5px_rgba(0,255,102,0.5)]' : 'text-bloodRed drop-shadow-[0_0_5px_rgba(255,0,63,0.5)]') : (tALeads ? 'text-neonGreen/80' : 'text-bloodRed/80')}`}>
-                                                    {isClinched ? 'WIN' : `${leaderLabel} UP`}
+                                                    {isClinched ? 'WIN' : isStrokePlay ? leaderLabel : `${leaderLabel} UP`}
                                                 </span>
                                             </div>
                                         )}
@@ -1345,13 +1388,18 @@ export default function LeaderboardPage() {
 
                     <div className="space-y-3">
                         {playerRows.map((row) => {
-                            const playerHolesUp = row.team === 'A' ? holesUp : -holesUp;
+                            // For stroke play: holesUp is aDiff (neg = A wins), so from player's perspective:
+                            // Team A player: isUp when aDiff < 0; Team B player: isUp when aDiff > 0
+                            const playerHolesUp = isStrokePlay
+                                ? (row.team === 'A' ? holesUp : -holesUp)  // aDiff negative means A leads; from A's view it's "up"
+                                : (row.team === 'A' ? holesUp : -holesUp);
                             const net = skinsStandings?.earned[row.userId] ?? 0;
                             const standing = isSkins
                                 ? (net === 0 ? 'E' : net > 0 ? `+$${net}` : `-$${Math.abs(net)}`)
-                                : matchLabel(playerHolesUp, row.holesPlayed);
-                            const isUp = isSkins ? net > 0 : playerHolesUp > 0;
-                            const isDown = isSkins ? net < 0 : playerHolesUp < 0;
+                                : matchLabel(playerHolesUp, row.holesPlayed, format, isStrokePlay);
+                            // For stroke play: player is "up" when aDiff < 0 (A leads) from A's view → playerHolesUp < 0
+                            const isUp = isSkins ? net > 0 : isStrokePlay ? playerHolesUp < 0 : playerHolesUp > 0;
+                            const isDown = isSkins ? net < 0 : isStrokePlay ? playerHolesUp > 0 : playerHolesUp < 0;
 
                             const toParStr = row.holesPlayed === 0 ? '—' : row.scoreToPar === 0 ? 'E' : row.scoreToPar > 0 ? `+${row.scoreToPar}` : `${row.scoreToPar}`;
 

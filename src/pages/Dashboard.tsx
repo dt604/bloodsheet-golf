@@ -270,7 +270,7 @@ export default function DashboardPage() {
                         courseName: course?.name as string ?? 'Unknown Course',
                         playerLabel,
                         format: m.format as string,
-                        wagerType: (m.format as string)?.toLowerCase() === 'skins' ? ((m as any).side_bets?.teamSkins ? '2V2 SKINS' : 'SKINS') : (m.wager_type === 'NASSAU' ? 'MATCH PLAY' : m.wager_type as string),
+                        wagerType: (m.format as string)?.toLowerCase() === 'skins' ? ((m as any).side_bets?.teamSkins ? '2V2 SKINS' : 'SKINS') : ((m as any).side_bets?.scoringType === 'stroke_play' ? 'STROKE PLAY' : m.wager_type === 'NASSAU' ? 'MATCH PLAY' : m.wager_type as string),
                         createdAt: m.created_at as string,
                         payout: 0,
                         holesUp: 0,
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                     const matchId = matchRow.id as string;
                     const format = matchRow.format as string;
                     const wagerAmount = matchRow.wager_amount as number;
-                    const sideBets = matchRow.side_bets as { snake?: boolean; trashValue?: number; birdiesDouble?: boolean; teamSkins?: boolean; potMode?: boolean } | null;
+                    const sideBets = matchRow.side_bets as { snake?: boolean; trashValue?: number; birdiesDouble?: boolean; teamSkins?: boolean; potMode?: boolean; scoringType?: 'match_play' | 'stroke_play' } | null;
                     const courseData = matchRow.courses as { holes: { number: number; par: number }[] } | null;
 
                     const myEntry = (userMatchPlayers ?? []).find((mp) => mp.match_id === matchId);
@@ -490,6 +490,37 @@ export default function DashboardPage() {
                         payoutMap[matchId] = { payout: skinsPayout, holesUp: 0 };
                         lifetimePayout += skinsPayout;
                         if (skinsPayout > 0) wins++;
+                    } else if (sideBets?.scoringType === 'stroke_play') {
+                        // Stroke play: compare net stroke totals per segment
+                        function strokeSegResult(holes: number[]): number {
+                            let myTotal = 0, oppTotal = 0;
+                            for (const h of holes) {
+                                const myS = teamScores(myTeamPlayers, h);
+                                const oppS = teamScores(oppTeamPlayers, h);
+                                if (!myS.length || !oppS.length) continue;
+                                myTotal += myS[0].net;
+                                oppTotal += oppS[0].net;
+                            }
+                            if (myTotal < oppTotal) return wagerAmount;
+                            if (oppTotal < myTotal) return -wagerAmount;
+                            return 0;
+                        }
+                        const strokePayout =
+                            (front9.length >= 9 ? strokeSegResult(front9) : 0) +
+                            (back9.length >= 9 ? strokeSegResult(back9) : 0) +
+                            (holesPlayed.length >= 18 ? strokeSegResult(holesPlayed) : 0);
+                        // holesUp = net stroke differential (negative = I'm winning)
+                        let myNetTotal = 0, oppNetTotal = 0;
+                        for (const h of holesPlayed) {
+                            const myS = teamScores(myTeamPlayers, h);
+                            const oppS = teamScores(oppTeamPlayers, h);
+                            if (!myS.length || !oppS.length) continue;
+                            myNetTotal += myS[0].net;
+                            oppNetTotal += oppS[0].net;
+                        }
+                        payoutMap[matchId] = { payout: strokePayout, holesUp: myNetTotal - oppNetTotal };
+                        lifetimePayout += strokePayout;
+                        if (strokePayout > 0) wins++;
                     } else {
                         payoutMap[matchId] = { payout: matchPayout, holesUp: totalMyPts - totalOppPts };
                         lifetimePayout += matchPayout;
@@ -811,8 +842,8 @@ export default function DashboardPage() {
                                             <div className={`font-black text-base leading-tight ${item.payout > 0 ? 'text-neonGreen' : item.payout < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
                                                 {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
                                             </div>
-                                            <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText'}`}>
-                                                {item.format === 'skins' ? 'SKINS' : item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
+                                            <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${item.format === 'skins' ? 'text-secondaryText' : item.wagerType === 'STROKE PLAY' ? (item.holesUp < 0 ? 'text-neonGreen' : item.holesUp > 0 ? 'text-bloodRed' : 'text-secondaryText') : (item.holesUp > 0 ? 'text-neonGreen' : item.holesUp < 0 ? 'text-bloodRed' : 'text-secondaryText')}`}>
+                                                {item.format === 'skins' ? 'SKINS' : item.wagerType === 'STROKE PLAY' ? (item.holesUp === 0 ? 'EVEN' : item.holesUp < 0 ? `${item.holesUp}` : `+${item.holesUp}`) : (item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S')}
                                             </div>
                                         </>
                                     )}

@@ -13,6 +13,7 @@ interface MatchHistoryItem {
     playerLabel: string;
     format: string;
     wagerType: string;
+    scoringType?: 'match_play' | 'stroke_play';
     createdAt: string;
     payout: number;
     holesUp: number;
@@ -85,6 +86,7 @@ export default function MatchHistoryPage() {
                     playerLabel,
                     format: m.format as string,
                     wagerType: m.wager_type as string,
+                    scoringType: (m.side_bets as any)?.scoringType,
                     createdAt: m.created_at as string,
                     payout: 0,
                     holesUp: 0,
@@ -198,43 +200,54 @@ export default function MatchHistoryPage() {
                     }
                     payoutMap[matchId] = { payout: skinsPayout, holesUp: 0 };
                 } else {
+                    const sideBets = matchRow.side_bets as { scoringType?: 'match_play' | 'stroke_play' } | null;
+                    const isStrokePlay = sideBets?.scoringType === 'stroke_play';
                     const myTeamPlayers = matchPlayers.filter((p) => (p as any).team === myTeam);
                     const oppTeamPlayers = matchPlayers.filter((p) => (p as any).team === oppTeam);
-                    let myPts = 0, oppPts = 0;
-                    for (let h = 1; h <= 18; h++) {
-                        const myScores = myTeamPlayers.map((p) => {
-                            const s = matchScores.find((sc) => (sc as any).hole_number === h && (sc as any).player_id === (p as any).user_id);
-                            return s ? (s as any).net as number : null;
-                        }).filter((n): n is number => n !== null);
-                        const oppScores = oppTeamPlayers.map((p) => {
-                            const s = matchScores.find((sc) => (sc as any).hole_number === h && (sc as any).player_id === (p as any).user_id);
-                            return s ? (s as any).net as number : null;
-                        }).filter((n): n is number => n !== null);
-                        if (!myScores.length || !oppScores.length) continue;
-                        const myBest = Math.min(...myScores), oppBest = Math.min(...oppScores);
-                        if (myBest < oppBest) myPts++;
-                        else if (oppBest < myBest) oppPts++;
-                    }
+                    const getNet = (teamPlayers: typeof myTeamPlayers, h: number): number[] =>
+                        teamPlayers.map((p) => { const s = matchScores.find((sc) => (sc as any).hole_number === h && (sc as any).player_id === (p as any).user_id); return s ? (s as any).net as number : null; }).filter((n): n is number => n !== null);
                     const front9 = Array.from({ length: 9 }, (_, i) => i + 1);
                     const back9 = Array.from({ length: 9 }, (_, i) => i + 10);
-                    const score9 = (holes: number[]) => {
-                        let my = 0, opp = 0;
-                        for (const h of holes) {
-                            const myS = myTeamPlayers.map((p) => { const s = matchScores.find((sc) => (sc as any).hole_number === h && (sc as any).player_id === (p as any).user_id); return s ? (s as any).net as number : null; }).filter((n): n is number => n !== null);
-                            const oppS = oppTeamPlayers.map((p) => { const s = matchScores.find((sc) => (sc as any).hole_number === h && (sc as any).player_id === (p as any).user_id); return s ? (s as any).net as number : null; }).filter((n): n is number => n !== null);
+                    const allHolesPlayed = [...new Set(matchScores.map((s) => (s as any).hole_number as number))];
+                    if (isStrokePlay) {
+                        const strokeSeg = (holes: number[]) => {
+                            let myT = 0, oppT = 0;
+                            for (const h of holes) {
+                                const myS = getNet(myTeamPlayers, h); const oppS = getNet(oppTeamPlayers, h);
+                                if (!myS.length || !oppS.length) continue;
+                                myT += myS[0]; oppT += oppS[0];
+                            }
+                            if (myT < oppT) return wagerAmount; if (oppT < myT) return -wagerAmount; return 0;
+                        };
+                        const front9Played = front9.filter((h) => allHolesPlayed.includes(h));
+                        const back9Played = back9.filter((h) => allHolesPlayed.includes(h));
+                        const payout = (front9Played.length >= 9 ? strokeSeg(front9) : 0) + (back9Played.length >= 9 ? strokeSeg(back9) : 0) + (allHolesPlayed.length >= 18 ? strokeSeg([...front9, ...back9]) : 0);
+                        let myTotal = 0, oppTotal = 0;
+                        for (const h of allHolesPlayed) { const myS = getNet(myTeamPlayers, h); const oppS = getNet(oppTeamPlayers, h); if (!myS.length || !oppS.length) continue; myTotal += myS[0]; oppTotal += oppS[0]; }
+                        payoutMap[matchId] = { payout, holesUp: myTotal - oppTotal };
+                    } else {
+                        let myPts = 0, oppPts = 0;
+                        for (let h = 1; h <= 18; h++) {
+                            const myS = getNet(myTeamPlayers, h); const oppS = getNet(oppTeamPlayers, h);
                             if (!myS.length || !oppS.length) continue;
-                            if (Math.min(...myS) < Math.min(...oppS)) my++;
-                            else if (Math.min(...oppS) < Math.min(...myS)) opp++;
+                            if (Math.min(...myS) < Math.min(...oppS)) myPts++;
+                            else if (Math.min(...oppS) < Math.min(...myS)) oppPts++;
                         }
-                        if (my > opp) return wagerAmount;
-                        if (opp > my) return -wagerAmount;
-                        return 0;
-                    };
-                    const allHolesPlayed = matchScores.map((s) => (s as any).hole_number as number);
-                    const front9Played = front9.filter((h) => allHolesPlayed.includes(h));
-                    const back9Played = back9.filter((h) => allHolesPlayed.includes(h));
-                    const payout = (front9Played.length >= 9 ? score9(front9) : 0) + (back9Played.length >= 9 ? score9(back9) : 0) + (allHolesPlayed.length >= 18 ? score9([...front9, ...back9]) : 0);
-                    payoutMap[matchId] = { payout, holesUp: myPts - oppPts };
+                        const score9 = (holes: number[]) => {
+                            let my = 0, opp = 0;
+                            for (const h of holes) {
+                                const myS = getNet(myTeamPlayers, h); const oppS = getNet(oppTeamPlayers, h);
+                                if (!myS.length || !oppS.length) continue;
+                                if (Math.min(...myS) < Math.min(...oppS)) my++;
+                                else if (Math.min(...oppS) < Math.min(...myS)) opp++;
+                            }
+                            if (my > opp) return wagerAmount; if (opp > my) return -wagerAmount; return 0;
+                        };
+                        const front9Played = front9.filter((h) => allHolesPlayed.includes(h));
+                        const back9Played = back9.filter((h) => allHolesPlayed.includes(h));
+                        const payout = (front9Played.length >= 9 ? score9(front9) : 0) + (back9Played.length >= 9 ? score9(back9) : 0) + (allHolesPlayed.length >= 18 ? score9([...front9, ...back9]) : 0);
+                        payoutMap[matchId] = { payout, holesUp: myPts - oppPts };
+                    }
                 }
             }
 
@@ -315,7 +328,7 @@ export default function MatchHistoryPage() {
                                                     </span>
                                                     <span className="w-1 h-1 rounded-full bg-white/10" />
                                                     <span className="text-[9px] text-bloodRed font-black uppercase tracking-[0.15em]">
-                                                        {item.format} • {item.wagerType === 'NASSAU' ? 'Match Play' : item.wagerType}
+                                                        {item.format} • {item.scoringType === 'stroke_play' ? 'Stroke Play' : item.wagerType === 'NASSAU' ? 'Match Play' : item.wagerType}
                                                     </span>
                                                 </div>
                                             </div>
@@ -326,8 +339,8 @@ export default function MatchHistoryPage() {
                                         <div className={`text-2xl font-black leading-none italic ${item.payout > 0 ? 'text-neonGreen drop-shadow-[0_0_10px_rgba(0,255,102,0.3)]' : item.payout < 0 ? 'text-bloodRed drop-shadow-[0_0_10px_rgba(255,0,63,0.3)]' : 'text-white/40'}`}>
                                             {item.payout > 0 ? `+$${item.payout}` : item.payout < 0 ? `-$${Math.abs(item.payout)}` : 'PUSH'}
                                         </div>
-                                        <div className={`text-[10px] font-black uppercase tracking-[0.2em] mt-2 inline-flex items-center px-2 py-0.5 rounded-full border ${item.holesUp > 0 ? 'bg-neonGreen/10 text-neonGreen border-neonGreen/20' : item.holesUp < 0 ? 'bg-bloodRed/10 text-bloodRed border-bloodRed/20' : 'bg-white/5 text-secondaryText border-white/10'}`}>
-                                            {item.format === 'skins' ? 'SKINS' : item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S'}
+                                        <div className={`text-[10px] font-black uppercase tracking-[0.2em] mt-2 inline-flex items-center px-2 py-0.5 rounded-full border ${item.format === 'skins' ? 'bg-white/5 text-secondaryText border-white/10' : item.scoringType === 'stroke_play' ? (item.holesUp < 0 ? 'bg-neonGreen/10 text-neonGreen border-neonGreen/20' : item.holesUp > 0 ? 'bg-bloodRed/10 text-bloodRed border-bloodRed/20' : 'bg-white/5 text-secondaryText border-white/10') : (item.holesUp > 0 ? 'bg-neonGreen/10 text-neonGreen border-neonGreen/20' : item.holesUp < 0 ? 'bg-bloodRed/10 text-bloodRed border-bloodRed/20' : 'bg-white/5 text-secondaryText border-white/10')}`}>
+                                            {item.format === 'skins' ? 'SKINS' : item.scoringType === 'stroke_play' ? (item.holesUp === 0 ? 'EVEN' : item.holesUp < 0 ? `${item.holesUp}` : `+${item.holesUp}`) : (item.holesUp > 0 ? `${item.holesUp} UP` : item.holesUp < 0 ? `${Math.abs(item.holesUp)} DN` : 'A/S')}
                                         </div>
                                     </div>
                                 </div>

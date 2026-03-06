@@ -111,6 +111,7 @@ export interface Match {
     bonusSkins?: boolean;
     teamSkins?: boolean;   // Team A vs Team B best-ball per hole
     potMode?: boolean;     // Most skins wins the pot (buy-in = wagerAmount)
+    scoringType?: 'match_play' | 'stroke_play';  // default 'match_play'
   };
   createdBy: string;
 }
