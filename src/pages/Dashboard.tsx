@@ -11,6 +11,7 @@ import { useMatchStore } from '../store/useMatchStore';
 import SEO from '../components/SEO';
 import { useUIStore } from '../store/useUIStore';
 import { RecentMedia } from '../components/dashboard/RecentMedia';
+import { AnimatedNumber } from '../components/ui/AnimatedNumber';
 import { startDashboardTour } from '../lib/tour';
 import { COUNTRIES } from '../constants/countries';
 
@@ -657,8 +658,9 @@ export default function DashboardPage() {
                             </div>
                             <div className="bg-surface/50 p-4 flex flex-col items-center">
                                 <span className="text-[9px] font-black text-secondaryText/60 uppercase tracking-[0.2em] mb-1">Career Earnings</span>
-                                <span className={`text-2xl font-black font-mono ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
-                                    {stats.lifetimePayout >= 0 ? '+' : ''}${stats.lifetimePayout}
+                                <span className={`text-2xl font-black font-mono flex items-center gap-0.5 ${stats.lifetimePayout >= 0 ? 'text-neonGreen' : 'text-bloodRed'}`}>
+                                    {stats.lifetimePayout >= 0 ? '+' : '-'}
+                                    <AnimatedNumber value={Math.abs(stats.lifetimePayout)} prefix="$" precision={2} />
                                 </span>
                             </div>
                         </div>
@@ -743,8 +745,8 @@ export default function DashboardPage() {
 
             {/* 2x2 Stats Grid */}
             <section className="grid grid-cols-2 gap-2 sm:gap-3">
-                <StatBox label="Total Matches" value={String(stats.totalMatches)} className="px-1" />
-                <StatBox label="Win Rate" value={winRate} className="px-1" />
+                <StatBox label="Total Matches" value={stats.totalMatches} isAnimated className="px-1" />
+                <StatBox label="Win Rate" value={parseInt(winRate) || 0} isAnimated suffix="%" className="px-1" />
             </section>
 
 

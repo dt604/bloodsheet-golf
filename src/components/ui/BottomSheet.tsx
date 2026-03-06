@@ -1,24 +1,42 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 
 interface BottomSheetProps {
     open: boolean;
     onClose: () => void;
     title?: string;
     children: ReactNode;
+    footer?: ReactNode;
     className?: string;
+    showCloseButton?: boolean;
+    noPadding?: boolean;
 }
 
-export function BottomSheet({ open, onClose, title, children, className }: BottomSheetProps) {
-
+export function BottomSheet({
+    open,
+    onClose,
+    title,
+    children,
+    footer,
+    className,
+    showCloseButton = true,
+    noPadding = false
+}: BottomSheetProps) {
     // Lock body scroll when open
     useEffect(() => {
         if (open) {
             document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
         } else {
             document.body.style.overflow = '';
+            document.body.style.touchAction = '';
         }
-        return () => { document.body.style.overflow = ''; };
+        return () => {
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+        };
     }, [open]);
 
     // Close on Escape
@@ -29,116 +47,71 @@ export function BottomSheet({ open, onClose, title, children, className }: Botto
         return () => window.removeEventListener('keydown', handler);
     }, [open, onClose]);
 
-    if (!open) return null;
+    const sheetContent = (
+        <AnimatePresence>
+            {open && (
+                <div className="fixed inset-0 z-[9999] flex flex-col justify-end pointer-events-none">
+                    {/* Backdrop */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="absolute inset-0 bg-background/80 backdrop-blur-sm pointer-events-auto"
+                    />
 
-    return createPortal(
-        <>
-            <style>{`
-                @keyframes bsBackdropIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                @keyframes bsSlideUp {
-                    from { transform: translate(-50%, 100%); }
-                    to { transform: translate(-50%, 0); }
-                }
-            `}</style>
+                    {/* Sheet */}
+                    <motion.div
+                        initial={{ y: "100%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "100%" }}
+                        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                        className={`relative w-full max-w-lg mx-auto bg-surface border-t border-white/10 rounded-t-[2.5rem] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[90vh] pointer-events-auto ${className || ''}`}
+                    >
+                        {/* Top Accent "Light Beam" */}
+                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-bloodRed/50 to-transparent" />
 
-            {/* Full-screen overlay — portaled to body; stopPropagation prevents React synthetic events from bubbling through the portal back to parent components */}
-            <div
-                onClick={e => e.stopPropagation()}
-                onMouseDown={e => e.stopPropagation()}
-                className={className}
-                style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    zIndex: 9999,
-                }}>
-                {/* Backdrop */}
-                <div
-                    onClick={onClose}
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0,0,0,0.65)',
-                        backdropFilter: 'blur(4px)',
-                        WebkitBackdropFilter: 'blur(4px)',
-                        animation: 'bsBackdropIn 0.2s ease-out forwards',
-                    }}
-                />
-
-                {/* Sheet — pinned to bottom of viewport */}
-                <div
-                    style={{
-                        position: 'fixed',
-                        bottom: 0,
-                        left: '50%',
-                        width: '100%',
-                        maxWidth: 480,
-                        maxHeight: '80vh',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        backgroundColor: '#2C2C2E',
-                        borderTop: '1px solid #3A3A3C',
-                        borderRadius: '16px 16px 0 0',
-                        animation: 'bsSlideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards',
-                        boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
-                    }}
-                >
-                    {/* Drag handle */}
-                    <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
-                        <div style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' }} />
-                    </div>
-
-                    {/* Header with Done button */}
-                    {title && (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '8px 20px 12px',
-                            borderBottom: '1px solid #3A3A3C',
-                            flexShrink: 0,
-                        }}>
-                            <h3 style={{ fontSize: 16, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fff', margin: 0 }}>
-                                {title}
-                            </h3>
-                            <button
-                                onClick={onClose}
-                                style={{
-                                    fontSize: 14,
-                                    fontWeight: 700,
-                                    color: '#FF003F',
-                                    background: 'none',
-                                    border: 'none',
-                                    padding: '6px 12px',
-                                    cursor: 'pointer',
-                                    borderRadius: 8,
-                                }}
-                            >
-                                Done
-                            </button>
+                        {/* Drag handle */}
+                        <div className="flex justify-center pt-3 pb-1 shrink-0">
+                            <div className="w-12 h-1.5 rounded-full bg-white/10" />
                         </div>
-                    )}
 
-                    {/* Scrollable content */}
-                    <div style={{
-                        flex: 1,
-                        overflowY: 'auto',
-                        WebkitOverflowScrolling: 'touch',
-                        paddingBottom: 'env(safe-area-inset-bottom, 20px)',
-                    }}>
-                        {children}
-                    </div>
+                        {/* Header */}
+                        {title && (
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
+                                <h3 className="text-xl font-black uppercase italic tracking-tight text-white">
+                                    {title}
+                                </h3>
+                                {showCloseButton && (
+                                    <button
+                                        onClick={onClose}
+                                        className="p-2 -mr-2 text-secondaryText hover:text-white transition-colors"
+                                    >
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Scrollable content */}
+                        <div className={`flex-1 overflow-y-auto momentum-scroll no-scrollbar ${noPadding ? '' : 'px-6 py-4'}`}>
+                            {children}
+                        </div>
+
+                        {/* Footer */}
+                        {footer && (
+                            <div className="shrink-0 p-4 border-t border-white/5 bg-surface/50 backdrop-blur-md">
+                                {footer}
+                            </div>
+                        )}
+
+                        {/* Safe area spacer */}
+                        <div className="h-[env(safe-area-inset-bottom,20px)] shrink-0" />
+                    </motion.div>
                 </div>
-            </div>
-        </>,
-        document.body
+            )}
+        </AnimatePresence>
     );
+
+    return createPortal(sheetContent, document.body);
 }

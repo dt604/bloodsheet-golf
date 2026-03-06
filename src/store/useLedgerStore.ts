@@ -12,9 +12,6 @@ interface LedgerState {
 
     loadDebts: (userId: string) => Promise<void>;
     createDebt: (matchId: string, debtorId: string, creditorId: string, amount: number, currency?: 'USD' | 'BLOOD_COINS') => Promise<Debt | null>;
-    requestPaymentInfo: (debtId: string) => Promise<void>;
-    providePaymentInfo: (paymentId: string, method: Payment['method'], address: string) => Promise<void>;
-    submitPayment: (paymentId: string, amount: number) => Promise<void>;
     confirmPayment: (paymentId: string) => Promise<void>;
     settleWithCash: (debtId: string, amount: number) => Promise<void>;
     deletePayments: (paymentIds: string[]) => Promise<void>;
@@ -185,81 +182,6 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
         }
     },
 
-    // Debtor hits "Settle Up", sends a notification/creates a payment request
-    requestPaymentInfo: async (debtId) => {
-        set({ isLoading: true, error: null });
-        try {
-            const debt = get().debtsOwedByMe.find(d => d.id === debtId);
-            if (!debt) throw new Error("Debt not found");
-
-            const { error } = await supabase
-                .from('payments')
-                .insert([{
-                    debt_id: debtId,
-                    payer_id: debt.debtorId,
-                    receiver_id: debt.creditorId,
-                    amount: debt.remainingAmount, // default to remaining amount, will be finalized when submitting
-                    method: 'other', // temporary until creditor provides info
-                    status: 'requested_info'
-                }]);
-
-            if (error) throw error;
-
-            await get().loadDebts(debt.debtorId);
-            set({ isLoading: false });
-        } catch (error: any) {
-            set({ error: error.message, isLoading: false });
-        }
-    },
-
-    // Creditor provides their Venmo/E-Transfer
-    providePaymentInfo: async (paymentId, method, address) => {
-        set({ isLoading: true, error: null });
-        try {
-            const { error } = await supabase
-                .from('payments')
-                .update({
-                    method,
-                    payment_address: address,
-                    // keep status as requested_info until debtor actually pays?
-                    // actually, let's keep it requested_info or move to a new status like 'ready_for_payment'. 
-                    // Let's just keep 'requested_info' and UI knows it's ready if address is not null
-                })
-                .eq('id', paymentId);
-
-            if (error) throw error;
-
-            const myId = get().debtsOwedToMe[0]?.creditorId || get().debtsOwedByMe[0]?.debtorId;
-            if (myId) await get().loadDebts(myId);
-
-            set({ isLoading: false });
-        } catch (error: any) {
-            set({ error: error.message, isLoading: false });
-        }
-    },
-
-    // Debtor has sent the money via Venmo/E-Transfer and clicks "I Sent It"
-    submitPayment: async (paymentId, amountSent) => {
-        set({ isLoading: true, error: null });
-        try {
-            const { error } = await supabase
-                .from('payments')
-                .update({
-                    amount: amountSent,
-                    status: 'pending_confirmation'
-                })
-                .eq('id', paymentId);
-
-            if (error) throw error;
-
-            const myId = get().debtsOwedByMe[0]?.debtorId || get().debtsOwedToMe[0]?.creditorId;
-            if (myId) await get().loadDebts(myId);
-
-            set({ isLoading: false });
-        } catch (error: any) {
-            set({ error: error.message, isLoading: false });
-        }
-    },
 
     // Creditor confirms receipt, updates debt remaining amount
     confirmPayment: async (paymentId) => {

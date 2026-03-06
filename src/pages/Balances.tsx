@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Check, Copy, Loader, Share2, ChevronRight, Banknote, History as HistoryIcon, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Check, Loader, ChevronRight, Banknote, History as HistoryIcon, RefreshCw, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useLedgerStore } from '../store/useLedgerStore';
@@ -10,12 +10,13 @@ import SEO from '../components/SEO';
 import { supabase } from '../lib/supabase';
 import { Debt } from '../types';
 import { BloodCoin } from '../components/ui/BloodCoin';
+import { BottomSheet } from '../components/ui/BottomSheet';
 
 type Tab = 'owed_by_me' | 'owed_to_me' | 'history';
 
 export default function BalancesPage() {
     const navigate = useNavigate();
-    const { user, profile } = useAuth();
+    const { user } = useAuth();
     const {
         debtsOwedByMe,
         debtsOwedToMe,
@@ -23,9 +24,6 @@ export default function BalancesPage() {
         paymentHistory,
         loadDebts,
         isLoading,
-        requestPaymentInfo,
-        providePaymentInfo,
-        submitPayment,
         confirmPayment,
         settleWithCash,
         deletePayments
@@ -35,12 +33,8 @@ export default function BalancesPage() {
 
     // UI state for modals
     const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
-    const [sheetMode, setSheetMode] = useState<'provide_info' | 'pay' | 'settle_options' | null>(null);
+    const [sheetMode, setSheetMode] = useState<'settle_options' | null>(null);
 
-    // Form states
-    const [paymentMethod, setPaymentMethod] = useState<'venmo' | 'etransfer'>('etransfer');
-    const [paymentAddress, setPaymentAddress] = useState('');
-    const [amountSent, setAmountSent] = useState('');
     const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
 
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -103,31 +97,10 @@ export default function BalancesPage() {
         setTimeout(() => setIsRefreshing(false), 500);
     };
 
-    const handleCopy = (text: string) => {
-        navigator.clipboard.writeText(text);
-        alert('Copied to clipboard');
-    };
 
     const handleSettleUpClick = async (debt: Debt) => {
-        const payment = payments.find(p => p.debtId === debt.id && !['confirmed', 'rejected'].includes(p.status));
-        if (!payment) {
-            setSelectedDebt(debt);
-            setSheetMode('settle_options');
-        } else if (payment.status === 'requested_info' && payment.paymentAddress) {
-            setSelectedDebt(debt);
-            setAmountSent(debt.remainingAmount.toString());
-            setSheetMode('pay');
-        } else {
-            alert('Waiting for creditor to provide payment details.');
-        }
-    };
-
-    const onSelectSendTransfer = async () => {
-        if (!selectedDebt) return;
-        await requestPaymentInfo(selectedDebt.id);
-        setSheetMode(null);
-        setSelectedDebt(null);
-        alert('Notification sent. Waiting for creditor to provide payment details.');
+        setSelectedDebt(debt);
+        setSheetMode('settle_options');
     };
 
     const onSelectSettleCash = async () => {
@@ -138,42 +111,6 @@ export default function BalancesPage() {
         setSheetMode(null);
         setSelectedDebt(null);
         alert('Cash payment recorded. Pending confirmation.');
-    };
-
-    const handleProvideInfoClick = (debt: Debt) => {
-        const payment = payments.find(p => p.debtId === debt.id && p.status === 'requested_info');
-        if (payment) {
-            setSelectedDebt(debt);
-            setPaymentAddress(profile?.email || '');
-            setSheetMode('provide_info');
-        }
-    };
-
-    const onSubmitProvideInfo = async () => {
-        if (!selectedDebt) return;
-        const payment = payments.find(p => p.debtId === selectedDebt.id && p.status === 'requested_info');
-        if (!payment) return;
-
-        if (!paymentAddress) return alert('Please provide an address');
-
-        await providePaymentInfo(payment.id, paymentMethod, paymentAddress);
-        setSheetMode(null);
-        setSelectedDebt(null);
-    };
-
-    const onSubmitPayment = async () => {
-        if (!selectedDebt) return;
-        const payment = payments.find(p => p.debtId === selectedDebt.id && p.status === 'requested_info');
-        if (!payment) return;
-
-        const amount = parseFloat(amountSent);
-        if (isNaN(amount) || amount <= 0 || amount > selectedDebt.remainingAmount) {
-            return alert('Invalid amount');
-        }
-
-        await submitPayment(payment.id, amount);
-        setSheetMode(null);
-        setSelectedDebt(null);
     };
 
     const handleConfirmReceipt = async (paymentId: string) => {
@@ -268,15 +205,7 @@ export default function BalancesPage() {
                                             {renderAmount(debt.remainingAmount, debt.currency)}
                                         </span>
 
-                                        {payment?.status === 'requested_info' && !payment.paymentAddress && (
-                                            <Button
-                                                size="sm"
-                                                onClick={() => handleProvideInfoClick(debt)}
-                                                className="h-8 text-[10px] px-4 font-black uppercase tracking-widest bg-neonGreen text-black hover:bg-neonGreen/90 border-0"
-                                            >
-                                                Add Info
-                                            </Button>
-                                        )}
+                                        {/* External payment info request removed - only Cash settlement supported */}
                                         {payment?.status === 'requested_info' && payment.paymentAddress && (
                                             <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 rounded border border-amber-500/30">
                                                 <Loader className="w-2.5 h-2.5 text-amber-500 animate-spin" />
@@ -585,239 +514,33 @@ export default function BalancesPage() {
                 )}
             </main>
 
-            {/* Settle Options Sheet - Redesigned */}
-            <AnimatePresence>
-                {sheetMode === 'settle_options' && selectedDebt && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setSheetMode(null)}
-                        className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
-                    >
-                        <motion.div
-                            initial={{ y: "100%" }}
-                            animate={{ y: 0 }}
-                            exit={{ y: "100%" }}
-                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-md bg-surface border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative"
+            {/* Settle Options Sheet */}
+            <BottomSheet
+                open={sheetMode === 'settle_options' && !!selectedDebt}
+                onClose={() => { setSheetMode(null); setSelectedDebt(null); }}
+                title="Settle Up"
+            >
+                {selectedDebt && (
+                    <div className="space-y-6 pb-6">
+                        <p className="text-sm text-secondaryText font-bold uppercase tracking-widest px-1">
+                            Payment for {selectedDebt.creditor?.fullName}
+                        </p>
+
+                        <button
+                            onClick={onSelectSettleCash}
+                            className="w-full flex items-center justify-between p-4 bg-background/50 border border-white/5 rounded-2xl group hover:border-neonGreen/30 transition-all"
                         >
-                            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-bloodRed/50 to-transparent" />
-
-                            <div className="p-6">
-                                <div className="flex justify-between items-start mb-6">
-                                    <h3 className="text-xl font-black text-white italic uppercase tracking-tight">Settle Up</h3>
-                                    <button onClick={() => setSheetMode(null)} className="p-2 hover:bg-white/5 rounded-full text-secondaryText"><AlertCircle className="w-5 h-5 rotate-45" /></button>
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center group-hover:bg-neonGreen/20 transition-colors">
+                                    <Banknote className="w-5 h-5 text-neonGreen" />
                                 </div>
-
-                                <p className="text-sm text-secondaryText font-bold uppercase tracking-widest mb-6 px-1">Payment for {selectedDebt.creditor?.fullName}</p>
-
-                                <div className="space-y-3">
-                                    <button
-                                        onClick={onSelectSettleCash}
-                                        className="w-full flex items-center justify-between p-4 bg-background/50 border border-white/5 rounded-2xl group hover:border-neonGreen/30 transition-all"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-neonGreen/10 flex items-center justify-center group-hover:bg-neonGreen/20 transition-colors">
-                                                <Banknote className="w-5 h-5 text-neonGreen" />
-                                            </div>
-                                            <span className="font-black text-white uppercase italic tracking-tight">Settle with Cash</span>
-                                        </div>
-                                        <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-neonGreen transition-colors" />
-                                    </button>
-
-                                    <button
-                                        onClick={onSelectSendTransfer}
-                                        className="w-full flex items-center justify-between p-4 bg-background/50 border border-white/5 rounded-2xl group hover:border-bloodRed/30 transition-all"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-bloodRed/10 flex items-center justify-center group-hover:bg-bloodRed/20 transition-colors">
-                                                <Share2 className="w-5 h-5 text-bloodRed" />
-                                            </div>
-                                            <div className="text-left">
-                                                <span className="font-black text-white uppercase italic tracking-tight block">Send Transfer</span>
-                                                <span className="text-[9px] text-secondaryText font-bold uppercase tracking-widest mt-0.5">Venmo / Zelle / E-Transfer</span>
-                                            </div>
-                                        </div>
-                                        <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-bloodRed transition-colors" />
-                                    </button>
-                                </div>
+                                <span className="font-black text-white uppercase italic tracking-tight">Settle with Cash</span>
                             </div>
-                        </motion.div>
-                    </motion.div>
+                            <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-neonGreen transition-colors" />
+                        </button>
+                    </div>
                 )}
-            </AnimatePresence>
-
-            {/* Provide Info Sheet - Redesigned */}
-            <AnimatePresence>
-                {sheetMode === 'provide_info' && selectedDebt && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setSheetMode(null)}
-                        className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
-                    >
-                        <motion.div
-                            initial={{ y: "100%" }}
-                            animate={{ y: 0 }}
-                            exit={{ y: "100%" }}
-                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-md bg-surface border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative"
-                        >
-                            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neonGreen/50 to-transparent" />
-
-                            <div className="p-6">
-                                <div className="flex justify-between items-start mb-6">
-                                    <h3 className="text-xl font-black text-white italic uppercase tracking-tight">How to Get Paid</h3>
-                                    <button onClick={() => setSheetMode(null)} className="p-2 hover:bg-white/5 rounded-full text-secondaryText"><AlertCircle className="w-5 h-5 rotate-45" /></button>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <div className="flex p-1 bg-background rounded-2xl border border-white/5">
-                                        {[
-                                            { id: 'etransfer', label: 'E-Transfer' },
-                                            { id: 'venmo', label: 'Venmo' }
-                                        ].map(method => (
-                                            <button
-                                                key={method.id}
-                                                onClick={() => setPaymentMethod(method.id as any)}
-                                                className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all ${paymentMethod === method.id ? 'bg-surface text-white shadow-lg' : 'text-secondaryText hover:text-white'}`}
-                                            >
-                                                {method.label}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-secondaryText ml-1">
-                                            {paymentMethod === 'etransfer' ? 'Email for Transfer' : 'Venmo Handle'}
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                value={paymentAddress}
-                                                onChange={(e) => setPaymentAddress(e.target.value)}
-                                                className="w-full bg-background border border-white/10 rounded-2xl px-5 py-4 text-white font-black placeholder-white/10 focus:outline-none focus:border-neonGreen/50 transition-colors"
-                                                placeholder={paymentMethod === 'etransfer' ? 'you@email.com' : '@user'}
-                                            />
-                                            <button
-                                                onClick={() => setPaymentAddress(profile?.email || '')}
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-neonGreen hover:opacity-70 transition-opacity"
-                                            >
-                                                Use Email
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={onSubmitProvideInfo}
-                                        className="w-full py-4 bg-neonGreen rounded-2xl font-black text-black uppercase tracking-[0.2em] text-sm shadow-[0_0_20px_rgba(0,255,102,0.2)] active:scale-[0.98] transition-all"
-                                    >
-                                        Send Details
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Pay Sheet - Redesigned */}
-            <AnimatePresence>
-                {sheetMode === 'pay' && selectedDebt && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setSheetMode(null)}
-                        className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
-                    >
-                        <motion.div
-                            initial={{ y: "100%" }}
-                            animate={{ y: 0 }}
-                            exit={{ y: "100%" }}
-                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-md bg-surface border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative"
-                        >
-                            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-bloodRed/50 to-transparent" />
-
-                            <div className="p-6">
-                                <div className="flex justify-between items-start mb-6">
-                                    <h3 className="text-xl font-black text-white italic uppercase tracking-tight">Send Money</h3>
-                                    <button onClick={() => setSheetMode(null)} className="p-2 hover:bg-white/5 rounded-full text-secondaryText"><AlertCircle className="w-5 h-5 rotate-45" /></button>
-                                </div>
-
-                                {(() => {
-                                    const payment = payments.find(p => p.debtId === selectedDebt.id && p.status === 'requested_info');
-                                    if (!payment) return null;
-                                    return (
-                                        <div className="space-y-6">
-                                            <div className="bg-background rounded-2xl p-4 border border-white/5 space-y-4">
-                                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                                    <span className="text-secondaryText">Method</span>
-                                                    <span className={`px-2 py-0.5 rounded-full ${payment.method === 'venmo' ? 'bg-[#008CFF]/20 text-[#008CFF]' : 'bg-white/10 text-white'}`}>
-                                                        {payment.method}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between items-center gap-4">
-                                                    <div className="min-w-0 pr-4">
-                                                        <span className="text-[10px] text-secondaryText font-black uppercase tracking-widest block mb-1">Send to</span>
-                                                        <span className="text-white font-black italic tracking-tight truncate block text-lg">{payment.paymentAddress}</span>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleCopy(payment.paymentAddress || '')}
-                                                        className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center group hover:bg-white/10 transition-all border border-white/5"
-                                                    >
-                                                        <Copy className="w-5 h-5 text-secondaryText group-hover:text-white transition-colors" />
-                                                    </button>
-                                                </div>
-
-                                                {payment.method === 'venmo' && (
-                                                    <button
-                                                        className="w-full bg-[#008CFF] py-3 rounded-xl font-black text-white uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-[#0070CC] transition-colors"
-                                                        onClick={() => window.open(`https://venmo.com/${payment.paymentAddress?.replace('@', '')}`, '_blank')}
-                                                    >
-                                                        <Share2 className="w-3.5 h-3.5" />
-                                                        Open Venmo
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-secondaryText ml-1">
-                                                    Amount Sent (Owed: ${selectedDebt.remainingAmount.toFixed(2)})
-                                                </label>
-                                                <div className="relative">
-                                                    <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-white/20 text-xl">$</span>
-                                                    <input
-                                                        type="number"
-                                                        value={amountSent}
-                                                        onChange={(e) => setAmountSent(e.target.value)}
-                                                        className="w-full bg-background border border-white/10 rounded-2xl pl-10 pr-5 py-4 text-white font-black text-xl placeholder-white/10 focus:outline-none focus:border-bloodRed/50 transition-colors"
-                                                        placeholder="0.00"
-                                                        step="0.01"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                onClick={onSubmitPayment}
-                                                className="w-full py-4 bg-bloodRed rounded-2xl font-black text-white uppercase tracking-[0.2em] text-sm shadow-[0_0_20px_rgba(255,0,63,0.2)] active:scale-[0.98] transition-all"
-                                            >
-                                                Mark as Sent
-                                            </button>
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            </BottomSheet>
         </div>
     );
 }

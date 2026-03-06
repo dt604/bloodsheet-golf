@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Camera } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, X, Check, Settings, ArrowLeft, ArrowRight, Trash2, MessageSquare, Info, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2, Plus, Minus, Target, Droplets, Flame, Loader, Worm, Check, Settings, ArrowLeft, ArrowRight, Trash2, MessageSquare, Info, LogOut } from 'lucide-react';
 import { useMatchStore } from '../store/useMatchStore';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
@@ -10,110 +10,11 @@ import { supabase } from '../lib/supabase';
 import { MediaLightbox } from '../components/ui/MediaLightbox';
 import { TrashTalkDrawer } from '../components/ui/TrashTalkDrawer';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BottomSheet } from '../components/ui/BottomSheet';
 import SEO from '../components/SEO';
+import { calcNet, calcStrokeDiff, calcHolesUp } from '../lib/golf-engine';
 
-function calcNet(gross: number, adjustedHandicap: number, strokeIndex: number): number {
-    if (adjustedHandicap <= 0) return gross;
-    const fullStrokes = Math.floor(adjustedHandicap / 18);
-    const extra = (adjustedHandicap % 18) >= strokeIndex ? 1 : 0;
-    return gross - fullStrokes - extra;
-}
-
-// Returns stroke differential from Team A's perspective (negative = A leads, fewer strokes)
-function calcStrokeDiff(
-    teamAIds: string[],
-    teamBIds: string[],
-    scores: { holeNumber: number; playerId: string; net: number; adjustedNet?: number }[],
-    startHole: number = 1,
-    endHole: number = 18
-): { aDiff: number; holesPlayed: number } {
-    let aTotal = 0, bTotal = 0, holesPlayed = 0;
-    const holes = [...new Set(scores.map(s => s.holeNumber))].filter(h => h >= startHole && h <= endHole);
-    for (const h of holes) {
-        const aScore = scores.find(s => teamAIds.includes(s.playerId) && s.holeNumber === h);
-        const bScore = scores.find(s => teamBIds.includes(s.playerId) && s.holeNumber === h);
-        if (!aScore || !bScore) continue;
-        aTotal += aScore.adjustedNet ?? aScore.net;
-        bTotal += bScore.adjustedNet ?? bScore.net;
-        holesPlayed++;
-    }
-    return { aDiff: aTotal - bTotal, holesPlayed };
-}
-
-// Returns holesUp from Team A's perspective (positive = A leads)
-function calcHolesUp(
-    teamAIds: string[],
-    teamBIds: string[],
-    scores: { holeNumber: number; playerId: string; gross?: number; net: number; adjustedNet?: number; trashDots?: string[] }[],
-    format: '1v1' | '2v2',
-    course: any = null,
-    birdiesDouble?: boolean,
-    sideBets?: { greenies?: boolean },
-    teamHandicapDiff?: { diff: number; spottedTeam: 'A' | 'B' | null }
-): number {
-    const holes = [...new Set(scores.map((s) => s.holeNumber))];
-    let aWins = 0, bWins = 0;
-    for (const hole of holes) {
-        const par = course?.holes?.find((h: any) => h.number === hole)?.par ?? 4;
-        const aScores = scores.filter((s) => teamAIds.includes(s.playerId) && s.holeNumber === hole);
-        const bScores = scores.filter((s) => teamBIds.includes(s.playerId) && s.holeNumber === hole);
-
-        if (aScores.length === 0 || bScores.length === 0) continue;
-
-        const aNets = aScores.map((s) => s.adjustedNet ?? s.net);
-        const bNets = bScores.map((s) => s.adjustedNet ?? s.net);
-
-        if (format === '2v2') {
-            // Apply team handicap stroke to spotted team's low scorer
-            const aNetsAdj = [...aNets];
-            const bNetsAdj = [...bNets];
-            if (teamHandicapDiff && teamHandicapDiff.spottedTeam) {
-                const holeStrokeIdx = course?.holes?.find((h: any) => h.number === hole)?.strokeIndex ?? 18;
-                if (holeStrokeIdx <= teamHandicapDiff.diff) {
-                    if (teamHandicapDiff.spottedTeam === 'A') {
-                        const minIdx = aNetsAdj[0] <= (aNetsAdj[1] ?? Infinity) ? 0 : 1;
-                        aNetsAdj[minIdx] -= 1;
-                    } else {
-                        const minIdx = bNetsAdj[0] <= (bNetsAdj[1] ?? Infinity) ? 0 : 1;
-                        bNetsAdj[minIdx] -= 1;
-                    }
-                }
-            }
-
-            const aLow = Math.min(...aNetsAdj), bLow = Math.min(...bNetsAdj);
-            if (aLow < bLow) aWins += 1;
-            else if (bLow < aLow) bWins += 1;
-
-            const aSum = aNetsAdj.reduce((s, n) => s + n, 0);
-            const bSum = bNetsAdj.reduce((s, n) => s + n, 0);
-            if (aSum < bSum) aWins += 1;
-            else if (bSum < aSum) bWins += 1;
-
-            // Birdie bonus: +1 per player with a real gross birdie
-            if (birdiesDouble) {
-                aWins += aScores.filter(s => s.gross !== undefined && s.gross < par).length;
-                bWins += bScores.filter(s => s.gross !== undefined && s.gross < par).length;
-            }
-
-            // Greenie bonus: +1 per team with a greenie on par 3 holes
-            if (sideBets?.greenies && par === 3) {
-                if (aScores.some(s => s.trashDots?.includes('greenie'))) aWins += 1;
-                if (bScores.some(s => s.trashDots?.includes('greenie'))) bWins += 1;
-            }
-        } else {
-            const aHasBirdie = aScores.some(s => s.gross !== undefined && s.gross < par);
-            const bHasBirdie = bScores.some(s => s.gross !== undefined && s.gross < par);
-            if (aNets[0] < bNets[0]) aWins += (birdiesDouble && aHasBirdie) ? 2 : 1;
-            else if (bNets[0] < aNets[0]) bWins += (birdiesDouble && bHasBirdie) ? 2 : 1;
-
-            if (sideBets?.greenies && par === 3) {
-                if (aScores.some(s => s.trashDots?.includes('greenie'))) aWins += 1;
-                if (bScores.some(s => s.trashDots?.includes('greenie'))) bWins += 1;
-            }
-        }
-    }
-    return aWins - bWins;
-}
+// Scoring logic moved to src/lib/golf-engine.ts
 
 export default function LiveScorecardPage() {
     const { hole } = useParams<{ hole: string }>();
@@ -1173,242 +1074,231 @@ export default function LiveScorecardPage() {
             </main >
 
             {/* Edit Match Settings */}
-            {
-                showEditSettings && (
-                    <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
-                        <div className="bg-surface border border-borderColor rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden">
-                            {/* Header */}
-                            <div className="flex items-center justify-between p-5 border-b border-borderColor shrink-0">
-                                <h3 className="text-lg font-black uppercase italic">Match Settings</h3>
-                                <button onClick={() => setShowEditSettings(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
-                            </div>
-                            {/* Scrollable body */}
-                            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-7">
-                                {/* Wager */}
-                                <div className="space-y-3">
-                                    <div
-                                        className="flex items-center gap-2 cursor-pointer group w-fit"
-                                        onClick={() => setShowWagerHelp(!showWagerHelp)}
-                                    >
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText group-hover:text-bloodRed transition-colors">Wager</p>
-                                        <Info className="w-3 h-3 text-secondaryText/50 group-hover:text-bloodRed transition-colors" />
-                                    </div>
+            <BottomSheet
+                open={showEditSettings}
+                onClose={() => setShowEditSettings(false)}
+                title="Match Settings"
+                footer={
+                    <Button
+                        size="lg"
+                        className="w-full bg-neonGreen hover:bg-neonGreen/90 text-black font-black italic border-none shadow-[0_0_20px_rgba(0,255,102,0.2)]"
+                        disabled={settingsSaving}
+                        onClick={async () => {
+                            if (!matchId) return;
+                            setSettingsSaving(true);
+                            await updateMatchSettings(matchId, {
+                                wagerAmount: editWager,
+                                wagerType: editWagerType,
+                                sideBets: {
+                                    ...(match?.sideBets ?? {}),
+                                    greenies: editGreenies,
+                                    sandies: editSandies,
+                                    snake: editSnake,
+                                    autoPress: editAutoPress,
+                                    birdiesDouble: editBirdiesDouble,
+                                    trashValue: editTrashValue,
+                                    bonusSkins: editBonusSkins,
+                                },
+                            });
+                            setShowEditSettings(false);
+                            setSettingsSaving(false);
+                        }}
+                    >
+                        {settingsSaving ? <Loader className="w-4 h-4 animate-spin" /> : 'SAVE CHANGES'}
+                    </Button>
+                }
+            >
+                <div className="space-y-7 pb-4">
+                    {/* Wager */}
+                    <div className="space-y-3">
+                        <div
+                            className="flex items-center gap-2 cursor-pointer group w-fit"
+                            onClick={() => setShowWagerHelp(!showWagerHelp)}
+                        >
+                            <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText group-hover:text-bloodRed transition-colors">Wager</p>
+                            <Info className="w-3 h-3 text-secondaryText/50 group-hover:text-bloodRed transition-colors" />
+                        </div>
 
-                                    <AnimatePresence>
-                                        {showWagerHelp && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: 'auto' }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pb-2"
-                                            >
-                                                Adjust the stakes for the remaining segments. For Match Play, this updates the Front, Back, and Overall values. For Skins, it changes the value of all upcoming holes.
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-bold text-white">Amount</span>
-                                        <div className="flex items-center gap-3">
-                                            <button onClick={() => setEditWager(v => Math.max(0, v - 5))} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
-                                            <span className="text-base font-black w-10 text-center tabular-nums">${editWager}</span>
-                                            <button onClick={() => setEditWager(v => v + 5)} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
-                                        </div>
-                                    </div>
-                                    {match?.format !== 'skins' && (
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-bold text-white">Type</span>
-                                            <div className="flex gap-2">
-                                                {(['NASSAU', 'PER_HOLE'] as const).map(t => (
-                                                    <button key={t} onClick={() => setEditWagerType(t)} className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border transition-colors ${editWagerType === t ? 'bg-bloodRed border-bloodRed text-white' : 'border-borderColor text-secondaryText'}`}>
-                                                        {t === 'NASSAU' ? 'Match Play' : 'Per Hole'}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                {/* Side Bets */}
-                                <div className="space-y-1">
-                                    <div
-                                        className="flex items-center gap-2 cursor-pointer group w-fit mb-2"
-                                        onClick={() => setShowSideBetsHelp(!showSideBetsHelp)}
-                                    >
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText group-hover:text-bloodRed transition-colors">Side Bets</p>
-                                        <Info className="w-3 h-3 text-secondaryText/50 group-hover:text-bloodRed transition-colors" />
-                                    </div>
-
-                                    <AnimatePresence>
-                                        {showSideBetsHelp && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: 'auto' }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pb-2"
-                                            >
-                                                Enable or disable specific side contests mid-match. Results already recorded on previous holes will be preserved in the final calculations.
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-
-                                    {[
-                                        { label: 'Greenies', sub: 'Closest to pin on par 3', val: editGreenies, set: setEditGreenies },
-                                        { label: 'Sandies', sub: 'Par+ from bunker', val: editSandies, set: setEditSandies },
-                                        { label: 'Snake', sub: '3-putt penalty', val: editSnake, set: setEditSnake },
-                                        ...(match?.format !== 'skins' && !isStrokePlay ? [
-                                            { label: 'Auto Press', sub: 'Press when 2 down', val: editAutoPress, set: setEditAutoPress },
-                                            { label: 'Birdies Double', sub: 'Net birdie = 2 pts', val: editBirdiesDouble, set: setEditBirdiesDouble },
-                                        ] : []),
-                                        ...(match?.format === 'skins' ? [
-                                            { label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', val: editBonusSkins, set: setEditBonusSkins },
-                                        ] : []),
-                                    ].map(({ label, sub, val, set }) => (
-                                        <div key={label} className="flex items-center justify-between py-3 border-b border-borderColor/30">
-                                            <div className="pr-4">
-                                                <p className="text-sm font-bold text-white">{label}</p>
-                                                <p className="text-[10px] text-secondaryText leading-tight">{sub}</p>
-                                            </div>
-                                            <button
-                                                onClick={() => set(!val)}
-                                                className={`w-11 h-6 rounded-full border transition-all relative shrink-0 ${val ? 'bg-bloodRed border-bloodRed shadow-[0_0_12px_rgba(255,0,63,0.3)]' : 'bg-surfaceHover border-borderColor'}`}
-                                            >
-                                                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-transform duration-300 ${val ? 'translate-x-[20px]' : 'translate-x-0'}`} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {/* Trash Value */}
-                                    <div className="flex flex-col pt-3">
-                                        <div className="flex items-center justify-between">
-                                            <div
-                                                className="flex items-center gap-2 cursor-pointer group"
-                                                onClick={() => setShowTrashValueHelp(!showTrashValueHelp)}
-                                            >
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <p className="text-sm font-bold text-white group-hover:text-bloodRed transition-colors">Trash Value</p>
-                                                        <Info className="w-3 h-3 text-secondaryText/50 group-hover:text-bloodRed transition-colors" />
-                                                    </div>
-                                                    <p className="text-[10px] text-secondaryText">Payout per dot</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => setEditTrashValue(v => Math.max(0, v - 5))} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
-                                                <span className="text-sm font-black w-8 text-center tabular-nums">${editTrashValue}</span>
-                                                <button onClick={() => setEditTrashValue(v => v + 5)} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
-                                            </div>
-                                        </div>
-
-                                        <AnimatePresence>
-                                            {showTrashValueHelp && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    exit={{ opacity: 0, height: 0 }}
-                                                    className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pt-2"
-                                                >
-                                                    The monetary value assigned to each 'dot' earned. This amount is multiplied by the total dots at the end of the round to settle side-bets.
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
-                                </div>
-
-                                {isScorekeeper ? (
-                                    <div className="pt-6 pb-6">
-                                        <button
-                                            onClick={() => {
-                                                setShowEditSettings(false);
-                                                setShowQuitConfirm(true);
-                                            }}
-                                            className="group flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-bloodRed/20 hover:border-bloodRed/50 hover:bg-bloodRed/5 transition-all"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5 text-bloodRed/60 group-hover:text-bloodRed" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-bloodRed/60 group-hover:text-bloodRed">Quit & Delete Match</span>
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="pt-6 pb-6">
-                                        <button
-                                            onClick={() => {
-                                                if (matchId) sessionStorage.setItem('dismissedMatchId', matchId);
-                                                navigate('/dashboard', { replace: true });
-                                                setTimeout(() => clearMatch(), 10);
-                                            }}
-                                            className="group flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all"
-                                        >
-                                            <LogOut className="w-3.5 h-3.5 text-secondaryText group-hover:text-white" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-secondaryText group-hover:text-white">Quit Match</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                            {/* Save */}
-                            <div className="p-5 border-t border-borderColor shrink-0 bg-surface/50 backdrop-blur-md">
-                                <Button
-                                    size="lg"
-                                    className="w-full bg-neonGreen hover:bg-neonGreen/90 text-black font-black italic border-none shadow-[0_0_20px_rgba(0,255,102,0.2)]"
-                                    disabled={settingsSaving}
-                                    onClick={async () => {
-                                        if (!matchId) return;
-                                        setSettingsSaving(true);
-                                        await updateMatchSettings(matchId, {
-                                            wagerAmount: editWager,
-                                            wagerType: editWagerType,
-                                            sideBets: {
-                                                ...(match?.sideBets ?? {}),
-                                                greenies: editGreenies,
-                                                sandies: editSandies,
-                                                snake: editSnake,
-                                                autoPress: editAutoPress,
-                                                birdiesDouble: editBirdiesDouble,
-                                                trashValue: editTrashValue,
-                                                bonusSkins: editBonusSkins,
-                                            },
-                                        });
-                                        setSettingsSaving(false);
-                                        setShowEditSettings(false);
-                                    }}
+                        <AnimatePresence>
+                            {showWagerHelp && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pb-2"
                                 >
-                                    {settingsSaving ? <Loader className="w-4 h-4 animate-spin" /> : 'SAVE CHANGES'}
-                                </Button>
+                                    Adjust the stakes for the remaining segments. For Match Play, this updates the Front, Back, and Overall values. For Skins, it changes the value of all upcoming holes.
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-white">Amount</span>
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => setEditWager(v => Math.max(0, v - 5))} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
+                                <span className="text-base font-black w-10 text-center tabular-nums">${editWager}</span>
+                                <button onClick={() => setEditWager(v => v + 5)} className="w-8 h-8 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
                             </div>
                         </div>
-                    </div>
-                )
-            }
-
-            {/* Quit Confirmation Dialog */}
-            {
-                showQuitConfirm && (
-                    <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
-                        <div className="bg-surface border border-bloodRed/30 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-[0_0_40px_rgba(255,0,63,0.15)]">
+                        {match?.format !== 'skins' && (
                             <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-black italic uppercase tracking-tighter text-bloodRed">Delete Match?</h3>
-                                <button onClick={() => setShowQuitConfirm(false)} className="p-1 text-secondaryText hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                                <span className="text-sm font-bold text-white">Type</span>
+                                <div className="flex gap-2">
+                                    {(['NASSAU', 'PER_HOLE'] as const).map(t => (
+                                        <button key={t} onClick={() => setEditWagerType(t)} className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border transition-colors ${editWagerType === t ? 'bg-bloodRed border-bloodRed text-white' : 'border-borderColor text-secondaryText'}`}>
+                                            {t === 'NASSAU' ? 'Match Play' : 'Per Hole'}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <p className="text-xs text-secondaryText text-center font-medium leading-relaxed">
-                                This will <span className="font-bold text-bloodRed uppercase italic">permanently erase</span> the match and all scores for everyone in the group. This action cannot be undone.
-                            </p>
-                            <div className="flex flex-col gap-3 pt-2">
-                                <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-none text-white uppercase font-black italic tracking-widest text-xs shadow-[0_0_20px_rgba(255,0,63,0.3)]" onClick={async () => {
-                                    if (isGroupMode && activeMatchIds.length > 0) {
-                                        await Promise.all(activeMatchIds.map(id => deleteMatch(id)));
-                                    } else if (matchId) {
-                                        await deleteMatch(matchId);
-                                    }
+                        )}
+                    </div>
+
+                    {/* Side Bets */}
+                    <div className="space-y-1">
+                        <div
+                            className="flex items-center gap-2 cursor-pointer group w-fit mb-2"
+                            onClick={() => setShowSideBetsHelp(!showSideBetsHelp)}
+                        >
+                            <p className="text-[10px] font-black uppercase tracking-widest text-secondaryText group-hover:text-bloodRed transition-colors">Side Bets</p>
+                            <Info className="w-3 h-3 text-secondaryText/50 group-hover:text-bloodRed transition-colors" />
+                        </div>
+
+                        <AnimatePresence>
+                            {showSideBetsHelp && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pb-2"
+                                >
+                                    Enable or disable specific side contests mid-match. Results already recorded on previous holes will be preserved in the final calculations.
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {[
+                            { label: 'Greenies', sub: 'Closest to pin on par 3', val: editGreenies, set: setEditGreenies },
+                            { label: 'Sandies', sub: 'Par+ from bunker', val: editSandies, set: setEditSandies },
+                            { label: 'Snake', sub: '3-putt penalty', val: editSnake, set: setEditSnake },
+                            ...(match?.format !== 'skins' && !isStrokePlay ? [
+                                { label: 'Auto Press', sub: 'Press when 2 down', val: editAutoPress, set: setEditAutoPress },
+                                { label: 'Birdies Double', sub: 'Net birdie = 2 pts', val: editBirdiesDouble, set: setEditBirdiesDouble },
+                            ] : []),
+                            ...(match?.format === 'skins' ? [
+                                { label: 'Bonus Skins', sub: 'Pin (+1) · Birdie (+1) · Eagle (+2)', val: editBonusSkins, set: setEditBonusSkins },
+                            ] : []),
+                        ].map(({ label, sub, val, set }) => (
+                            <div key={label} className="flex items-center justify-between py-3 border-b border-borderColor/30">
+                                <div className="pr-4">
+                                    <p className="text-sm font-bold text-white">{label}</p>
+                                    <p className="text-[10px] text-secondaryText leading-tight">{sub}</p>
+                                </div>
+                                <button
+                                    onClick={() => set(!val)}
+                                    className={`w-11 h-6 rounded-full border transition-all relative shrink-0 ${val ? 'bg-bloodRed border-bloodRed shadow-[0_0_12px_rgba(255,0,63,0.3)]' : 'bg-surfaceHover border-borderColor'}`}
+                                >
+                                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-transform duration-300 ${val ? 'translate-x-[20px]' : 'translate-x-0'}`} />
+                                </button>
+                            </div>
+                        ))}
+
+                        {/* Trash Value */}
+                        <div className="flex flex-col pt-3">
+                            <div className="flex items-center justify-between">
+                                <div
+                                    className="flex items-center gap-2 cursor-pointer group"
+                                    onClick={() => setShowTrashValueHelp(!showTrashValueHelp)}
+                                >
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-bold text-white group-hover:text-bloodRed transition-colors">Trash Value</p>
+                                            <Info className="w-3 h-3 text-secondaryText/50 group-hover:text-bloodRed transition-colors" />
+                                        </div>
+                                        <p className="text-[10px] text-secondaryText">Payout per dot</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => setEditTrashValue(v => Math.max(0, v - 5))} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Minus className="w-3 h-3" /></button>
+                                    <span className="text-sm font-black w-8 text-center tabular-nums">${editTrashValue}</span>
+                                    <button onClick={() => setEditTrashValue(v => v + 5)} className="w-7 h-7 rounded-full border border-borderColor flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
+                                </div>
+                            </div>
+
+                            <AnimatePresence>
+                                {showTrashValueHelp && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="text-[10px] text-secondaryText/90 font-medium leading-relaxed overflow-hidden pt-2"
+                                    >
+                                        The monetary value assigned to each 'dot' earned. This amount is multiplied by the total dots at the end of the round to settle side-bets.
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
+
+                    {isScorekeeper ? (
+                        <div className="pt-2">
+                            <button
+                                onClick={() => {
+                                    setShowEditSettings(false);
+                                    setShowQuitConfirm(true);
+                                }}
+                                className="group flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-bloodRed/20 hover:border-bloodRed/50 hover:bg-bloodRed/5 transition-all"
+                            >
+                                <Trash2 className="w-3.5 h-3.5 text-bloodRed/60 group-hover:text-bloodRed" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-bloodRed/60 group-hover:text-bloodRed">Quit & Delete Match</span>
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="pt-2">
+                            <button
+                                onClick={() => {
+                                    if (matchId) sessionStorage.setItem('dismissedMatchId', matchId);
                                     navigate('/dashboard', { replace: true });
                                     setTimeout(() => clearMatch(), 10);
-                                }}>
-                                    Confirm Delete
-                                </Button>
-                                <Button size="lg" variant="outline" className="w-full border-borderColor text-secondaryText uppercase font-black italic tracking-widest text-xs" onClick={() => setShowQuitConfirm(false)}>
-                                    Cancel
-                                </Button>
-                            </div>
+                                }}
+                                className="group flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all"
+                            >
+                                <LogOut className="w-3.5 h-3.5 text-secondaryText group-hover:text-white" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-secondaryText group-hover:text-white">Quit Match</span>
+                            </button>
                         </div>
+                    )}
+                </div>
+            </BottomSheet>
+
+            {/* Quit Confirmation Sheet */}
+            <BottomSheet
+                open={showQuitConfirm}
+                onClose={() => setShowQuitConfirm(false)}
+                title="Delete Match?"
+            >
+                <div className="space-y-6 pb-4">
+                    <p className="text-xs text-secondaryText text-center font-medium leading-relaxed px-4">
+                        This will <span className="font-bold text-bloodRed uppercase italic">permanently erase</span> the match and all scores for everyone in the group. This action cannot be undone.
+                    </p>
+                    <div className="flex flex-col gap-3">
+                        <Button size="lg" className="w-full bg-bloodRed hover:bg-bloodRed/80 border-none text-white uppercase font-black italic tracking-widest text-xs shadow-[0_0_20px_rgba(255,0,63,0.3)]" onClick={async () => {
+                            if (isGroupMode && activeMatchIds.length > 0) {
+                                await Promise.all(activeMatchIds.map(id => deleteMatch(id)));
+                            } else if (matchId) {
+                                await deleteMatch(matchId);
+                            }
+                            navigate('/dashboard', { replace: true });
+                            setTimeout(() => clearMatch(), 10);
+                        }}>
+                            Confirm Delete
+                        </Button>
+                        <Button size="lg" variant="outline" className="w-full border-borderColor text-secondaryText uppercase font-black italic tracking-widest text-xs" onClick={() => setShowQuitConfirm(false)}>
+                            Cancel
+                        </Button>
                     </div>
-                )
-            }
+                </div>
+            </BottomSheet>
 
             {/* Bottom Actions - Stationary */}
             <div className="bg-background border-t border-borderColor p-3 sm:p-4 shrink-0 pb-safe">
