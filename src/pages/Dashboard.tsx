@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, History, PenLine, Clock, Camera, Loader, Check, X, ChevronRight } from 'lucide-react';
+import { History, PenLine, Clock, Camera, Loader, Check, X, ChevronRight } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -608,6 +608,7 @@ export default function DashboardPage() {
                                 )}
                             </div>
 
+
                             {/* Moniker Section (Full Name Only) */}
                             <div className="text-center mb-6 w-full px-10 flex flex-col items-center">
                                 <h2 className="text-3xl sm:text-5xl font-black italic tracking-tighter uppercase leading-tight drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent pr-2">
@@ -615,12 +616,6 @@ export default function DashboardPage() {
                                 </h2>
                             </div>
 
-                            {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
-                                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-bloodRed/10 border border-bloodRed/20 shadow-[0_0_20px_rgba(255,0,63,0.1)] mb-6">
-                                    <Crown className="w-4 h-4 text-bloodRed fill-bloodRed/20" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-bloodRed">BloodSheet Legend</span>
-                                </div>
-                            )}
                         </div>
 
                         {/* Leaderboard Stats Section */}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { History, UserPlus, Check, Loader, Crown, Camera } from 'lucide-react';
+import { History, UserPlus, Check, Loader, Camera } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { StatBox } from '../components/ui/StatBox';
@@ -342,6 +342,7 @@ export default function PlayerProfilePage() {
                             </div>
                         </div>
 
+
                         {/* Moniker Section (Full Name Only) */}
                         <div className="text-center mb-6 w-full px-6 flex flex-col items-center">
                             <div className="flex items-center gap-3">
@@ -357,12 +358,6 @@ export default function PlayerProfilePage() {
                                 )}
                             </div>
                         </div>
-                        {stats.lifetimePayout > 0 && stats.totalMatches > 0 && (
-                            <div className="flex items-center justify-center gap-1.5 mt-1 mb-2 px-3 py-1 rounded-full bg-bloodRed/10 border border-bloodRed/30 shadow-[0_0_10px_rgba(255,0,63,0.15)]">
-                                <Crown className="w-4 h-4 text-bloodRed" />
-                                <span className="text-[11px] font-black uppercase tracking-widest text-bloodRed">BloodSheet Legend</span>
-                            </div>
-                        )}
                         <div className="flex flex-col items-center gap-2 mb-8 mt-1">
                             <span className="text-xs font-semibold uppercase tracking-wider text-secondaryText/40 block">
                                 Member since {memberYear}
