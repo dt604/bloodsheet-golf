@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Card';
 import { Toggle } from '../components/ui/Toggle';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useUIStore } from '../store/useUIStore';
 
 // Import avatars
 import juniorAvatar from '../assets/avatars/junior.png';
@@ -120,6 +121,8 @@ export default function SettingsPage() {
             setDeleting(false);
         }
     }
+
+    const resetAllTours = useUIStore((state) => state.resetAllTours);
 
     const maskedEmail = user?.email
         ? user.email.replace(/(.{2}).+(@.+)/, '$1***$2')
@@ -321,6 +324,26 @@ export default function SettingsPage() {
                         <div className="p-4 flex items-center justify-between">
                             <span className="font-semibold text-white">Final Settlement Owed</span>
                             <Toggle checked={finalSettlement} onCheckedChange={setFinalSettlement} />
+                        </div>
+                    </Card>
+                </section>
+
+                {/* Help & Guidance */}
+                <section>
+                    <div className="text-secondaryText text-xs font-bold uppercase tracking-widest pl-2 mb-2">Help & Guidance</div>
+                    <Card className="divide-y divide-borderColor/50 overflow-hidden">
+                        <div
+                            className="p-4 flex items-center justify-between hover:bg-surfaceHover transition-colors cursor-pointer group"
+                            onClick={() => {
+                                resetAllTours();
+                                alert('Tutorials have been reset! You will see the guided tours again the next time you visit those screens.');
+                            }}
+                        >
+                            <div className="flex flex-col">
+                                <span className="font-semibold text-white group-hover:text-bloodRed transition-colors">Reset Guided Tutorials</span>
+                                <span className="text-[10px] text-secondaryText italic uppercase tracking-tight">Re-enable all setup wizards & tours</span>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-secondaryText group-hover:text-bloodRed transition-colors" />
                         </div>
                     </Card>
                 </section>

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { useUIStore } from '../store/useUIStore';
+import { useLayoutEffect } from 'react';
 
 interface Profile {
   id: string;
@@ -12,6 +14,14 @@ interface Profile {
   handicap: number;
   is_admin: boolean;
   createdAt: string;
+  tour_completion?: {
+    hasSeenDashboardTour: boolean;
+    hasSeenMatchFormatTour: boolean;
+    hasSeenMatchSetupTour: boolean;
+    hasSeenMatchStrokesTour: boolean;
+    hasSeenMatchConfigTour: boolean;
+    hasSeenOnboardingTour: boolean;
+  };
 }
 
 interface AuthContextValue {
@@ -24,7 +34,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<string | null>;
   signInAsGuest: () => Promise<string | null>;
   signOut: () => Promise<void>;
-  updateProfile: (data: Partial<Pick<Profile, 'fullName' | 'nickname' | 'handicap' | 'avatarUrl' | 'countryCode'>>) => Promise<void>;
+  updateProfile: (data: Partial<Pick<Profile, 'fullName' | 'nickname' | 'handicap' | 'avatarUrl' | 'countryCode' | 'tour_completion'>>) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<string | null>;
   updatePassword: (password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
@@ -60,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             handicap: data.handicap,
             is_admin: data.is_admin ?? false,
             createdAt: data.created_at,
+            tour_completion: data.tour_completion ?? undefined,
           });
           return;
         }
@@ -117,6 +128,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Sync UI Store from Profile (Hydration)
+  useLayoutEffect(() => {
+    if (profile?.tour_completion) {
+      const store = useUIStore.getState();
+      const db = profile.tour_completion;
+
+      // Update store only if DB values are different to avoid loops
+      const updates: any = {};
+      if (db.hasSeenDashboardTour !== store.hasSeenDashboardTour) updates.hasSeenDashboardTour = db.hasSeenDashboardTour;
+      if (db.hasSeenMatchFormatTour !== store.hasSeenMatchFormatTour) updates.hasSeenMatchFormatTour = db.hasSeenMatchFormatTour;
+      if (db.hasSeenMatchSetupTour !== store.hasSeenMatchSetupTour) updates.hasSeenMatchSetupTour = db.hasSeenMatchSetupTour;
+      if (db.hasSeenMatchStrokesTour !== store.hasSeenMatchStrokesTour) updates.hasSeenMatchStrokesTour = db.hasSeenMatchStrokesTour;
+      if (db.hasSeenMatchConfigTour !== store.hasSeenMatchConfigTour) updates.hasSeenMatchConfigTour = db.hasSeenMatchConfigTour;
+      if (db.hasSeenOnboardingTour !== store.hasSeenOnboardingTour) updates.hasSeenOnboardingTour = db.hasSeenOnboardingTour;
+
+      if (Object.keys(updates).length > 0) {
+        useUIStore.setState(updates);
+      }
+    }
+  }, [profile?.tour_completion]);
+
+  // Sync Profile from UI Store (Persistence)
+  useEffect(() => {
+    if (!user || user.is_anonymous) return;
+
+    return useUIStore.subscribe(
+      (state) => ({
+        hasSeenDashboardTour: state.hasSeenDashboardTour,
+        hasSeenMatchFormatTour: state.hasSeenMatchFormatTour,
+        hasSeenMatchSetupTour: state.hasSeenMatchSetupTour,
+        hasSeenMatchStrokesTour: state.hasSeenMatchStrokesTour,
+        hasSeenMatchConfigTour: state.hasSeenMatchConfigTour,
+        hasSeenOnboardingTour: state.hasSeenOnboardingTour,
+      }),
+      (newTourState: any) => {
+        // Only update if profile is already loaded and different
+        if (profile && JSON.stringify(profile.tour_completion) !== JSON.stringify(newTourState)) {
+          updateProfile({ tour_completion: newTourState }).catch(console.error);
+        }
+      },
+      { fireImmediately: false }
+    );
+  }, [user, profile]);
+
   async function signUp(email: string, password: string, fullName: string, handicap: number = 0, avatarUrl?: string, grintId?: string): Promise<string | null> {
     const { error } = await supabase.auth.signUp({
       email,
@@ -167,7 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error?.message ?? null;
   }
 
-  async function updateProfile(data: Partial<Pick<Profile, 'fullName' | 'nickname' | 'handicap' | 'avatarUrl' | 'countryCode'>>) {
+  async function updateProfile(data: Partial<Pick<Profile, 'fullName' | 'nickname' | 'handicap' | 'avatarUrl' | 'countryCode' | 'tour_completion'>>) {
     if (!user) return;
     const updates: Record<string, unknown> = {};
     if (data.fullName !== undefined) updates.full_name = data.fullName;
@@ -175,6 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data.handicap !== undefined) updates.handicap = data.handicap;
     if (data.avatarUrl !== undefined) updates.avatar_url = data.avatarUrl;
     if (data.countryCode !== undefined) updates.country_code = data.countryCode;
+    if (data.tour_completion !== undefined) updates.tour_completion = data.tour_completion;
     await supabase.from('profiles').update(updates).eq('id', user.id);
     setProfile((prev) => prev ? { ...prev, ...data } : prev);
   }
