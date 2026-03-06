@@ -7,9 +7,17 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ios:build": "npm run build && npx cap sync ios",
+    "ios:sync": "npx cap sync ios",
+    "ios:open": "npx cap open ios",
+    "ios:assets": "npx @capacitor/assets generate --ios"
   },
   "dependencies": {
+    "@capacitor/app": "^8.0.1",
+    "@capacitor/haptics": "^8.0.1",
+    "@capacitor/keyboard": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.1",
     "@supabase/supabase-js": "^2.98.0",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
@@ -28,6 +36,10 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/ios": "^8.1.0",
     "@eslint/js": "^9.13.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/react": "^18.3.12",

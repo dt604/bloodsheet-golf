@@ -3,6 +3,10 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HelmetProvider } from 'react-helmet-async';
 import Analytics from './components/Analytics';
+import { useEffect } from 'react';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 import WelcomePage from './pages/Welcome';
 import HomePage from './pages/Home';
@@ -137,6 +141,23 @@ function AppRoutes() {
 }
 
 function App() {
+  useEffect(() => {
+    // Initial configuration for native platforms
+    if (Capacitor.isNativePlatform()) {
+      // Set the status bar style to Light (white text) for our dark background
+      StatusBar.setStyle({ style: Style.Dark });
+
+      // Handle hardware back button (Android mainly, but good for consistency)
+      CapApp.addListener('backButton', ({ canGoBack }) => {
+        if (!canGoBack) {
+          CapApp.exitApp();
+        } else {
+          window.history.back();
+        }
+      });
+    }
+  }, []);
+
   return (
     <div className="h-[100dvh] bg-background text-primaryText font-sans overflow-hidden">
       <HelmetProvider>

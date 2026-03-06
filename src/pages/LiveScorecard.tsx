@@ -672,7 +672,7 @@ export default function LiveScorecardPage() {
 
 
             {/* Header - Stationary */}
-            <header className="flex flex-col border-b border-borderColor shrink-0 bg-background/80 backdrop-blur-md z-30">
+            <header className="flex flex-col border-b border-borderColor shrink-0 bg-background/80 backdrop-blur-md z-30 pt-safe">
                 <div className="flex items-center justify-between p-4 pb-2">
                     <button
                         onClick={() => {

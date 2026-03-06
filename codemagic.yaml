@@ -1,0 +1,42 @@
+# Codemagic CI/CD Configuration for BloodSheet Golf
+# This file automates the build and submission of your iOS app to the App Store.
+
+workflows:
+  ios-release:
+    name: BloodSheet Golf iOS Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - apple_credentials # We will create this in Codemagic UI
+      node: latest
+      xcode: latest
+      cocoapods: default
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - name: main
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Build Web Application
+        script: npm run build
+      - name: Capacitor Sync
+        script: npx cap sync ios
+      - name: Increment Build Number
+        script: |
+          # Automatically increments the build number so Apple doesn't reject duplicates
+          cd ios/App && agvtool new-version -all $(($BUILD_NUMBER + 1))
+      - name: Build iOS IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/App/App.xcworkspace \
+            --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        # This will automatically upload the build to TestFlight/App Store
+        submit_to_testflight: true

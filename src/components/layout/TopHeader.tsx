@@ -56,7 +56,7 @@ export default function TopHeader() {
     const hasNotifications = pendingCount > 0;
 
     return (
-        <header className="sticky top-0 z-40 bg-background/60 backdrop-blur-2xl border-b border-white/5 px-6 h-16 flex items-center justify-between">
+        <header className="sticky top-0 z-40 bg-background/60 backdrop-blur-2xl border-b border-white/5 px-6 pt-safe min-h-[64px] flex items-center justify-between">
             {/* Left Action: Quick Add Friend / QR */}
             <div className="flex items-center">
                 <Link
