@@ -107,7 +107,8 @@ export default function OnboardingPage() {
 
         // Nickname and Country are now optional. We only FORCE the tour back to 
         // the fields that are essential for the game logic (Handicap & Avatar).
-        if (handicapRef.current === '' || handicapRef.current === '0' || handicapRef.current === '0.0') {
+        // Note: '0' is a valid handicap (Scratch), so we only force if it's strictly empty.
+        if (handicapRef.current === '') {
             resumeTour(2);
         } else if (!avatarRef.current && !customAvatarRef.current) {
             resumeTour(3);
@@ -194,7 +195,7 @@ export default function OnboardingPage() {
     }
 
     return (
-        <div className="flex-1 flex flex-col bg-background p-6 overflow-y-auto min-h-screen">
+        <div className="flex-1 flex flex-col bg-background p-6 overflow-y-auto min-h-[100dvh] pb-24">
             <AnimatePresence mode="wait">
                 {
                     <motion.div
@@ -280,7 +281,12 @@ export default function OnboardingPage() {
                                         onFocus={killTour}
                                         onBlur={evalTourStep}
                                     />
-                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-secondaryText/30 font-black text-xl italic select-none">INDEX</div>
+                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-end pointer-events-none">
+                                        <div className="text-secondaryText/30 font-black text-xl italic select-none">INDEX</div>
+                                        {(handicap === '0' || handicap === '0.0') && (
+                                            <span className="text-[10px] font-black text-neonGreen tracking-[0.2em] italic">SCRATCH</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
