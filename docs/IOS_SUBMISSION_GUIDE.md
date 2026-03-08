@@ -1,45 +1,66 @@
-# 🩸 BloodSheet Golf — iOS Submission Guide (Cloud Path) 🚀
+# 🩸 BloodSheet Golf — iOS Submission Guide (Codemagic & App Store) 🚀
 
-Since your local Mac is a classic (2017), we are using **Codemagic** to build and submit the app in the cloud. This bypasses your local OS limits and ensures Apple gets a perfect build.
+Congratulations on joining the Apple Developer Program! With that in place, we can fully automate your iOS App Store submissions using **Codemagic**.
 
----
+I've just updated your `codemagic.yaml` file to use **Automatic Code Signing**. This means Codemagic will automatically pull your developer certificates, configure your app, build it, and push it directly to TestFlight on Apple's servers.
 
-## 🏗 STEP 1: Connect your Code
-1.  **Push to GitHub**: Ensure your project is pushed to a private GitHub repository.
-2.  **Sign up at [Codemagic.io](https://codemagic.io)**: Link it to your GitHub account.
-3.  **Add App**: Select **BloodSheetGolf.v1.1** from your list. It will automatically detect the `codemagic.yaml` file I just created for you.
+Here are the exact, fresh steps to connect everything:
 
 ---
 
-## 🏗 STEP 2: Link Apple (Crucial)
-Apple needs to know it's really you. You need to generate an **App Store Connect API Key**:
-1.  Log in to [App Store Connect](https://appstoreconnect.apple.com/access/api).
-2.  Go to **Users and Access** -> **Integrations** (at the top) -> **App Store Connect API**.
-3.  Click **(+)** to generate a new key.
-    *   Name: `Codemagic CI`
-    *   Access: `Admin` (or App Manager)
-4.  **Download the API Key (.p8 file)** immediately. Apple only lets you download it once!
+## 🏗 STEP 1: Generate your App Store Connect API Key
+Apple requires a secure key so Codemagic can publish the app for you.
+
+1.  Log in to [App Store Connect](https://appstoreconnect.apple.com/).
+2.  Click the **Users and Access** icon.
+3.  Choose the **Integrations** tab at the top.
+4.  Under the "App Store Connect API" section, click the **(+)** button to generate a new key.
+    *   **Name**: `Codemagic CI`
+    *   **Access**: `App Manager` or `Admin`
+5.  Click **Generate**.
+6.  You will see your new key in the list. Note the **Issuer ID** (at the top) and the **Key ID**.
+7.  Click **Download API Key** to get the `.p8` file. **(Keep this safe; Apple only lets you download it once!)**
 
 ---
 
-## 🏗 STEP 3: Configure Codemagic UI
-1.  In Codemagic, go to your App Settings -> **Environment variables**.
-2.  Create a group named `apple_credentials`.
-3.  Upload the `.p8` file you just downloaded and enter the **Issuer ID** and **Key ID** from App Store Connect.
+## 🏗 STEP 2: Connect Apple to Codemagic
+Now we tell Codemagic about that key so it can sign your app automatically.
+
+1.  Log in to [Codemagic](https://codemagic.io/).
+2.  In the left sidebar (at the very bottom), click **Team settings** (or personal Account Settings).
+3.  Go to **Integrations** -> **Developer Portal** (Apple).
+4.  Click **Manage keys** and then **Add key**.
+5.  Enter `BloodSheet Store Key` for the name.
+6.  Input the **Issuer ID** and **Key ID** you noted earlier.
+7.  **Upload the `.p8` file** you downloaded.
+8.  Click **Save**.
 
 ---
 
-## 🚀 The Result
-Every time you push code to your `main` branch, Codemagic will:
-1.  Power up a brand new M2 Mac Mini in the cloud.
-2.  Compile your React code and wrap it in iOS code.
-3.  **Automatically upload it to your App Store Connect account.**
+## 🏗 STEP 3: Create the App in App Store Connect
+Before Codemagic can upload the app, Apple's servers need to know the app exists.
 
-You will receive an email from Apple saying "Your build is ready for TestFlight" usually within 15 minutes of a push!
+1.  Go back to the main [App Store Connect](https://appstoreconnect.apple.com/) dashboard.
+2.  Click **My Apps**.
+3.  Click the blue **(+)** button and select **New App**.
+    *   **Platforms**: Check iOS.
+    *   **Name**: BloodSheet Golf (or similar).
+    *   **Primary Language**: English (US).
+    *   **Bundle ID**: Select `com.bloodsheet.golf` from the dropdown (Codemagic will actually register this ID for you on the first build if it's not there, but check just in case).
+    *   **SKU**: `BLOODSHEET_GOLF_01` (can be anything unique).
+    *   **User Access**: Full Access.
+4. Click **Create**.
 
 ---
 
-## 🎨 What I've Prepared for the Cloud:
-- [x] **`codemagic.yaml`**: The instruction set for the cloud robots.
-- [x] **Safe Area Proofing**: The code is already updated to look perfect on the Dynamic Island.
-- [x] **Native Assets**: The icons and splash screens are already bundled in the `ios` folder.
+## 🏗 STEP 4: Start the Cloud Build
+1.  In Codemagic, go to your **Apps** list and select `bloodsheet-golf`.
+2.  Because your project has a `codemagic.yaml` file, Codemagic will automatically detect the "BloodSheet Golf iOS Release" workflow.
+3.  Click **Start new build**.
+4.  Select the `main` branch and the `ios-release` workflow.
+5.  Click **Start build**.
+
+**The Result:** 
+Codemagic will spin up a Mac in the cloud, build your web app, sync it to native iOS, digitally sign it with your new Apple account, and push it directly into App Store Connect. 
+
+Within about 15-20 minutes, you will receive an email from Apple telling you your build is ready to be tested in TestFlight!

@@ -7,16 +7,17 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
-      groups:
-        - apple_credentials # We will create this in Codemagic UI
       node: latest
       xcode: latest
       cocoapods: default
+      # This requires you to set up the App Store Connect integration in Codemagic Team settings.
     triggering:
       events:
         - push
       branch_patterns:
-        - name: main
+        - pattern: '*'
+          include: true
+          source: true
     scripts:
       - name: Install dependencies
         script: npm install
@@ -24,9 +25,23 @@ workflows:
         script: npm run build
       - name: Capacitor Sync
         script: npx cap sync ios
-      - name: Increment Build Number
+      - name: Set up keychain for code signing
         script: |
-          # Automatically increments the build number so Apple doesn't reject duplicates
+          keychain initialize
+      - name: Fetch signing files from App Store Connect
+        script: |
+          # The ID 'com.bloodsheet.golf' must match your Capacitor app ID
+          app-store-connect fetch-signing-files "com.bloodsheet.golf" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: |
+          keychain add-certificates
+      - name: Configure Xcode project for code signing
+        script: |
+          xcode-project use-profiles
+      - name: Increment build number
+        script: |
           cd ios/App && agvtool new-version -all $(($BUILD_NUMBER + 1))
       - name: Build iOS IPA
         script: |
@@ -35,8 +50,8 @@ workflows:
             --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
     publishing:
       app_store_connect:
         auth: integration
-        # This will automatically upload the build to TestFlight/App Store
         submit_to_testflight: true
