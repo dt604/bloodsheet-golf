@@ -1113,24 +1113,12 @@ export default function LedgerPage() {
                                                 setCreatingIOU(true);
                                                 try {
                                                     for (const s of groupSettlements) {
-                                                        const hasUsd = s.total !== 0;
-                                                        const hasBc = (s.bloodCoinTotal || 0) !== 0;
-                                                        if ((!hasUsd && !hasBc) || !s.opponentIds || s.opponentIds.length === 0) continue;
-
-                                                        const amountPerOpponentUSD = Math.abs(s.total) / s.opponentIds.length;
-                                                        const amountPerOpponentBC = Math.abs(s.bloodCoinTotal || 0) / s.opponentIds.length;
-
+                                                        if (s.total === 0 || !s.opponentIds || s.opponentIds.length === 0) continue;
+                                                        const amountPerOpponent = Math.abs(s.total) / s.opponentIds.length;
                                                         for (const oppId of s.opponentIds) {
-                                                            if (hasUsd) {
-                                                                const debtorId = s.total < 0 ? user!.id : oppId;
-                                                                const creditorId = s.total > 0 ? user!.id : oppId;
-                                                                await createDebt(matchId!, debtorId, creditorId, amountPerOpponentUSD, match?.wagerCurrency);
-                                                            }
-                                                            if (hasBc) {
-                                                                const debtorId = (s.bloodCoinTotal || 0) < 0 ? user!.id : oppId;
-                                                                const creditorId = (s.bloodCoinTotal || 0) > 0 ? user!.id : oppId;
-                                                                await createDebt(matchId!, debtorId, creditorId, amountPerOpponentBC, 'BLOOD_COINS');
-                                                            }
+                                                            const debtorId = s.total < 0 ? user!.id : oppId;
+                                                            const creditorId = s.total > 0 ? user!.id : oppId;
+                                                            await createDebt(matchId!, debtorId, creditorId, amountPerOpponent, 'USD');
                                                         }
                                                     }
                                                     alert('Debts successfully recorded in your balances.');
@@ -1153,24 +1141,12 @@ export default function LedgerPage() {
                                                 setCreatingIOU(true);
                                                 try {
                                                     for (const s of groupSettlements) {
-                                                        const hasUsd = s.total !== 0;
-                                                        const hasBc = (s.bloodCoinTotal || 0) !== 0;
-                                                        if ((!hasUsd && !hasBc) || !s.opponentIds || s.opponentIds.length === 0) continue;
-
-                                                        const amountPerOpponentUSD = Math.abs(s.total) / s.opponentIds.length;
-                                                        const amountPerOpponentBC = Math.abs(s.bloodCoinTotal || 0) / s.opponentIds.length;
-
+                                                        if (s.total === 0 || !s.opponentIds || s.opponentIds.length === 0) continue;
+                                                        const amountPerOpponent = Math.abs(s.total) / s.opponentIds.length;
                                                         for (const oppId of s.opponentIds) {
-                                                            if (hasUsd) {
-                                                                const debtorId = s.total < 0 ? user!.id : oppId;
-                                                                const creditorId = s.total > 0 ? user!.id : oppId;
-                                                                await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponentUSD, match?.wagerCurrency);
-                                                            }
-                                                            if (hasBc) {
-                                                                const debtorId = (s.bloodCoinTotal || 0) < 0 ? user!.id : oppId;
-                                                                const creditorId = (s.bloodCoinTotal || 0) > 0 ? user!.id : oppId;
-                                                                await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponentBC, 'BLOOD_COINS');
-                                                            }
+                                                            const debtorId = s.total < 0 ? user!.id : oppId;
+                                                            const creditorId = s.total > 0 ? user!.id : oppId;
+                                                            await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponent, 'USD');
                                                         }
                                                     }
                                                     alert('Settlement recorded. Payment history updated.');
@@ -1261,22 +1237,12 @@ export default function LedgerPage() {
                                             onClick={async () => {
                                                 setCreatingIOU(true);
                                                 try {
-                                                    const hasUsd = total !== 0;
-                                                    const hasBc = (settlement.bloodCoinTotal || 0) !== 0;
-
-                                                    const amountPerOpponentUSD = Math.abs(total) / settlement.opponentIds.length;
-                                                    const amountPerOpponentBC = Math.abs(settlement.bloodCoinTotal || 0) / settlement.opponentIds.length;
-
-                                                    for (const oppId of settlement.opponentIds) {
-                                                        if (hasUsd) {
+                                                    if (total !== 0) {
+                                                        const amountPerOpponent = Math.abs(total) / settlement.opponentIds.length;
+                                                        for (const oppId of settlement.opponentIds) {
                                                             const debtorId = total < 0 ? user!.id : oppId;
                                                             const creditorId = total > 0 ? user!.id : oppId;
-                                                            await createDebt(matchId!, debtorId, creditorId, amountPerOpponentUSD, match?.wagerCurrency);
-                                                        }
-                                                        if (hasBc) {
-                                                            const debtorId = (settlement.bloodCoinTotal || 0) < 0 ? user!.id : oppId;
-                                                            const creditorId = (settlement.bloodCoinTotal || 0) > 0 ? user!.id : oppId;
-                                                            await createDebt(matchId!, debtorId, creditorId, amountPerOpponentBC, 'BLOOD_COINS');
+                                                            await createDebt(matchId!, debtorId, creditorId, amountPerOpponent, 'USD');
                                                         }
                                                     }
                                                     alert('Debts successfully recorded in your balances.');
@@ -1298,22 +1264,12 @@ export default function LedgerPage() {
                                             onClick={async () => {
                                                 setCreatingIOU(true);
                                                 try {
-                                                    const hasUsd = total !== 0;
-                                                    const hasBc = (settlement.bloodCoinTotal || 0) !== 0;
-
-                                                    const amountPerOpponentUSD = Math.abs(total) / settlement.opponentIds.length;
-                                                    const amountPerOpponentBC = Math.abs(settlement.bloodCoinTotal || 0) / settlement.opponentIds.length;
-
-                                                    for (const oppId of settlement.opponentIds) {
-                                                        if (hasUsd) {
+                                                    if (total !== 0) {
+                                                        const amountPerOpponent = Math.abs(total) / settlement.opponentIds.length;
+                                                        for (const oppId of settlement.opponentIds) {
                                                             const debtorId = total < 0 ? user!.id : oppId;
                                                             const creditorId = total > 0 ? user!.id : oppId;
-                                                            await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponentUSD, match?.wagerCurrency);
-                                                        }
-                                                        if (hasBc) {
-                                                            const debtorId = (settlement.bloodCoinTotal || 0) < 0 ? user!.id : oppId;
-                                                            const creditorId = (settlement.bloodCoinTotal || 0) > 0 ? user!.id : oppId;
-                                                            await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponentBC, 'BLOOD_COINS');
+                                                            await settleImmediately(matchId!, debtorId, creditorId, amountPerOpponent, 'USD');
                                                         }
                                                     }
                                                     alert('Settlement recorded. Payment history updated.');

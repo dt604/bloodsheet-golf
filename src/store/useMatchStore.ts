@@ -295,9 +295,10 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
   },
 
   removeMatchSlot(slotId) {
-    set((state) => ({
-      matchSlots: state.matchSlots.filter((s) => s.id !== slotId),
-    }));
+    set((state) => {
+      if (state.matchSlots.length <= 1) return state;
+      return { matchSlots: state.matchSlots.filter((s) => s.id !== slotId) };
+    });
   },
 
   setSlotPlayer1(slotId, player1Id) {

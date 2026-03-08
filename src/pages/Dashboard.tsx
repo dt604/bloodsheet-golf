@@ -310,7 +310,7 @@ export default function DashboardPage() {
                     const matchId = matchRow.id as string;
                     const format = matchRow.format as string;
                     const wagerAmount = matchRow.wager_amount as number;
-                    const sideBets = matchRow.side_bets as { snake?: boolean; trashValue?: number; birdiesDouble?: boolean; teamSkins?: boolean; potMode?: boolean; scoringType?: 'match_play' | 'stroke_play' } | null;
+                    const sideBets = matchRow.side_bets as { snake?: boolean; greenies?: boolean; sandies?: boolean; trashValue?: number; birdiesDouble?: boolean; teamSkins?: boolean; potMode?: boolean; scoringType?: 'match_play' | 'stroke_play' } | null;
                     const courseData = matchRow.courses as { holes: { number: number; par: number }[] } | null;
 
                     const myEntry = (userMatchPlayers ?? []).find((mp) => mp.match_id === matchId);
@@ -408,6 +408,34 @@ export default function DashboardPage() {
                         const { my, opp } = holePoints(h);
                         totalMyPts += my; totalOppPts += opp;
                     }
+                    // Compute trash bet payout (applies to Nassau and Stroke Play)
+                    let trashPayout = 0;
+                    if (sideBets && format !== 'skins') {
+                        const trashVal = sideBets.trashValue ?? 5;
+                        const myTeamSize = myTeamPlayers.length;
+                        const oppTeamSize = oppTeamPlayers.length;
+                        function trashDotPayout(dot: string): number {
+                            const myDots = matchScores.filter((s) => {
+                                const sr = s as any;
+                                return myTeamPlayers.some((p) => (p as any).user_id === sr.player_id) &&
+                                    (sr.trash_dots ?? []).includes(dot);
+                            }).length;
+                            const oppDots = matchScores.filter((s) => {
+                                const sr = s as any;
+                                return oppTeamPlayers.some((p) => (p as any).user_id === sr.player_id) &&
+                                    (sr.trash_dots ?? []).includes(dot);
+                            }).length;
+                            if (dot === 'snake') {
+                                return (oppDots - myDots) * trashVal * (oppTeamSize || 1);
+                            }
+                            const netDots = myDots - oppDots;
+                            return netDots * trashVal * (netDots > 0 ? oppTeamSize : myTeamSize) || netDots * trashVal;
+                        }
+                        if (sideBets.greenies) trashPayout += trashDotPayout('greenie');
+                        if (sideBets.sandies) trashPayout += trashDotPayout('sandie');
+                        if (sideBets.snake) trashPayout += trashDotPayout('snake');
+                    }
+
                     if (format === 'skins') {
                         const numPlayers = matchPlayers.length;
                         const isTeamSkins = sideBets?.teamSkins ?? false;
@@ -519,12 +547,12 @@ export default function DashboardPage() {
                             myNetTotal += myS[0].net;
                             oppNetTotal += oppS[0].net;
                         }
-                        payoutMap[matchId] = { payout: strokePayout, holesUp: myNetTotal - oppNetTotal };
-                        lifetimePayout += strokePayout;
+                        payoutMap[matchId] = { payout: strokePayout + trashPayout, holesUp: myNetTotal - oppNetTotal };
+                        lifetimePayout += strokePayout + trashPayout;
                         if (strokePayout > 0) wins++;
                     } else {
-                        payoutMap[matchId] = { payout: matchPayout, holesUp: totalMyPts - totalOppPts };
-                        lifetimePayout += matchPayout;
+                        payoutMap[matchId] = { payout: matchPayout + trashPayout, holesUp: totalMyPts - totalOppPts };
+                        lifetimePayout += matchPayout + trashPayout;
                         if (matchPayout > 0) wins++;
                     }
 

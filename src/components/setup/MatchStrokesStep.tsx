@@ -78,7 +78,7 @@ export function MatchStrokesStep({
                     <div className="space-y-4">
                         {matchSlots.map((slot, idx) => (
                             <div key={slot.id} className="relative group">
-                                <Card className={`overflow - hidden border - 2 transition - all duration - 300 ${slot.opponentId ? 'border-bloodRed/30 shadow-[0_0_20px_rgba(255,0,63,0.1)] bg-gradient-to-br from-surface to-bloodRed/[0.03]' : 'border-borderColor'} `}>
+                                <Card className={`overflow-hidden border-2 transition-all duration-300 ${slot.opponentId ? 'border-bloodRed/30 shadow-[0_0_20px_rgba(255,0,63,0.1)] bg-gradient-to-br from-surface to-bloodRed/[0.03]' : 'border-borderColor'}`}>
                                     {/* Slot Header */}
                                     <div className="flex items-center justify-between p-3 border-b border-borderColor/50 bg-background/50">
                                         <div className="flex items-center gap-2">
@@ -87,9 +87,11 @@ export function MatchStrokesStep({
                                             </div>
                                             <span className="text-[10px] font-black text-secondaryText uppercase tracking-[0.2em]">Matchup</span>
                                         </div>
-                                        <button onClick={() => removeMatchSlot(slot.id)} className="p-1 text-secondaryText hover:text-bloodRed transition-colors">
-                                            <X className="w-4 h-4" />
-                                        </button>
+                                        {matchSlots.length > 1 && (
+                                            <button onClick={() => removeMatchSlot(slot.id)} className="p-1 text-secondaryText hover:text-bloodRed transition-colors">
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="p-4 flex flex-col gap-4">
@@ -97,7 +99,7 @@ export function MatchStrokesStep({
                                             {/* Player 1 Selection */}
                                             <div className="flex-1 flex flex-col items-center gap-2">
                                                 <select
-                                                    className={`w - full h - 12 px - 4 rounded - xl bg - background border transition - colors text - center text - sm font - bold appearance - none ${slot.player1Id ? 'border-neonGreen/50 text-white' : 'border-borderColor text-secondaryText'} `}
+                                                    className={`w-full h-12 px-4 rounded-xl bg-background border transition-colors text-center text-sm font-bold appearance-none ${slot.player1Id ? 'border-neonGreen/50 text-white' : 'border-borderColor text-secondaryText'}`}
                                                     value={slot.player1Id || user?.id || ''}
                                                     onChange={(e) => setSlotPlayer1(slot.id, e.target.value)}
                                                     onFocus={killTour}
@@ -118,7 +120,7 @@ export function MatchStrokesStep({
                                             {/* Opponent Selection */}
                                             <div className="flex-1 flex flex-col items-center gap-2">
                                                 <select
-                                                    className={`w - full h - 12 px - 4 rounded - xl bg - background border transition - colors text - center text - sm font - bold appearance - none ${slot.opponentId ? 'border-bloodRed/50 text-white' : 'border-borderColor text-secondaryText'} `}
+                                                    className={`w-full h-12 px-4 rounded-xl bg-background border transition-colors text-center text-sm font-bold appearance-none ${slot.opponentId ? 'border-bloodRed/50 text-white' : 'border-borderColor text-secondaryText'}`}
                                                     value={slot.opponentId || ''}
                                                     onChange={(e) => setSlotOpponent(slot.id, e.target.value)}
                                                     onFocus={killTour}
@@ -150,8 +152,8 @@ export function MatchStrokesStep({
                                                                     onClick={() => { killTour(); setSlotStrokes(slot.id, strokes - 1); }}
                                                                     className="w-8 h-8 rounded-full border border-borderColor/50 hover:border-bloodRed hover:text-bloodRed flex items-center justify-center text-sm font-bold transition-all active:scale-90"
                                                                 >−</button>
-                                                                <div className={`px - 5 py - 2 rounded - full border - 2 flex items - center gap - 2 transition - all ${isEven ? 'border-borderColor/50 bg-surface' : 'border-neonGreen/40 bg-neonGreen/5 shadow-[0_0_12px_rgba(0,255,102,0.15)]'} `}>
-                                                                    <span className={`text - 2xl font - black tabular - nums tracking - tight transition - colors ${isEven ? 'text-secondaryText' : 'text-neonGreen'} `}>{label}</span>
+                                                                <div className={`px-5 py-2 rounded-full border-2 flex items-center gap-2 transition-all ${isEven ? 'border-borderColor/50 bg-surface' : 'border-neonGreen/40 bg-neonGreen/5 shadow-[0_0_12px_rgba(0,255,102,0.15)]'}`}>
+                                                                    <span className={`text-2xl font-black tabular-nums tracking-tight transition-colors ${isEven ? 'text-secondaryText' : 'text-neonGreen'}`}>{label}</span>
                                                                     <span className="text-[9px] font-bold text-secondaryText uppercase tracking-wider">strokes</span>
                                                                 </div>
                                                                 <button
