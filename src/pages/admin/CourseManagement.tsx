@@ -45,31 +45,27 @@ export default function CourseManagement() {
     }
 
     async function deleteCourse(id: string) {
-        if (!window.confirm('Are you sure you want to delete this course from the cache? Matches using this course may show missing data.')) return;
+        if (!window.confirm('Delete this course? Any matches using it will keep their history but lose the course link.')) return;
 
-        const { error } = await supabase
-            .from('courses')
-            .delete()
-            .eq('id', id);
+        const { error } = await supabase.rpc('force_delete_course', { p_course_id: id });
 
-        if (!error) {
+        if (error) {
+            alert('Failed to delete course: ' + error.message);
+        } else {
             setCourses(prev => prev.filter(c => c.id !== id));
+            if (editingId === id) setEditingId(null);
         }
     }
 
     async function handleBulkDelete() {
         if (selectedIds.size === 0) return;
         const count = selectedIds.size;
-        if (!window.confirm(`⚠️ WARNING: Deleting ${count} courses will also affect historical data for matches played at these courses. Proceed?`)) return;
+        if (!window.confirm(`Delete ${count} courses? Any matches using them will keep their history but lose the course link.`)) return;
 
-        const { error } = await supabase
-            .from('courses')
-            .delete()
-            .in('id', Array.from(selectedIds));
+        const { error } = await supabase.rpc('force_delete_courses_bulk', { p_course_ids: Array.from(selectedIds) });
 
         if (error) {
-            console.error('Error bulk deleting courses:', error);
-            alert('Failed to delete some courses: ' + error.message);
+            alert('Failed to delete courses: ' + error.message);
         } else {
             setCourses(prev => prev.filter(c => !selectedIds.has(c.id)));
             setSelectedIds(new Set());
