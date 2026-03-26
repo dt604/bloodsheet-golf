@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../../components/ui/Card';
-import { Map, Database, RefreshCcw, Trash2, Loader2, CheckCircle2, Circle } from 'lucide-react';
+import { Map, Database, RefreshCcw, Trash2, Loader2, CheckCircle2, Circle, Pencil, X, Save } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabase';
+
+interface HoleData {
+    number: number;
+    par: number;
+    strokeIndex: number;
+    yardage: number;
+}
 
 interface AdminCourse {
     id: string;
     name: string;
-    holes: any[];
+    holes: HoleData[];
     cached_at: string;
 }
 
@@ -16,6 +23,9 @@ export default function CourseManagement() {
     const [loading, setLoading] = useState(true);
     const [syncId, setSyncId] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editHoles, setEditHoles] = useState<HoleData[]>([]);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         fetchCourses();
@@ -81,6 +91,39 @@ export default function CourseManagement() {
         }
     }
 
+    function startEditing(course: AdminCourse) {
+        // Ensure we have exactly 18 holes to edit
+        const holes: HoleData[] = Array.from({ length: 18 }, (_, i) => {
+            const existing = course.holes?.find(h => h.number === i + 1);
+            return existing ?? { number: i + 1, par: 4, strokeIndex: i + 1, yardage: 400 };
+        });
+        setEditHoles(holes);
+        setEditingId(course.id);
+    }
+
+    function updateHoleField(holeNumber: number, field: keyof Omit<HoleData, 'number'>, raw: string) {
+        const value = parseInt(raw, 10);
+        if (isNaN(value)) return;
+        setEditHoles(prev => prev.map(h => h.number === holeNumber ? { ...h, [field]: value } : h));
+    }
+
+    async function saveHoles() {
+        if (!editingId) return;
+        setSaving(true);
+        const { error } = await supabase
+            .from('courses')
+            .update({ holes: editHoles })
+            .eq('id', editingId);
+
+        if (error) {
+            alert('Failed to save: ' + error.message);
+        } else {
+            setCourses(prev => prev.map(c => c.id === editingId ? { ...c, holes: editHoles } : c));
+            setEditingId(null);
+        }
+        setSaving(false);
+    }
+
     return (
         <div className="flex-1 flex flex-col overflow-hidden relative">
             <div className="flex-1 overflow-y-auto momentum-scroll p-4 space-y-6">
@@ -117,33 +160,117 @@ export default function CourseManagement() {
                         </div>
                     ) : courses.length > 0 ? (
                         courses.map((course) => (
-                            <Card key={course.id} className={`p-4 flex items-center justify-between group transition-all ${selectedIds.has(course.id) ? 'border-bloodRed bg-bloodRed/5' : 'hover:border-bloodRed/50'}`}>
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={() => toggleSelect(course.id)}
-                                        className={`transition-colors ${selectedIds.has(course.id) ? 'text-bloodRed' : 'text-secondaryText hover:text-white'}`}
-                                    >
-                                        {selectedIds.has(course.id) ? <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(255,0,63,0.3)]" /> : <Circle className="w-5 h-5 opacity-20" />}
-                                    </button>
-                                    <div className="w-12 h-12 rounded-xl bg-surfaceHover border border-borderColor flex items-center justify-center">
-                                        <Map className="w-6 h-6 text-bloodRed" />
+                            <div key={course.id}>
+                                <Card className={`p-4 flex items-center justify-between group transition-all ${selectedIds.has(course.id) ? 'border-bloodRed bg-bloodRed/5' : 'hover:border-bloodRed/50'}`}>
+                                    <div className="flex items-center gap-4">
+                                        <button
+                                            onClick={() => toggleSelect(course.id)}
+                                            className={`transition-colors ${selectedIds.has(course.id) ? 'text-bloodRed' : 'text-secondaryText hover:text-white'}`}
+                                        >
+                                            {selectedIds.has(course.id) ? <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(255,0,63,0.3)]" /> : <Circle className="w-5 h-5 opacity-20" />}
+                                        </button>
+                                        <div className="w-12 h-12 rounded-xl bg-surfaceHover border border-borderColor flex items-center justify-center">
+                                            <Map className="w-6 h-6 text-bloodRed" />
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-white text-sm block">{course.name}</span>
+                                            <span className="text-[10px] text-secondaryText flex items-center gap-1 uppercase font-bold tracking-wider">
+                                                <Database className="w-3 h-3" />
+                                                {course.holes?.length || 0} Holes • Updated {new Date(course.cached_at).toLocaleDateString()}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span className="font-bold text-white text-sm block">{course.name}</span>
-                                        <span className="text-[10px] text-secondaryText flex items-center gap-1 uppercase font-bold tracking-wider">
-                                            <Database className="w-3 h-3" />
-                                            {course.holes?.length || 0} Holes • Updated {new Date(course.cached_at).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                </div>
 
-                                <button
-                                    onClick={() => deleteCourse(course.id)}
-                                    className="p-2 text-secondaryText hover:text-bloodRed transition-colors"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </Card>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => editingId === course.id ? setEditingId(null) : startEditing(course)}
+                                            className="p-2 text-secondaryText hover:text-neonGreen transition-colors"
+                                            title="Edit hole data"
+                                        >
+                                            {editingId === course.id ? <X className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+                                        </button>
+                                        <button
+                                            onClick={() => deleteCourse(course.id)}
+                                            className="p-2 text-secondaryText hover:text-bloodRed transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </Card>
+
+                                {/* Inline hole editor */}
+                                {editingId === course.id && (
+                                    <div className="mt-1 bg-surface border border-borderColor rounded-2xl overflow-hidden">
+                                        <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+                                            <span className="text-xs font-black uppercase tracking-widest text-neonGreen">Edit Hole Data</span>
+                                            <button
+                                                onClick={saveHoles}
+                                                disabled={saving}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-neonGreen/10 text-neonGreen rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-neonGreen/20 transition-colors disabled:opacity-50"
+                                            >
+                                                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                                Save
+                                            </button>
+                                        </div>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-xs">
+                                                <thead>
+                                                    <tr className="border-b border-borderColor">
+                                                        <th className="px-4 py-2 text-left text-[10px] font-black uppercase tracking-widest text-secondaryText w-12">Hole</th>
+                                                        <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest text-secondaryText">Par</th>
+                                                        <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest text-secondaryText">HCP</th>
+                                                        <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest text-secondaryText">Yards</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {editHoles.map((hole) => (
+                                                        <tr key={hole.number} className="border-b border-borderColor/40 last:border-0">
+                                                            <td className="px-4 py-1.5 font-black text-white">{hole.number}</td>
+                                                            <td className="px-3 py-1.5">
+                                                                <input
+                                                                    type="number"
+                                                                    min={3}
+                                                                    max={5}
+                                                                    value={hole.par}
+                                                                    onChange={e => updateHoleField(hole.number, 'par', e.target.value)}
+                                                                    className="w-12 bg-surfaceHover border border-borderColor rounded-lg px-2 py-1 text-center text-white font-bold focus:outline-none focus:ring-1 focus:ring-neonGreen"
+                                                                />
+                                                            </td>
+                                                            <td className="px-3 py-1.5">
+                                                                <input
+                                                                    type="number"
+                                                                    min={1}
+                                                                    max={18}
+                                                                    value={hole.strokeIndex}
+                                                                    onChange={e => updateHoleField(hole.number, 'strokeIndex', e.target.value)}
+                                                                    className="w-12 bg-surfaceHover border border-borderColor rounded-lg px-2 py-1 text-center text-white font-bold focus:outline-none focus:ring-1 focus:ring-neonGreen"
+                                                                />
+                                                            </td>
+                                                            <td className="px-3 py-1.5">
+                                                                <input
+                                                                    type="number"
+                                                                    min={50}
+                                                                    max={700}
+                                                                    value={hole.yardage}
+                                                                    onChange={e => updateHoleField(hole.number, 'yardage', e.target.value)}
+                                                                    className="w-16 bg-surfaceHover border border-borderColor rounded-lg px-2 py-1 text-center text-white font-bold focus:outline-none focus:ring-1 focus:ring-neonGreen"
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div className="px-4 py-3 border-t border-borderColor/40">
+                                            <p className="text-[10px] text-secondaryText font-bold uppercase tracking-wider">
+                                                HCP = Stroke Index (handicap hole order, 1 = hardest)
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         ))
                     ) : (
                         <div className="text-center py-12 bg-surface rounded-2xl border border-borderColor border-dashed">
@@ -207,7 +334,5 @@ export default function CourseManagement() {
                 </div>
             )}
         </div>
-
-
     );
 }

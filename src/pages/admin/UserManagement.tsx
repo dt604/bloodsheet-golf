@@ -71,9 +71,9 @@ export default function UserManagement() {
     }
 
     async function deleteUser(user: AdminProfile) {
-        if (!window.confirm(`⚠️ DANGER: Are you sure you want to PERMANENTLY delete ${user.full_name}? This cannot be undone.`)) return;
+        if (!window.confirm(`⚠️ Force-delete ${user.full_name}? This removes their account, all debts, and payments. Cannot be undone.`)) return;
 
-        const { error } = await supabase.rpc('delete_user', { target_user_id: user.id });
+        const { error } = await supabase.rpc('force_delete_user', { p_user_id: user.id });
 
         if (error) {
             console.error('Error deleting user:', error);
@@ -86,10 +86,10 @@ export default function UserManagement() {
     async function handleBulkDelete() {
         if (selectedIds.size === 0) return;
         const count = selectedIds.size;
-        if (!window.confirm(`⚠️ DANGER: Are you sure you want to PERMANENTLY delete these ${count} users? This cannot be undone.`)) return;
+        if (!window.confirm(`⚠️ Force-delete ${count} users? This removes their accounts, all debts, and payments. Cannot be undone.`)) return;
 
         const idsArray = Array.from(selectedIds);
-        const { error } = await supabase.rpc('delete_users_bulk', { target_user_ids: idsArray });
+        const { error } = await supabase.rpc('force_delete_users_bulk', { p_user_ids: idsArray });
 
         if (error) {
             console.error('Error bulk deleting users:', error);

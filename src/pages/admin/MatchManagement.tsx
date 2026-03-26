@@ -51,14 +51,13 @@ export default function MatchManagement() {
     }
 
     async function deleteMatch(id: string) {
-        if (!window.confirm('Are you sure you want to delete this match? This will remove all scores and presses associated with it.')) return;
+        if (!window.confirm('Force-delete this match? This removes all scores, presses, and any outstanding debts. Cannot be undone.')) return;
 
-        const { error } = await supabase
-            .from('matches')
-            .delete()
-            .eq('id', id);
+        const { error } = await supabase.rpc('force_delete_match', { p_match_id: id });
 
-        if (!error) {
+        if (error) {
+            alert('Failed to delete match: ' + error.message);
+        } else {
             setMatches((prev: AdminMatch[]) => prev.filter((m: AdminMatch) => m.id !== id));
         }
     }
@@ -66,20 +65,21 @@ export default function MatchManagement() {
     async function handleBulkDelete() {
         if (selectedIds.size === 0) return;
         const count = selectedIds.size;
-        if (!window.confirm(`⚠️ WARNING: You are about to delete ${count} matches. This action is permanent and will remove all associated scoring data. Proceed?`)) return;
+        if (!window.confirm(`⚠️ Force-delete ${count} matches? This removes all scores, presses, and any outstanding debts. Cannot be undone.`)) return;
 
-        const { error } = await supabase
-            .from('matches')
-            .delete()
-            .in('id', Array.from(selectedIds));
-
-        if (error) {
-            console.error('Error bulk deleting matches:', error);
-            alert('Failed to delete some matches: ' + error.message);
-        } else {
-            setMatches(prev => prev.filter(m => !selectedIds.has(m.id)));
-            setSelectedIds(new Set());
+        const ids = Array.from(selectedIds);
+        const errors: string[] = [];
+        for (const id of ids) {
+            const { error } = await supabase.rpc('force_delete_match', { p_match_id: id });
+            if (error) errors.push(id);
         }
+
+        if (errors.length > 0) {
+            alert(`Failed to delete ${errors.length} match(es). Check console.`);
+            console.error('Failed match IDs:', errors);
+        }
+        setMatches(prev => prev.filter(m => !ids.includes(m.id) || errors.includes(m.id)));
+        setSelectedIds(new Set());
     }
 
     function toggleSelect(id: string) {
