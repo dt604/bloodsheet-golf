@@ -363,7 +363,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       name: course.name,
       holes: course.holes,
       image_url: course.imageUrl,
-    });
+    }, { onConflict: 'id', ignoreDuplicates: true });
 
     const groupId = genId();
     const createdEntries: GroupMatchEntry[] = [];
@@ -517,7 +517,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       name: course.name,
       holes: course.holes,
       image_url: course.imageUrl,
-    });
+    }, { onConflict: 'id', ignoreDuplicates: true });
 
     const { data, error } = await supabase
       .from('matches')
@@ -675,7 +675,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       name: course.name,
       holes: course.holes,
       image_url: course.imageUrl,
-    });
+    }, { onConflict: 'id', ignoreDuplicates: true });
 
     const joinCode = genJoinCode();
 
