@@ -334,25 +334,11 @@ export default function MatchSetupPage() {
             async (position) => {
                 setCourseError('Finding nearby courses...');
                 try {
-                    const revRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=10`);
-                    const revData = await revRes.json();
-                    const cityName = revData.address?.city || revData.address?.town || revData.address?.county || '';
-                    if (cityName) {
-                        setCourseQuery(cityName);
-                        const results = await searchCourses(cityName);
-                        setCourseResults(results);
-                        if (results.length === 0) setCourseError(`No courses found near ${cityName}.`);
-                    } else {
-                        const results = await searchNearbyCourses(position.coords.latitude, position.coords.longitude);
-                        setCourseResults(results);
-                    }
+                    const results = await searchNearbyCourses(position.coords.latitude, position.coords.longitude);
+                    setCourseResults(results);
+                    if (results.length === 0) setCourseError('No courses found nearby. Try searching by name.');
                 } catch {
-                    try {
-                        const results = await searchNearbyCourses(position.coords.latitude, position.coords.longitude);
-                        setCourseResults(results);
-                    } catch {
-                        setCourseError('Could not identify courses near you. Please search by name.');
-                    }
+                    setCourseError('Could not find courses near you. Try searching by name.');
                 } finally {
                     setCourseSearching(false);
                 }
