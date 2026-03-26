@@ -57,6 +57,8 @@ interface CourseStakesStepProps {
     setPar5Contest: (val: boolean) => void;
     par5Pot: number;
     setPar5Pot: (val: number | ((v: number) => number)) => void;
+    selectedTee?: string | null;
+    onTeeSelect?: (teeKey: string) => void;
     killTour: () => void;
 }
 
@@ -109,8 +111,31 @@ export function CourseStakesStep({
     setPar5Contest,
     par5Pot,
     setPar5Pot,
+    selectedTee,
+    onTeeSelect,
     killTour
 }: CourseStakesStepProps) {
+
+    const TEE_COLORS: Record<string, string> = {
+        black: '#1C1C1E',
+        blue: '#3B82F6',
+        white: '#F5F5F5',
+        red: '#EF4444',
+        gold: '#F59E0B',
+        yellow: '#F59E0B',
+        green: '#22C55E',
+        silver: '#9CA3AF',
+        gray: '#9CA3AF',
+        grey: '#9CA3AF',
+    };
+
+    function teeColor(key: string, apiColor: string): string {
+        const lower = (apiColor || key).toLowerCase();
+        for (const [name, hex] of Object.entries(TEE_COLORS)) {
+            if (lower.includes(name)) return hex;
+        }
+        return '#6B7280';
+    }
     const [showPotSkinsHelp, setShowPotSkinsHelp] = useState(false);
     const [showTeamWagerHelp, setShowTeamWagerHelp] = useState(false);
     const [showSkinsWagerHelp, setShowSkinsWagerHelp] = useState(false);
@@ -136,6 +161,7 @@ export function CourseStakesStep({
                     <div className="text-[10px] text-bloodRed font-bold uppercase tracking-widest pb-0.5">Top Rated</div>
                 </div>
                 {selectedCourse ? (
+                    <>
                     <Card className="relative p-0 border-2 border-bloodRed/30 bg-surface shadow-[0_4px_30px_rgba(255,0,63,0.15)] transition-all overflow-hidden group">
                         {selectedCourse.imageUrl ? (
                             <div className="absolute inset-0 z-0">
@@ -176,6 +202,42 @@ export function CourseStakesStep({
                             </button>
                         </div>
                     </Card>
+
+                    {/* Tee Box Picker — only shown when API returned multiple tees */}
+                    {selectedCourse?.availableTees && selectedCourse.availableTees.length > 1 && (
+                        <div className="mt-3 space-y-2">
+                            <div className="flex items-center gap-2 px-1">
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-secondaryText">Select Tee Box</span>
+                                {!selectedTee && (
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-bloodRed bg-bloodRed/10 border border-bloodRed/20 px-2 py-0.5 rounded-full">Required</span>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {selectedCourse.availableTees.map(({ key, color }) => {
+                                    const hex = teeColor(key, color);
+                                    const isSelected = selectedTee === key;
+                                    return (
+                                        <button
+                                            key={key}
+                                            onClick={() => onTeeSelect?.(key)}
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black uppercase tracking-wider transition-all ${
+                                                isSelected
+                                                    ? 'border-white/40 bg-white/10 text-white shadow-[0_0_12px_rgba(255,255,255,0.1)]'
+                                                    : 'border-borderColor bg-surface text-secondaryText hover:border-white/20 hover:text-white'
+                                            }`}
+                                        >
+                                            <span
+                                                className="w-3 h-3 rounded-full border border-white/20 shrink-0"
+                                                style={{ backgroundColor: hex }}
+                                            />
+                                            {key}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    </>
                 ) : (
                     <div className="space-y-3">
                         <div className="relative">

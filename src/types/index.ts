@@ -76,6 +76,10 @@ export interface Course {
     strokeIndex: number;
     yardage: number;
   }>;
+  /** Available tee boxes from the API (not persisted to DB) */
+  availableTees?: Array<{ key: string; color: string }>;
+  /** Yardage per tee per hole index (not persisted to DB) */
+  allTeeYardages?: Record<string, number[]>;
 }
 
 export interface MatchAttestation {

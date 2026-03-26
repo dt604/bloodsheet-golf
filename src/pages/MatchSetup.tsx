@@ -74,6 +74,7 @@ export default function MatchSetupPage() {
     const [courseQuery, setCourseQuery] = useState('');
     const [courseResults, setCourseResults] = useState<Course[]>([]);
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+    const [selectedTee, setSelectedTee] = useState<string | null>(null);
     const [courseSearching, setCourseSearching] = useState(false);
     const [courseError, setCourseError] = useState('');
 
@@ -202,6 +203,7 @@ export default function MatchSetupPage() {
 
     async function handleCourseSelection(course: Course) {
         setCourseSearching(true);
+        setSelectedTee(null);
         try {
             const imageUrl = await fetchCourseImage(course.name || '');
             setSelectedCourse({ ...course, imageUrl });
@@ -213,6 +215,14 @@ export default function MatchSetupPage() {
         } finally {
             setCourseSearching(false);
         }
+    }
+
+    function handleTeeSelect(teeKey: string) {
+        if (!selectedCourse?.allTeeYardages?.[teeKey]) return;
+        const yards = selectedCourse.allTeeYardages[teeKey];
+        const updatedHoles = selectedCourse.holes.map((h, i) => ({ ...h, yardage: yards[i] ?? h.yardage }));
+        setSelectedCourse({ ...selectedCourse, holes: updatedHoles });
+        setSelectedTee(teeKey);
     }
 
     const onAddPlayer = (type: 'pool' | 'teamA' | 'teamB') => {
@@ -253,7 +263,11 @@ export default function MatchSetupPage() {
             if (format === '1v1') return matchSlots.some(s => s.opponentId !== null);
             return stagedPlayers.filter(p => p.team === 'B').length >= 1;
         }
-        if (currentStep === 4) return selectedCourse !== null;
+        if (currentStep === 4) {
+            if (!selectedCourse) return false;
+            if (selectedCourse.availableTees?.length && !selectedTee) return false;
+            return true;
+        }
         return false;
     };
 
@@ -543,6 +557,8 @@ export default function MatchSetupPage() {
                             setPar3Pot={setPar3Pot}
                             par5Pot={par5Pot}
                             setPar5Pot={setPar5Pot}
+                            selectedTee={selectedTee}
+                            onTeeSelect={handleTeeSelect}
                             killTour={killTour}
                         />
                     )}
