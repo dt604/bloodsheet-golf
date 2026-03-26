@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../../components/ui/Card';
-import { Map, Database, RefreshCcw, Trash2, Loader2, CheckCircle2, Circle, Pencil, X, Save } from 'lucide-react';
+import { Map, Database, RefreshCcw, Trash2, Loader2, CheckCircle2, Circle, Pencil, X, Save, AlertTriangle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabase';
 
@@ -18,6 +18,11 @@ interface AdminCourse {
     cached_at: string;
 }
 
+interface ConfirmState {
+    message: string;
+    onConfirm: () => void;
+}
+
 export default function CourseManagement() {
     const [courses, setCourses] = useState<AdminCourse[]>([]);
     const [loading, setLoading] = useState(true);
@@ -26,6 +31,9 @@ export default function CourseManagement() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editHoles, setEditHoles] = useState<HoleData[]>([]);
     const [saving, setSaving] = useState(false);
+    const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         fetchCourses();
@@ -44,28 +52,42 @@ export default function CourseManagement() {
         setLoading(false);
     }
 
-    async function deleteCourse(id: string) {
-        if (!window.confirm('Delete this course? Any matches using it will keep their history but lose the course link.')) return;
+    function confirmDelete(id: string) {
+        setConfirm({
+            message: 'Delete this course? Any matches using it will keep their history but lose the course link.',
+            onConfirm: () => executeDeleteCourse(id),
+        });
+    }
 
+    async function executeDeleteCourse(id: string) {
+        setConfirm(null);
+        setDeleting(true);
         const { error } = await supabase.rpc('force_delete_course', { p_course_id: id });
-
+        setDeleting(false);
         if (error) {
-            alert('Failed to delete course: ' + error.message);
+            setErrorMsg('Failed to delete course: ' + error.message);
         } else {
             setCourses(prev => prev.filter(c => c.id !== id));
             if (editingId === id) setEditingId(null);
         }
     }
 
-    async function handleBulkDelete() {
+    function confirmBulkDelete() {
         if (selectedIds.size === 0) return;
         const count = selectedIds.size;
-        if (!window.confirm(`Delete ${count} courses? Any matches using them will keep their history but lose the course link.`)) return;
+        setConfirm({
+            message: `Delete ${count} course${count > 1 ? 's' : ''}? Any matches using them will keep their history but lose the course link.`,
+            onConfirm: executeBulkDelete,
+        });
+    }
 
+    async function executeBulkDelete() {
+        setConfirm(null);
+        setDeleting(true);
         const { error } = await supabase.rpc('force_delete_courses_bulk', { p_course_ids: Array.from(selectedIds) });
-
+        setDeleting(false);
         if (error) {
-            alert('Failed to delete courses: ' + error.message);
+            setErrorMsg('Failed to delete courses: ' + error.message);
         } else {
             setCourses(prev => prev.filter(c => !selectedIds.has(c.id)));
             setSelectedIds(new Set());
@@ -88,7 +110,6 @@ export default function CourseManagement() {
     }
 
     function startEditing(course: AdminCourse) {
-        // Ensure we have exactly 18 holes to edit
         const holes: HoleData[] = Array.from({ length: 18 }, (_, i) => {
             const existing = course.holes?.find(h => h.number === i + 1);
             return existing ?? { number: i + 1, par: 4, strokeIndex: i + 1, yardage: 400 };
@@ -112,7 +133,7 @@ export default function CourseManagement() {
             .eq('id', editingId);
 
         if (error) {
-            alert('Failed to save: ' + error.message);
+            setErrorMsg('Failed to save: ' + error.message);
         } else {
             setCourses(prev => prev.map(c => c.id === editingId ? { ...c, holes: editHoles } : c));
             setEditingId(null);
@@ -181,20 +202,19 @@ export default function CourseManagement() {
                                         <button
                                             onClick={() => editingId === course.id ? setEditingId(null) : startEditing(course)}
                                             className="p-2 text-secondaryText hover:text-neonGreen transition-colors"
-                                            title="Edit hole data"
                                         >
                                             {editingId === course.id ? <X className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
                                         </button>
                                         <button
-                                            onClick={() => deleteCourse(course.id)}
-                                            className="p-2 text-secondaryText hover:text-bloodRed transition-colors"
+                                            onClick={() => confirmDelete(course.id)}
+                                            disabled={deleting}
+                                            className="p-2 text-secondaryText hover:text-bloodRed transition-colors disabled:opacity-40"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
                                 </Card>
 
-                                {/* Inline hole editor */}
                                 {editingId === course.id && (
                                     <div className="mt-1 bg-surface border border-borderColor rounded-2xl overflow-hidden">
                                         <div className="px-4 pt-4 pb-2 flex items-center justify-between">
@@ -303,7 +323,7 @@ export default function CourseManagement() {
                 </div>
             </div>
 
-            {/* Bulk Action Bar - Pinned to Bottom of Page */}
+            {/* Bulk Action Bar */}
             {selectedIds.size > 0 && (
                 <div className="absolute bottom-0 left-0 right-0 w-full bg-surface border-t border-bloodRed shadow-[0_-12px_40px_rgba(0,0,0,0.6)] p-4 pb-safe z-50 animate-in slide-in-from-bottom-full duration-300 flex items-center justify-between backdrop-blur-md bg-opacity-95">
                     <div className="flex flex-col">
@@ -311,21 +331,47 @@ export default function CourseManagement() {
                         <span className="text-[10px] text-secondaryText uppercase font-bold tracking-widest">Bulk Management</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-[10px] py-1 h-8 px-4"
-                            onClick={() => setSelectedIds(new Set())}
-                        >
+                        <Button variant="outline" size="sm" className="text-[10px] py-1 h-8 px-4" onClick={() => setSelectedIds(new Set())}>
                             Cancel
                         </Button>
                         <Button
                             className="bg-bloodRed hover:bg-bloodRed/80 text-white text-[10px] py-1 h-8 px-4 flex items-center gap-2 font-black uppercase tracking-widest"
-                            onClick={handleBulkDelete}
+                            onClick={confirmBulkDelete}
+                            disabled={deleting}
                         >
-                            <Trash2 className="w-3 h-3" />
+                            {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                             Delete
                         </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* In-app Confirm Dialog */}
+            {confirm && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirm(null)} />
+                    <div className="relative w-full max-w-sm bg-surface border border-borderColor rounded-2xl p-6 shadow-2xl space-y-4">
+                        <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-bloodRed/10 flex items-center justify-center shrink-0">
+                                <AlertTriangle className="w-5 h-5 text-bloodRed" />
+                            </div>
+                            <p className="text-sm text-white font-bold leading-snug pt-1">{confirm.message}</p>
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                            <Button variant="outline" className="flex-1" onClick={() => setConfirm(null)}>Cancel</Button>
+                            <Button className="flex-1 bg-bloodRed hover:bg-bloodRed/80 font-black" onClick={confirm.onConfirm}>Delete</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* In-app Error Dialog */}
+            {errorMsg && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setErrorMsg(null)} />
+                    <div className="relative w-full max-w-sm bg-surface border border-bloodRed/40 rounded-2xl p-6 shadow-2xl space-y-4">
+                        <p className="text-sm text-bloodRed font-bold">{errorMsg}</p>
+                        <Button className="w-full" onClick={() => setErrorMsg(null)}>OK</Button>
                     </div>
                 </div>
             )}

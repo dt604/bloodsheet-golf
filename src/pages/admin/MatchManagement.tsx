@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../../components/ui/Card';
-import { Trophy, Trash2, ExternalLink, Loader2, Users, CheckCircle2, Circle } from 'lucide-react';
+import { Trophy, Trash2, ExternalLink, Loader2, Users, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabase';
 
@@ -20,6 +20,9 @@ export default function MatchManagement() {
     const [matches, setMatches] = useState<AdminMatch[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         fetchMatches();
@@ -50,32 +53,46 @@ export default function MatchManagement() {
         setLoading(false);
     }
 
-    async function deleteMatch(id: string) {
-        if (!window.confirm('Force-delete this match? This removes all scores, presses, and any outstanding debts. Cannot be undone.')) return;
+    function confirmDelete(id: string) {
+        setConfirm({
+            message: 'Delete this match? This removes all scores, presses, and any outstanding debts. Cannot be undone.',
+            onConfirm: () => executeDeleteMatch(id),
+        });
+    }
 
+    async function executeDeleteMatch(id: string) {
+        setConfirm(null);
+        setDeleting(true);
         const { error } = await supabase.rpc('force_delete_match', { p_match_id: id });
-
+        setDeleting(false);
         if (error) {
-            alert('Failed to delete match: ' + error.message);
+            setErrorMsg('Failed to delete match: ' + error.message);
         } else {
-            setMatches((prev: AdminMatch[]) => prev.filter((m: AdminMatch) => m.id !== id));
+            setMatches(prev => prev.filter(m => m.id !== id));
         }
     }
 
-    async function handleBulkDelete() {
+    function confirmBulkDelete() {
         if (selectedIds.size === 0) return;
         const count = selectedIds.size;
-        if (!window.confirm(`⚠️ Force-delete ${count} matches? This removes all scores, presses, and any outstanding debts. Cannot be undone.`)) return;
+        setConfirm({
+            message: `Delete ${count} match${count > 1 ? 'es' : ''}? This removes all scores, presses, and any outstanding debts. Cannot be undone.`,
+            onConfirm: executeBulkDelete,
+        });
+    }
 
+    async function executeBulkDelete() {
+        setConfirm(null);
+        setDeleting(true);
         const ids = Array.from(selectedIds);
         const errors: string[] = [];
         for (const id of ids) {
             const { error } = await supabase.rpc('force_delete_match', { p_match_id: id });
             if (error) errors.push(id);
         }
-
+        setDeleting(false);
         if (errors.length > 0) {
-            alert(`Failed to delete ${errors.length} match(es). Check console.`);
+            setErrorMsg(`Failed to delete ${errors.length} match(es).`);
             console.error('Failed match IDs:', errors);
         }
         setMatches(prev => prev.filter(m => !ids.includes(m.id) || errors.includes(m.id)));
@@ -176,8 +193,9 @@ export default function MatchManagement() {
                                             <ExternalLink className="w-4 h-4" />
                                         </button>
                                         <button
-                                            onClick={() => deleteMatch(match.id)}
-                                            className="p-2 text-secondaryText hover:text-bloodRed transition-colors"
+                                            onClick={() => confirmDelete(match.id)}
+                                            disabled={deleting}
+                                            className="p-2 text-secondaryText hover:text-bloodRed transition-colors disabled:opacity-40"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -211,16 +229,43 @@ export default function MatchManagement() {
                         </Button>
                         <Button
                             className="bg-bloodRed hover:bg-bloodRed/80 text-white text-[10px] py-1 h-8 px-4 flex items-center gap-2 font-black uppercase tracking-widest"
-                            onClick={handleBulkDelete}
+                            onClick={confirmBulkDelete}
+                            disabled={deleting}
                         >
-                            <Trash2 className="w-3 h-3" />
+                            {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                             Delete
                         </Button>
                     </div>
                 </div>
             )}
+
+            {confirm && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirm(null)} />
+                    <div className="relative w-full max-w-sm bg-surface border border-borderColor rounded-2xl p-6 shadow-2xl space-y-4">
+                        <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-bloodRed/10 flex items-center justify-center shrink-0">
+                                <AlertTriangle className="w-5 h-5 text-bloodRed" />
+                            </div>
+                            <p className="text-sm text-white font-bold leading-snug pt-1">{confirm.message}</p>
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                            <Button variant="outline" className="flex-1" onClick={() => setConfirm(null)}>Cancel</Button>
+                            <Button className="flex-1 bg-bloodRed hover:bg-bloodRed/80 font-black" onClick={confirm.onConfirm}>Delete</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {errorMsg && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setErrorMsg(null)} />
+                    <div className="relative w-full max-w-sm bg-surface border border-bloodRed/40 rounded-2xl p-6 shadow-2xl space-y-4">
+                        <p className="text-sm text-bloodRed font-bold">{errorMsg}</p>
+                        <Button className="w-full" onClick={() => setErrorMsg(null)}>OK</Button>
+                    </div>
+                </div>
+            )}
         </div>
-
-
     );
 }

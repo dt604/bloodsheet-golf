@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../../components/ui/Card';
-import { Search, UserCog, Shield, ShieldOff, Loader2, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { Search, UserCog, Shield, ShieldOff, Loader2, Trash2, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
 
@@ -19,6 +19,9 @@ export default function UserManagement() {
     const [editingUser, setEditingUser] = useState<AdminProfile | null>(null);
     const [newHandicap, setNewHandicap] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         fetchUsers();
@@ -57,43 +60,61 @@ export default function UserManagement() {
         }
     }
 
-    async function toggleAdmin(user: AdminProfile) {
-        if (!window.confirm(`Are you sure you want to ${user.is_admin ? 'remove' : 'grant'} admin rights for ${user.full_name}?`)) return;
+    function confirmToggleAdmin(user: AdminProfile) {
+        setConfirm({
+            message: `${user.is_admin ? 'Remove' : 'Grant'} admin rights for ${user.full_name}?`,
+            onConfirm: () => executeToggleAdmin(user),
+        });
+    }
 
+    async function executeToggleAdmin(user: AdminProfile) {
+        setConfirm(null);
         const { error } = await supabase
             .from('profiles')
             .update({ is_admin: !user.is_admin })
             .eq('id', user.id);
 
         if (!error) {
-            setUsers(prev => prev.filter(u => u.id !== user.id));
+            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_admin: !u.is_admin } : u));
         }
     }
 
-    async function deleteUser(user: AdminProfile) {
-        if (!window.confirm(`⚠️ Force-delete ${user.full_name}? This removes their account, all debts, and payments. Cannot be undone.`)) return;
+    function confirmDeleteUser(user: AdminProfile) {
+        setConfirm({
+            message: `Delete ${user.full_name}? This removes their account, all debts, and payments. Cannot be undone.`,
+            onConfirm: () => executeDeleteUser(user.id),
+        });
+    }
 
-        const { error } = await supabase.rpc('force_delete_user', { p_user_id: user.id });
-
+    async function executeDeleteUser(id: string) {
+        setConfirm(null);
+        setDeleting(true);
+        const { error } = await supabase.rpc('force_delete_user', { p_user_id: id });
+        setDeleting(false);
         if (error) {
-            console.error('Error deleting user:', error);
-            alert('Failed to delete user: ' + error.message);
+            setErrorMsg('Failed to delete user: ' + error.message);
         } else {
-            setUsers(prev => prev.filter(u => u.id !== user.id));
+            setUsers(prev => prev.filter(u => u.id !== id));
         }
     }
 
-    async function handleBulkDelete() {
+    function confirmBulkDelete() {
         if (selectedIds.size === 0) return;
         const count = selectedIds.size;
-        if (!window.confirm(`⚠️ Force-delete ${count} users? This removes their accounts, all debts, and payments. Cannot be undone.`)) return;
+        setConfirm({
+            message: `Delete ${count} user${count > 1 ? 's' : ''}? This removes their accounts, all debts, and payments. Cannot be undone.`,
+            onConfirm: executeBulkDelete,
+        });
+    }
 
+    async function executeBulkDelete() {
+        setConfirm(null);
+        setDeleting(true);
         const idsArray = Array.from(selectedIds);
         const { error } = await supabase.rpc('force_delete_users_bulk', { p_user_ids: idsArray });
-
+        setDeleting(false);
         if (error) {
-            console.error('Error bulk deleting users:', error);
-            alert('Failed to delete users: ' + error.message);
+            setErrorMsg('Failed to delete users: ' + error.message);
         } else {
             setUsers(prev => prev.filter(u => !selectedIds.has(u.id)));
             setSelectedIds(new Set());
@@ -189,7 +210,7 @@ export default function UserManagement() {
                                     </div>
                                     <div className="flex gap-1">
                                         <button
-                                            onClick={() => toggleAdmin(user)}
+                                            onClick={() => confirmToggleAdmin(user)}
                                             className={`p-2 transition-colors ${user.is_admin ? 'text-bloodRed hover:text-white' : 'text-secondaryText hover:text-bloodRed'}`}
                                             title={user.is_admin ? "Revoke Admin" : "Grant Admin"}
                                         >
@@ -206,8 +227,9 @@ export default function UserManagement() {
                                             <UserCog className="w-4 h-4" />
                                         </button>
                                         <button
-                                            onClick={() => deleteUser(user)}
-                                            className="p-2 text-secondaryText hover:text-bloodRed transition-colors"
+                                            onClick={() => confirmDeleteUser(user)}
+                                            disabled={deleting}
+                                            className="p-2 text-secondaryText hover:text-bloodRed transition-colors disabled:opacity-40"
                                             title="Delete User"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -272,15 +294,43 @@ export default function UserManagement() {
                         </Button>
                         <Button
                             className="bg-bloodRed hover:bg-bloodRed/80 text-white text-[10px] py-1 h-8 px-4 flex items-center gap-2 font-black uppercase tracking-widest"
-                            onClick={handleBulkDelete}
+                            onClick={confirmBulkDelete}
+                            disabled={deleting}
                         >
-                            <Trash2 className="w-3 h-3" />
+                            {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                             Delete
                         </Button>
                     </div>
                 </div>
             )}
-        </div>
 
+            {confirm && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirm(null)} />
+                    <div className="relative w-full max-w-sm bg-surface border border-borderColor rounded-2xl p-6 shadow-2xl space-y-4">
+                        <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-bloodRed/10 flex items-center justify-center shrink-0">
+                                <AlertTriangle className="w-5 h-5 text-bloodRed" />
+                            </div>
+                            <p className="text-sm text-white font-bold leading-snug pt-1">{confirm.message}</p>
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                            <Button variant="outline" className="flex-1" onClick={() => setConfirm(null)}>Cancel</Button>
+                            <Button className="flex-1 bg-bloodRed hover:bg-bloodRed/80 font-black" onClick={confirm.onConfirm}>Confirm</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {errorMsg && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setErrorMsg(null)} />
+                    <div className="relative w-full max-w-sm bg-surface border border-bloodRed/40 rounded-2xl p-6 shadow-2xl space-y-4">
+                        <p className="text-sm text-bloodRed font-bold">{errorMsg}</p>
+                        <Button className="w-full" onClick={() => setErrorMsg(null)}>OK</Button>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
